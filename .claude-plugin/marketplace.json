@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Lark/Feishu workspace skills for Claude Code — one plugin covering 20 domains via the LarkSkill MCP server.",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "larkskill",
       "source": "./",
       "description": "All 20 Lark/Feishu domain skills (Base, Calendar, Docs, Drive, Mail, Sheets, Task, Wiki, IM, Contacts, Event, Approval, Minutes, VC, Whiteboard, OpenAPI Explorer, Workflow, Skill Maker, Shared, Mail).",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "author": { "name": "kescyz" },
       "homepage": "https://larkskill.app",
       "repository": "https://github.com/kescyz/larkskill",
