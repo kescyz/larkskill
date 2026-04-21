@@ -1,7 +1,7 @@
 ---
 name: lark-minutes
 version: 2.0.0
-description: "Lark Minutes via LarkSkill MCP: retrieve basic minutes metadata (title, cover, duration) and related AI outputs (summary, todo items, chapters), get media download links. Lark Minutes URL format: http(s)://<host>/minutes/<minute-token>"
+description: "Lark Minutes via LarkSkill MCP: retrieve basic minutes metadata (title, cover, duration) and related AI outputs (summary, todo items, chapters), get media download links. Lark Minutes URL format: http(s)://{host}/minutes/{minute_token}"
 metadata:
   requires:
     mcp: "larkskill"

@@ -1,18 +1,27 @@
 name: larkskill
-version: 0.1.0
+version: 0.2.0
 description: LarkSkill — Lark/Feishu workspace skills for Claude Code via MCP
 author: kescyz
 repository: https://github.com/kescyz/larkskill
 license: MIT
 skills:
+  - lark-approval
   - lark-base
-  - lark-base-formula
   - lark-calendar
-  - lark-comment
-  - lark-contacts
-  - lark-docs
+  - lark-contact
+  - lark-doc
   - lark-drive
-  - lark-messenger
+  - lark-event
+  - lark-im
+  - lark-mail
+  - lark-minutes
+  - lark-openapi-explorer
+  - lark-shared
   - lark-sheets
+  - lark-skill-maker
   - lark-task
+  - lark-vc
+  - lark-whiteboard
   - lark-wiki
+  - lark-workflow-meeting-summary
+  - lark-workflow-standup-report
