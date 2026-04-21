@@ -14,17 +14,16 @@ This skill explains how to operate Feishu/Lark resources via LarkSkill MCP and w
 
 ## Connecting MCP to Claude
 
-### Option 1: Local Install (Claude Code / Claude Desktop)
-
-Run in your terminal:
+### Option 1: Plugin marketplace (Claude Code / Claude Desktop)
 
 ```
-npx larkskill install
+/plugin marketplace add kescyz/larkskill
+/plugin install larkskill
 ```
 
-This installs the MCP server and registers it with Claude. Follow the interactive prompts to authenticate your Lark app.
+Installs MCP connector + all Lark domain skills at once.
 
-Setup portal and documentation: https://larkskill-portal.pages.dev/setup
+Full setup guide: https://portal.larkskill.app/setup
 
 ### Option 2: Claude.ai Web OAuth
 

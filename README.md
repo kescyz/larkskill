@@ -5,22 +5,16 @@
 
 ## Install
 
-**Step 1: Set up MCP** (if not done already)
-
-```bash
-npx larkskill install
-```
-
-Or visit https://larkskill-portal.pages.dev/setup for manual config.
-
-**Step 2: Add the skill registry and install**
+**Easiest: plugin marketplace (Claude Code)**
 
 ```bash
 /plugin marketplace add kescyz/larkskill
 /plugin install larkskill
 ```
 
-That's it — all Lark domains are available immediately.
+That's it — MCP connector + all Lark domain skills are available immediately.
+
+For Claude Desktop, Claude.ai Web, or other coding agents (Cursor, Windsurf, Gemini CLI, VS Code, OpenCode), see the full setup guide: https://portal.larkskill.app/setup
 
 ## Domains Covered (11 skills)
 
@@ -46,17 +40,17 @@ Download the latest skills bundle from the [releases page](https://github.com/ke
 https://github.com/kescyz/larkskill/releases/latest/download/larkskill-skills-latest.zip
 ```
 
-## Migration from v1 (kescyz/lark-skill-marketplace)
+## Migration from v1
 
-V1 continues to work. V2 requires MCP setup first — the key difference:
+V1 (`kescyz/lark-skill-marketplace`) was retired 2026-04-22 alongside the `npx larkskill install` npm installer. V2 setup is now:
 
-| | V1 | V2 |
+| | V1 (retired) | V2 |
 |---|---|---|
 | Auth | `lark-token-manager` MCP per app | Single `lsk_*` key, MCP handles tokens |
 | Install | `/plugin install lark-base@lark-skill` | `/plugin install larkskill` (all skills) |
-| Setup | Manual token flow | `npx larkskill install` |
+| Setup | Manual token flow | Marketplace plugin or paste AI prompt — see portal |
 
-V2 MCP setup: https://larkskill-portal.pages.dev/setup
+V2 setup guide: https://portal.larkskill.app/setup
 
 ## Contributing
 

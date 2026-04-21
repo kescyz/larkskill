@@ -12,7 +12,7 @@ metadata:
 
 ## Prerequisites
 
-- LarkSkill MCP server connected (install via `npx larkskill install` or Claude.ai Web OAuth; see https://larkskill-portal.pages.dev/setup)
+- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
 - MCP tools available: `lark_api`, `lark_api_search`
 - Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for auth, global flags, and safety rules
 
