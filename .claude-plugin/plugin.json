@@ -1,0 +1,13 @@
+{
+  "name": "larkskill",
+  "description": "LarkSkill — Lark/Feishu workspace skills for Claude Code via MCP.",
+  "version": "0.2.0",
+  "author": {
+    "name": "kescyz",
+    "email": "hungkescy@gmail.com"
+  },
+  "homepage": "https://larkskill.app",
+  "repository": "https://github.com/kescyz/larkskill",
+  "license": "MIT",
+  "keywords": ["lark", "feishu", "mcp", "workspace"]
+}
