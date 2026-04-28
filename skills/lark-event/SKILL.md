@@ -1,7 +1,7 @@
 ---
 name: lark-event
 version: 2.0.0
-description: "Feishu event subscription reference: WebSocket long-connection event listening for Feishu events (messages, contact changes, calendar changes, etc.). NOTE: V2 MCP does not expose live event subscription — this skill documents the underlying Lark Open Platform event model for reference. Live event handling will ship in a future LarkSkill release. Use when users need to understand Lark event types, scopes, or design event-driven integrations."
+description: "Lark event subscription reference: WebSocket event types, scopes, and payload schema. V2 LarkSkill MCP does not expose live subscription; use polling via `lark_api` until it ships. Use when designing event-driven Lark integrations or selecting event types and scopes."
 metadata:
   requires:
     mcp: "larkskill"
@@ -12,9 +12,9 @@ metadata:
 
 > **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
 
-> **V2 MCP LIMITATION**: The LarkSkill MCP server does not currently expose WebSocket event subscription. This skill documents the underlying Lark Open Platform event model for reference and design purposes. Live event handling (real-time push via WebSocket) will ship in a future LarkSkill release.
+> **V2 MCP LIMITATION:** The LarkSkill MCP server does not currently expose WebSocket event subscription. This skill documents the underlying Lark Open Platform event model for reference and design purposes. Live event handling (real-time push via WebSocket) will ship in a future LarkSkill release.
 >
-> For event-driven workflows today, consider polling with `lark_api` on a schedule (e.g. periodically GET messages, calendar events, or task updates) as an alternative to push events.
+> For event-driven workflows today, use polling with `lark_api` on a schedule (e.g. periodically GET messages, calendar events, or task updates) as an alternative to push events.
 
 ## Event Model Overview
 
@@ -25,7 +25,7 @@ Lark Open Platform delivers events via WebSocket long connection (server-push mo
 2. Add the events you need (e.g. `im.message.receive_v1`)
 3. Enable the corresponding permissions (e.g. `im:message:receive_as_bot`)
 
-**Identity**: bot-only — WebSocket connections use App ID + App Secret. No user OAuth needed.
+**Identity:** bot-only — WebSocket connections use App ID + App Secret. No user OAuth needed.
 
 ## Supported Event Types
 
@@ -69,11 +69,18 @@ Lark Open Platform delivers events via WebSocket long connection (server-push mo
 |-----------|-------------|---------------|
 | `approval.approval.updated` | Approval status updated | `approval:approval:readonly` |
 
+### Application
+
+| Event Type | Description | Required Scope |
+|-----------|-------------|---------------|
+| `application.application.visibility.added_v6` | App visibility added | `application:application.app_visibility:readonly` |
+
 ### Task
 
 | Event Type | Description | Required Scope |
 |-----------|-------------|---------------|
 | `task.task.update_tenant_v1` | Task updated (tenant) | `task:task:readonly` |
+| `task.task.update_user_access_v2` | Task updated (user access) | `task:task:readonly` |
 | `task.task.comment_updated_v1` | Task comment updated | `task:task:readonly` |
 
 ### Drive
@@ -82,7 +89,7 @@ Lark Open Platform delivers events via WebSocket long connection (server-push mo
 |-----------|-------------|---------------|
 | `drive.notice.comment_add_v1` | Drive comment added | `drive:drive:readonly` |
 
-See the full list at [Lark Event List](https://open.feishu.cn/document/server-docs/event-subscription-guide/event-list).
+See the full list at the Lark Open Platform event documentation.
 
 ## Polling Alternative (Available Now via MCP)
 
@@ -91,26 +98,28 @@ Until live event subscription is available, use polling with `lark_api` for comm
 **Poll for new IM messages:**
 
 ```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/im/v1/messages
-- params:
-  {
-    "container_id_type": "chat",
-    "container_id": "<chat_id>",
-    "start_time": "<unix_timestamp>"
-  }
-- as: bot
+lark_api({
+  tool: "im",
+  op: "chat-messages-list",
+  args: {
+    chat_id: "<chat_id>",
+    start_time: "<unix_timestamp>"
+  },
+  as: "bot"
+})
 ```
 
 **Poll for calendar event changes:**
 
 ```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/calendar/v4/calendars/{calendar_id}/events
-- params: { "sync_token": "<sync_token>" }
-- as: user
+lark_api({
+  tool: "calendar",
+  op: "agenda",
+  args: {
+    range: "today"
+  },
+  as: "user"
+})
 ```
 
 ## Event Payload Structure
@@ -132,6 +141,5 @@ Event payloads follow this schema:
 
 ## References
 
-- [lark-event-subscribe](references/lark-event-subscribe.md) — Full event subscription reference (for future implementation)
 - [lark-im](../lark-im/SKILL.md) — Messaging commands
 - [lark-shared](../lark-shared/SKILL.md) — Authentication and global parameters
