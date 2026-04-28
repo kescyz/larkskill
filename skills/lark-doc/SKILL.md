@@ -1,7 +1,7 @@
 ---
 name: lark-doc
 version: 2.0.0
-description: "Lark Docs: create and edit cloud documents. Supports creating from Markdown, fetching document content, updating content (append/overwrite/replace/insert/delete), uploading and downloading media, and searching cloud docs. For spreadsheet/report discovery by title or keyword, use docs +search first."
+description: "Use this skill when operating Lark Docs via LarkSkill MCP: create from Markdown, fetch content, update (append/overwrite/replace/insert/delete), upload/download images and files, and search Drive for docs, Wiki nodes, and spreadsheet files. Also the resource-discovery entry for locating Drive objects by name."
 metadata:
   requires:
     mcp: "larkskill"
@@ -10,31 +10,63 @@ metadata:
 
 # docs
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+## Prerequisites
+
+- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
+- MCP tools available: `lark_api`, `lark_api_search`
+- Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for auth, global flags, and safety rules
+
+**CRITICAL — Before starting, you MUST first read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which covers authentication and permission handling.**
 
 ## Core concepts
 
-### Document types and token handling
+### Document types and tokens
 
-Different Lark document types have different URL patterns and token semantics. Always resolve the correct token before operations such as comments, media operations, and API calls.
+In the Lark Open Platform, different document types have different URL formats and token-handling rules. When performing document operations (e.g. adding comments, downloading files), you must first obtain the correct `file_token`.
 
-### URL pattern and token mapping
+### Document URL formats and token handling
 
-| URL pattern | Example | Token type | Handling |
-|---|---|---|---|
-| `/docx/` | `https://example.larksuite.com/docx/doxcnxxxxxxxxx` | `file_token` | Use token from URL path directly |
-| `/doc/` | `https://example.larksuite.com/doc/doccnxxxxxxxxx` | `file_token` | Use token from URL path directly |
-| `/wiki/` | `https://example.larksuite.com/wiki/wikcnxxxxxxxxx` | `wiki_token` | Do not use directly. Resolve real `obj_token` first |
-| `/sheets/` | `https://example.larksuite.com/sheets/shtcnxxxxxxxxx` | `file_token` | Use token from URL path directly |
-| `/drive/folder/` | `https://example.larksuite.com/drive/folder/fldcnxxxx` | `folder_token` | Use as folder token |
+| URL format | Example                                                  | Token type     | Handling |
+|------------|----------------------------------------------------------|----------------|----------|
+| `/docx/`   | `https://example.larksuite.com/docx/doxcnxxxxxxxxx`      | `file_token`   | The token in the URL path is used directly as `file_token` |
+| `/doc/`    | `https://example.larksuite.com/doc/doccnxxxxxxxxx`       | `file_token`   | The token in the URL path is used directly as `file_token` |
+| `/wiki/`   | `https://example.larksuite.com/wiki/wikcnxxxxxxxxx`      | `wiki_token`   | WARNING: **Cannot be used directly** — you must first query for the real `obj_token` |
+| `/sheets/` | `https://example.larksuite.com/sheets/shtcnxxxxxxxxx`    | `file_token`   | The token in the URL path is used directly as `file_token` |
+| `/drive/folder/` | `https://example.larksuite.com/drive/folder/fldcnxxxx` | `folder_token` | The token in the URL path is used as the folder token |
 
-### Wiki URL special handling
+### Wiki link special handling (critical!)
 
-A wiki node can point to docx, doc, sheet, bitable, slides, file, or mindnote. Never assume wiki token equals file token.
+A Wiki link (`/wiki/TOKEN`) may point to different document types such as a doc, spreadsheet, or Base. **Do NOT assume the token in the URL is the `file_token`** — you must first query the actual type and the real token.
 
-#### Resolution flow
+#### Processing flow
 
-1. Query node info via `lark_api`:
+1. **Call `lark_api` to query node info via the wiki OpenAPI path**
+
+   ```
+   Call MCP tool `lark_api`:
+   - method: GET
+   - path: /open-apis/wiki/v2/spaces/get_node
+   - params: { "token": "<wiki_token>" }
+   ```
+
+2. **Extract key fields from the response**
+   - `node.obj_type`: document type (`docx`/`doc`/`sheet`/`bitable`/`slides`/`file`/`mindnote`)
+   - `node.obj_token`: **the real document token** (use this for follow-up operations)
+   - `node.title`: document title
+
+3. **Choose follow-up operation by `obj_type`**
+
+   | obj_type | Meaning | Follow-up |
+   |----------|---------|-----------|
+   | `docx` | New cloud doc | `lark_api({tool: 'docs', op: 'fetch', ...})` / `lark_api({tool: 'docs', op: 'update', ...})` and `lark-drive` for comments |
+   | `doc` | Legacy cloud doc | `lark-drive` for comments |
+   | `sheet` | Spreadsheet | switch to `lark-sheets` |
+   | `bitable` | Base | switch to `lark-base` |
+   | `slides` | Slides | switch to `lark-slides` / `lark-drive` |
+   | `file` | File | switch to `lark-drive` |
+   | `mindnote` | Mind map | switch to `lark-drive` |
+
+#### Query example
 
 ```
 Call MCP tool `lark_api`:
@@ -43,93 +75,85 @@ Call MCP tool `lark_api`:
 - params: { "token": "<wiki_token>" }
 ```
 
-2. Extract fields:
-   - `node.obj_type`
-   - `node.obj_token`
-   - `node.title`
-3. Route API/tool by `obj_type`.
-
-| obj_type | Type | Typical API |
-|---|---|---|
-| `docx` | New docs | `drive file.comments.*`, `docx.*` |
-| `doc` | Legacy docs | `drive file.comments.*` |
-| `sheet` | Sheets | `sheets.*` |
-| `bitable` | Base | `bitable.*` |
-| `slides` | Slides | `drive.*` |
-| `file` | File | `drive.*` |
-| `mindnote` | Mind map | `drive.*` |
-
-#### Example Response
-
+Response example:
 ```json
 {
    "node": {
       "obj_type": "docx",
       "obj_token": "xxxx",
-      "title": "title",
+      "title": "Title",
       "node_type": "origin",
       "space_id": "12345678910"
    }
 }
 ```
 
-### Resource relationship
+### Resource relationships
 
 ```
-Wiki Space (Knowledge Space)
-└── Wiki Node (knowledge base node)
-    ├── obj_type: docx (new version document)
-    │ └── obj_token (real document token)
-    ├── obj_type: doc (old version document)
-    │ └── obj_token (real document token)
+Wiki Space
+└── Wiki Node
+    ├── obj_type: docx (new cloud doc)
+    │   └── obj_token (real document token)
+    ├── obj_type: doc (legacy cloud doc)
+    │   └── obj_token (real document token)
     ├── obj_type: sheet (spreadsheet)
-    │ └── obj_token (real document token)
-    ├── obj_type: bitable (multidimensional table)
-    │ └── obj_token (real document token)
+    │   └── obj_token (real document token)
+    ├── obj_type: bitable (Base)
+    │   └── obj_token (real document token)
     └── obj_type: file/slides/mindnote
         └── obj_token (real document token)
 
-Drive Folder (cloud space folder)
+Drive Folder
 └── File (file/document)
-    └── file_token (direct use)
+    └── file_token (use directly)
 ```
 
-## Important: whiteboard editing
+## Diagram intent recognition and discovery
 
-> `lark-doc` cannot directly edit existing whiteboard content. `docs +update` can create blank whiteboards.
+Users rarely explicitly say "whiteboard" — **by default**, render diagrams via Lark Whiteboard. Trigger when any of the following signals match:
+- User mentions a chart type: architecture diagram, flowchart, sequence diagram, org chart, roadmap, comparison chart, fishbone diagram, flywheel diagram, mind map, etc.
+- User expresses visualization intent: "draw it", "lay out the relationships", "draw a flow", "give me a diagram", "easy to present", etc.
+- Document topic involves structural relationships, process flow, timelines, or data comparison.
 
-### Case 1: whiteboard already exists (from `docs +fetch`)
+Do NOT add diagrams in these cases: user explicitly refuses; contracts / legal terms / compliance statements (rigorous continuous text); verbatim transcription tasks.
 
-If fetched markdown contains `<whiteboard token="xxx"/>`:
-1. Record the whiteboard token.
-2. Switch to [`../lark-whiteboard/SKILL.md`](../lark-whiteboard/SKILL.md) for whiteboard content editing.
+> [!CAUTION]
+> Once triggered, you **MUST** first read the `lark-whiteboard` skill reference and **strictly follow its flow**.
+>
+> **Strictly forbidden**: rendering a PNG via a local whiteboard tool and then inserting it into the document via `docs +media-insert` — diagrams MUST be written into a whiteboard block via the `whiteboard +update` op (see `lark-whiteboard` skill). This is the only legal path.
 
-### Case 2: blank whiteboard was just created
+## Quick decisions
+- When the user says "let me see images/attachments/media in the doc" or "preview media", prefer `lark_api({tool: 'docs', op: 'media-preview', ...})`.
+- When the user explicitly says "download media", use `lark_api({tool: 'docs', op: 'media-download', ...})`.
+- When the target is clearly a whiteboard / whiteboard thumbnail, use `lark_api({tool: 'docs', op: 'media-download', args: { type: 'whiteboard', ... }})` — do NOT use `media-preview`.
+- When the user says "find a spreadsheet", "search a spreadsheet by name", "find a report", "recently opened spreadsheets", first use `lark_api({tool: 'docs', op: 'search', ...})` for resource discovery.
+- `docs +search` is not limited to docs / Wiki — results may directly include Drive objects such as `SHEET`.
+- After getting a spreadsheet URL / token, switch to `lark-sheets` for object-internal read, filter, and write operations.
+- When the user says "add a comment to the doc", "view comments", "reply to a comment", "add a reaction to a comment", or "delete a comment reaction", **do NOT stay in `lark-doc`** — switch to `lark-drive` to handle it.
 
-If user created blank whiteboard via `docs +update`:
-1. Use `<whiteboard type="blank"></whiteboard>` in the markdown content.
-2. For multiple blank whiteboards, repeat the tag in the same markdown.
-3. Read `data.board_tokens` from update response.
-4. Use returned tokens for next whiteboard edits in `lark-whiteboard`.
+## Additional notes
+Beyond searching docs / Wiki, `docs +search` also serves as the "first locate Drive objects, then switch back to the corresponding business skill" resource-discovery entry. When the user verbally says "spreadsheet / report", also start here first.
 
-## Quick routing
+## Operation index (Shortcuts — recommended first)
 
-- For requests like "find a spreadsheet", "find report by name", "recently opened table", use `docs +search` first.
-- `docs +search` returns `SHEET` and other cloud object types, not only docs/wiki.
-- After locating spreadsheet URL/token, switch to `lark-sheets` for object-level reads/writes/filters.
+A Shortcut is a high-level wrapper for common operations. Call via `lark_api({tool: 'docs', op: '<verb>', args: {...}})`.
 
-## Additional note
+| Op | Description |
+|----|-------------|
+| `lark_api({tool: 'docs', op: 'search', ...})` | Search Lark docs, Wiki, and spreadsheet files (Search v2: doc_wiki/search) |
+| `lark_api({tool: 'docs', op: 'create', ...})` | Create a Lark document |
+| `lark_api({tool: 'docs', op: 'fetch', ...})` | Fetch Lark document content |
+| `lark_api({tool: 'docs', op: 'update', ...})` | Update a Lark document |
+| `lark_api({tool: 'docs', op: 'media-insert', ...})` | Insert a local image or file at the end of a Lark document (4-step orchestration + auto-rollback) |
+| `lark_api({tool: 'docs', op: 'media-download', ...})` | Download document media or whiteboard thumbnail (auto-detects extension) |
+| `lark_api({tool: 'docs', op: 'media-preview', ...})` | Preview document media file (auto-detects extension) |
+| (cross-skill) `lark_api({tool: 'whiteboard', op: 'update', ...})` | Alias of `whiteboard +update`. Update an existing whiteboard with DSL, Mermaid or PlantUML — see `lark-whiteboard` skill for details. |
 
-`docs +search` is both a docs/wiki search and a cloud object discovery entrypoint.
+## Core rules
 
-## Shortcuts (preferred)
-
-| Shortcut | Description |
-|---|---|
-| [`+search`](references/lark-doc-search.md) | Search docs/wiki/spreadsheet files (Search v2: doc_wiki/search) |
-| [`+create`](references/lark-doc-create.md) | Create a Lark document |
-| [`+fetch`](references/lark-doc-fetch.md) | Fetch document content |
-| [`+update`](references/lark-doc-update.md) | Update document content |
-| [`+media-insert`](references/lark-doc-media-insert.md) | Insert local image/file at end of document |
-| [`+media-download`](references/lark-doc-media-download.md) | Download document media or whiteboard thumbnail |
-| [`+whiteboard-update`](references/lark-doc-whiteboard-update.md) | Update an existing whiteboard using whiteboard DSL |
+1. **Use only atomic operations** — call one MCP op per intent; do not chain or aggregate multiple ops into a single request.
+2. **Resolve wiki tokens first** — for `/wiki/...` inputs, call the wiki node OpenAPI path before using the token in any docs op.
+3. **Match URL pattern to op** — confirm the URL type (`/docx/` vs `/doc/` vs `/wiki/`) before deciding token handling.
+4. **For diagrams in documents, route to whiteboard** — never round-trip via PNG insert; use the `lark-whiteboard` skill.
+5. **For Drive comments / reactions, switch skill** — comments and reactions live under `lark-drive`, not `lark-doc`.

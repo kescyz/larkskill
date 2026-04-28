@@ -1,135 +1,125 @@
 ---
 name: lark-shared
 version: 2.0.0
-description: "LarkSkill MCP shared fundamentals: MCP server connection, identity concepts (user vs bot/tenant), permission scope management, permission denied troubleshooting, rate limits, and safety rules. Activate when users need first-time setup, encounter insufficient permissions, need to switch between user/bot identity, configure scopes, or start using LarkSkill MCP for the first time."
+description: "LarkSkill MCP shared foundation: user/bot identity model, `lark_auth_login` flow, profile switching, scope management, Permission denied handling, safety rules. Use when the user first logs in, hits a permission error, switches identity, or any sibling lark-* skill needs auth context."
 metadata:
   requires:
     mcp: "larkskill"
-  mcpTools: ["lark_api", "lark_api_search", "lark_auth_login", "lark_auth_poll", "lark_auth_status", "lark_auth_logout", "lark_profile_list", "lark_profile_switch", "lark_whoami"]
+  mcpTools: ["lark_auth_login", "lark_auth_poll", "lark_auth_status", "lark_auth_logout", "lark_profile_list", "lark_profile_switch", "lark_whoami", "lark_enable_domain"]
 ---
 
-# LarkSkill MCP Shared Rules
+# lark-shared
 
-This skill explains how to operate Feishu/Lark resources via LarkSkill MCP and what to watch out for.
+Shared foundation for every LarkSkill MCP domain skill. Read this first before invoking any `lark_api` / `lark_api_search` call from a sibling skill (lark-base, lark-calendar, lark-mail, etc.).
 
-## Connecting MCP to Claude
+## Prerequisites
 
-### Option 1: Plugin marketplace (Claude Code / Claude Desktop)
+- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` -> `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
+- Core MCP tools available: `lark_auth_login`, `lark_auth_poll`, `lark_auth_status`, `lark_auth_logout`, `lark_profile_list`, `lark_profile_switch`, `lark_whoami`, `lark_enable_domain`
 
-```
-/plugin marketplace add kescyz/larkskill
-/plugin install larkskill
-```
+## First-time setup
 
-Installs MCP connector + all Lark domain skills at once.
+App configuration is handled by the marketplace install flow — there is no MCP equivalent of `lark-cli config init`. Once `/plugin install larkskill` completes (or the user follows the setup prompt at https://portal.larkskill.app/setup), the MCP server is ready and bot identity is available immediately. User identity still requires an explicit `lark_auth_login` (see below).
 
-Full setup guide: https://portal.larkskill.app/setup
+## Authentication
 
-### Option 2: Claude.ai Web OAuth
+### Identity types
 
-Open https://larkskill-portal.pages.dev/setup and follow the OAuth device flow. Once authorized, the MCP server is available in Claude.ai Cowork sessions.
+Two identity types are exposed by the LarkSkill MCP server:
 
-## MCP Tools Overview
+| Identity | How to obtain | Use case |
+|------|---------|---------|
+| user identity | `lark_auth_login` (OAuth flow, then `lark_auth_poll`) | Access the user's own resources (calendar, drive, mail, etc.) |
+| bot (app) identity | Automatic — provided by the connected app's `appId` + `appSecret` | App-level operations, accessing the bot's own resources |
 
-| Tool | Purpose |
-|------|---------|
-| `lark_api` | Primary proxy — call any Lark Open API |
-| `lark_api_search` | Discover endpoints by keyword |
-| `lark_enable_domain` | Enable API domain on profile |
-| `lark_auth_login` | Start OAuth device flow |
-| `lark_auth_poll` | Poll authorization status |
-| `lark_auth_status` | Check current auth status |
-| `lark_auth_logout` | Log out current profile |
-| `lark_profile_list` | List configured profiles |
-| `lark_profile_switch` | Switch active profile |
-| `lark_whoami` | Show current identity info |
+Use `lark_whoami` to inspect the current identity at any time. The tool response includes an `identity` field (`user` or `bot`).
 
-### lark_api Parameters
+### Identity selection principles
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `method` | Yes | HTTP method: `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
-| `path` | Yes | API path, e.g. `/open-apis/contact/v3/users/me` |
-| `params` | No | Query string parameters (object) |
-| `body` | No | Request body (object, for POST/PUT/PATCH) |
-| `profile` | No | Named profile to use (default: active profile) |
-| `as` | No | Identity to use: `user` or `bot` (default depends on profile) |
+Bot and user behave very differently — confirm the identity matches the target need:
 
-## Identity Types
+- **Bot cannot see user resources**: cannot access the user's calendar, drive docs, mailbox, or other personal resources. For example, querying schedules under bot identity returns the bot's own (empty) calendar.
+- **Bot cannot act on behalf of the user**: messages are sent under the app name, created docs are owned by the bot.
+- **Bot permissions**: only need scope enabled in the Lark Developer Console, no login required.
+- **User permissions**: scope enabled in the console + user authorization via `lark_auth_login`; both layers must be satisfied.
 
-Two identity types are available. Specify via the `as` parameter on `lark_api` calls:
+Switch the active profile (when multiple identities are configured) via `lark_profile_switch`. List configured profiles via `lark_profile_list`.
 
-| Identity | `as` value | How to Obtain | Use Case |
-|----------|------------|---------------|---------|
-| User identity | `as: "user"` | OAuth login via `lark_auth_login` flow | Access the user's own resources (calendar, drive, etc.) |
-| Bot identity | `as: "bot"` | Automatic, requires only App ID + App Secret | App-level operations, access bot-owned resources |
+### Permission denied handling
 
-### Identity Selection Principles
+When encountering permission-related errors, **adopt different solutions based on the current identity type**.
 
-Behavior differs significantly between bot and user identity. Confirm identity matches the target need:
+The error response contains key fields:
+- `permission_violations`: lists missing scopes (N-of-1)
+- `console_url`: link to the Lark Developer Console for permission configuration
+- `hint`: suggested fix tool call
 
-- **Bots cannot see user resources**: cannot access user calendars, drive documents, email, and other personal resources. Querying schedules with `as: "bot"` returns the bot's own (often empty) calendar.
-- **Bots cannot act on behalf of users**: messages are sent in app identity; created docs belong to the bot.
-- **Bot permissions**: only require enabling scopes in the Feishu developer console. No user OAuth needed.
-- **User permissions**: require both enabled scopes in console and user authorization via `lark_auth_login` flow.
+#### Bot identity
 
-## Authorization Flow (User Identity)
+Provide the `console_url` from the error to the user, guiding them to enable scopes in the console. **DO NOT** call `lark_auth_login` for a bot.
 
-To authorize user identity, use the OAuth device flow:
+#### User identity
 
-1. Call `lark_auth_login` with required scopes
-2. Present the returned authorization URL to the user
-3. Call `lark_auth_poll` to wait for completion
-4. Confirm with `lark_auth_status`
+Call `lark_auth_login` with the missing scope (or the parent business domain). The tool returns an authorization URL plus a poll token; relay the URL to the user, then poll completion via `lark_auth_poll`.
 
 ```
 Call MCP tool `lark_auth_login`:
-- scopes: ["calendar:calendar:readonly"]
+- args: { "scope": "<missing_scope>" }       # Authorize by specific scope (recommended, follows least-privilege principle)
 
-→ Returns: { "auth_url": "https://..." }
+Call MCP tool `lark_auth_login`:
+- args: { "domain": "<domain>" }             # Or authorize by business domain
+```
 
-Present auth_url to user. Then:
+**Rule**: `lark_auth_login` MUST specify a range (`domain` or `scope`). Multiple logins accumulate scopes (incremental authorization).
+
+#### Agent-driven authentication (recommended)
+
+When you, as an AI agent, need to help the user complete authentication:
+
+1. Call `lark_auth_login` with the desired `scope` — the response includes an authorization URL and a poll token.
+2. Send the authorization URL to the user.
+3. Poll completion with `lark_auth_poll` (using the token from step 1) until status is `completed` or `expired`.
+
+```
+Call MCP tool `lark_auth_login`:
+- args: { "scope": "calendar:calendar:readonly" }
 
 Call MCP tool `lark_auth_poll`:
-- (wait for user to authorize)
+- args: { "token": "<token from auth_login response>" }
 ```
 
-**Rule**: Specify only the minimum required scopes. Multiple auth calls accumulate scopes incrementally.
+### Enabling a domain
 
-## Handling Insufficient Permissions
-
-When permission-related errors occur, apply different solutions based on current identity type.
-
-Error responses include key fields:
-- `permission_violations`: missing scopes list
-- `console_url`: permission configuration link in the Lark developer console
-- `hint`: suggested fix
-
-### Bot Identity (`as: "bot"`)
-
-Provide the `console_url` from the error to the user and guide them to enable scopes in the developer console. Do not attempt OAuth login for bot identity.
-
-### User Identity (`as: "user"`)
-
-Initiate the OAuth device flow with the missing scopes:
+Some domains are gated and must be explicitly enabled before their `lark_api` ops resolve. If a sibling skill returns a "domain not enabled" error, call `lark_enable_domain` with the domain name (for example `base`, `calendar`, `mail`).
 
 ```
-Call MCP tool `lark_auth_login`:
-- scopes: ["<missing_scope>"]
+Call MCP tool `lark_enable_domain`:
+- args: { "domain": "calendar" }
 ```
 
-Then poll with `lark_auth_poll` and present the auth URL to the user.
+### Logout / status
 
-## Rate Limits
+- `lark_auth_status` — inspect current login state and remaining scopes.
+- `lark_auth_logout` — revoke the current user identity (bot identity is unaffected).
 
-- Most APIs: 100 requests/minute per app
-- Some high-volume APIs (drive, IM): may have lower limits
-- When rate limited, wait and retry with exponential backoff
-- Batch APIs are preferred over looping single-record calls
+## Update check
 
-## Safety Rules
+After any `lark_api` / `lark_api_search` call, if a new MCP server or skill version is available, the response will include a `_notice.update` field (with `message`, `command`, etc.).
 
-- **Never output secrets** (App Secret, access tokens) in plaintext.
-- **Always confirm user intent before write/delete operations**.
-- For risky requests, describe the intended operation to the user and ask for confirmation before calling `lark_api`.
-- Identity (`as: "user"` vs `as: "bot"`) must match the resource access pattern.
+**When you see `_notice.update` in the output, after completing the user's current request, proactively offer to help update**:
+
+1. Inform the user of the current version and the latest version number.
+2. Offer the upgrade path (the marketplace plugin and the MCP server update together):
+   ```
+   /plugin update larkskill
+   ```
+3. After the update completes, remind the user: **quit and reopen the AI Agent** to load the latest skills.
+
+**Rule**: Do not silently ignore update prompts. Even when the current task is unrelated to updates, you should still inform the user after completing the request.
+
+## Safety rules
+
+- **DO NOT output secrets** (`appSecret`, `accessToken`, `refresh_token`) to the chat or terminal in plaintext.
+- **Write/delete operations MUST confirm user intent first** (record-delete, table-delete, file-delete, message-delete, advperm-disable, etc.).
+- Prefer read-only operations for discovery; only escalate to write operations once the target is unambiguous.
+- Treat any URL returned by `lark_auth_login` as a one-time authorization link — relay it to the user, do not store or share it elsewhere.

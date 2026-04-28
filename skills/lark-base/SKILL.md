@@ -1,7 +1,7 @@
 ---
 name: lark-base
 version: 2.0.0
-description: "Use this skill when operating Lark Base via LarkSkill MCP: table creation, field management, record read/write, view configuration, history queries, and role/form/dashboard management. Also use it when designing formula fields, lookup references, cross-table computation, row-level derived metrics, and data analysis requests."
+description: "Use this skill when operating Lark Base via LarkSkill MCP: table creation, field management, record read/write, view configuration, history queries, and role/form/dashboard/workflow management. Mandatory for formula fields, lookup references, cross-table computation, and data analysis."
 metadata:
   requires:
     mcp: "larkskill"
@@ -10,313 +10,330 @@ metadata:
 
 # base
 
-## Prerequisites
+> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first.
+> **Mandatory before execution:** Before invoking any `base` operation, read the corresponding command reference doc, then call the operation via `lark_api`.
+> **Naming convention:** Base business operations call `lark_api({ tool: 'base', op: '<op>', args: {...} })`; if a Wiki link must be resolved first, call `lark_api` with the HTTP form `{ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: '<wiki_token>' } }` first.
+> **Routing rule:** If the user wants to "import a local file as Base / Bitable", the first step is NOT a `base` op — it is `lark_api({ tool: 'drive', op: 'import', args: { type: 'bitable', ... } })`. After import completes, return to `lark_api({ tool: 'base', op: '...' })` for in-table operations.
 
-- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
-- MCP tools available: `lark_api`, `lark_api_search`
-- Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for auth, global flags, and safety rules
+## 1. When to use this Skill
 
-> **Mandatory before execution:** Before calling any `base` operation, read the corresponding reference doc first.
+### 1.1 Trigger conditions
 
-## Agent quick execution order
+This skill should be used for the following scenarios:
 
-1. **Identify task type first**
-   - Temporary statistics / aggregation analysis -> `data-query`
-   - Result must be persisted and shown in-table long term -> formula field
-   - User explicitly requests lookup, or the case clearly fits `from/select/where/aggregate` -> lookup field
-   - Detail retrieval / export -> `record-list / record-get`
-2. **Inspect schema before writing**
-   - At minimum, get the current table schema first: `field-list` or `table-get`
-   - For cross-table scenarios, also inspect the **target table** schema
-3. **Formula / lookup has hard gating rules**
-   - Read the corresponding guide first
-   - Create/update the field only after reading the guide
-4. **Check field writability before writing records**
-   - Write only storage fields
-   - System fields / formula / lookup are read-only by default
+- The user explicitly wants to operate Lark Base / Bitable.
+- The user wants to create / modify / query / delete tables, or manage fields / records / views.
+- The user wants to build formula fields, lookup fields, derived metrics, or cross-table computation.
+- The user wants ad-hoc statistics, aggregation analysis, comparison / sorting, or extreme-value retrieval.
+- The user wants to manage workflow, dashboard, form, or role permissions.
+- The user gives a `/base/{token}` link.
+- The user gives a `/wiki/{token}` link that ultimately resolves to `bitable`.
+- The user wants to rewrite legacy aggregated Base commands into atomic operation form, e.g. translating legacy `+table / +field / +record / +view / +history / +workspace` into current ops.
 
-## Agent forbidden behavior
+This skill should NOT be used for the following:
 
-- Do not use `record-list` as an aggregation engine
-- Do not create formula / lookup fields before reading the guide
-- Do not guess table names, field names, or formula field references from natural language
-- Do not use system fields, formula fields, or lookup fields as `record-upsert` write targets
-- Do not switch to raw `lark_api GET /open-apis/bitable/v1/...` calls ad hoc in Base scenarios without reading the reference doc first
+- The user is only doing auth, init configuration, switching `--as user/bot`, or handling scope. Read `../lark-shared/SKILL.md` first.
+- The user is only generally discussing "data analysis / field design" but is NOT actually in a Base scenario. Do NOT trigger merely because the words "statistics / formula / lookup" appear.
 
-## Base mental model
+### 1.2 Prerequisites
 
-1. **Base fields fall into three categories**
-   - **Storage fields**: persist user-entered values and are typically writable via `record-upsert`, such as text, number, date, single select, multi select, user, and link fields. **Attachment field exception**: file upload must use the `record-upload-attachment` flow.
-   - **System fields**: platform-maintained and read-only, including created time, updated time, created by, modified by, and auto number.
-   - **Computed fields**: derived by expressions or cross-table rules and are read-only — mainly **formula** and **lookup** fields.
-2. **Decide field category before writing records** — only storage fields are directly writable; formula / lookup / system fields must be treated as read-only output fields and cannot be write targets.
-3. **Base supports built-in computation** — for user intents like statistics, comparison, ranking, text composition, date difference, cross-table aggregation, or state judgment, first decide whether to solve with `data-query` or formula fields inside Base.
+1. Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first.
+2. Base business operations call `lark_api({ tool: 'base', op: '<op>', args: {...} })`; if input is a Wiki link, call `lark_api` with the HTTP form `{ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: '<wiki_token>' } }` first to resolve the real token.
+3. After locating the operation, read the corresponding reference, then execute it.
+4. If the user wants to import a local Excel / CSV as Base / Bitable, the first step is NOT a `base` op — it is `lark_api({ tool: 'drive', op: 'import', args: { type: 'bitable', ... } })`; after import, return to `lark_api({ tool: 'base', op: '...' })` for in-table operations.
+5. Do NOT bypass the catalog and call raw `/open-apis/bitable/v1/...` paths in Base scenarios.
 
-## Analysis path decisions
+## 2. Module and operation navigation
 
-1. **One-off analysis / temporary query** -> prefer `data-query`
-   - Suitable for grouped stats, SUM / AVG / COUNT / MAX / MIN, and filtered aggregation.
-   - Characteristic: user needs the result now, not as a persisted field.
-2. **Reusable long-term derived metrics / row-level computed outputs** -> prefer formula field
-   - Suitable for profit margin, overdue flag, remaining days, bucket tags, and derived cross-table results.
-   - Characteristic: result should persist in Base and auto-update with records.
-3. **Explicit lookup request, or strict `from/select/where/aggregate` modeling need** -> use lookup field
-   - Formula is still the default preference. Use lookup only when explicitly requested or when fixed lookup config fits better.
-4. **Raw record retrieval / detail export** -> `record-list / record-get`
-   - Do not treat `record-list` as an analysis engine; it retrieves details, not aggregation.
+This chapter is organized "pick the module first, then pick the operation". Decide which large module the user's goal belongs to, enter the corresponding sub-module, read the reference per requirements, then execute.
 
-## Formula / Lookup rules
+### 2.1 Module map
 
-1. **If formula / lookup is involved, read guide first, then call `lark_api`**
-   - formula: [`formula-field-guide.md`](references/formula-field-guide.md)
-   - lookup: [`lookup-field-guide.md`](references/lookup-field-guide.md)
-2. **Guide before create/update**
-   - Do not directly create formula / lookup fields before reading the corresponding guide
-   - After reading the guide, complete JSON body, then call `lark_api`
-   - `type=formula` must provide `expression`
-   - `type=lookup` must provide `from / select / where`, and `aggregate` when needed
-3. **Formula field takes precedence over lookup field**
-   - If user intent is computation / conditional logic / text processing / date difference / cross-table aggregation / filtered cross-table value retrieval, try formula first by default.
-   - Use lookup only when user explicitly asks for lookup, or when the configuration naturally fits the lookup four-tuple.
-4. **Table names / field names must match exactly**
-   - Any table/field names used in formula, lookup, or data-query must come from actual outputs of `table-list` / `table-get` / `field-list`; semantic guessing is prohibited.
-5. **Inspect schema before writing expressions**
-   - Always retrieve related table schemas before producing formula expressions or lookup configs.
+| Large module | What problem it handles | Sub-modules / capabilities |
+|---|---|---|
+| Base module | Manage the Base itself, or enter the Base scenario from a link | `base-create / base-get / base-copy`, Base / Wiki link parsing |
+| Table & data module | Manage Base internal structure and routine data operations | `table / field / record / view` |
+| Formula / Lookup module | Handle derived fields, conditional logic, cross-table computation, fixed lookup references | `formula / lookup` field create and update |
+| Data analysis module | One-off filtering, grouping, aggregation analysis | `data-query` |
+| Workflow module | Manage automation flows | `workflow-list / get / create / update / enable / disable` |
+| Dashboard module | Manage dashboards and chart blocks | `dashboard-* / dashboard-block-*` |
+| Form module | Manage forms and form questions | `form-* / form-questions-*` |
+| Permission & role module | Manage advanced permissions and custom roles | `advperm-* / role-*` |
 
-## Workflow rules
+### 2.2 Base module
 
-1. **Before any workflow operation, read two docs: the command doc + [lark-base-workflow-schema.md](references/lark-base-workflow-schema.md)**
-   - `workflow-create` -> read [lark-base-workflow-create.md](references/lark-base-workflow-create.md) + schema
-   - `workflow-update` -> read [lark-base-workflow-update.md](references/lark-base-workflow-update.md) + schema
-   - `workflow-list` -> read [lark-base-workflow-list.md](references/lark-base-workflow-list.md) + schema
-   - `workflow-get` -> read [lark-base-workflow-get.md](references/lark-base-workflow-get.md) + schema
-   - `workflow-enable` -> read [lark-base-workflow-enable.md](references/lark-base-workflow-enable.md) + schema
-   - `workflow-disable` -> read [lark-base-workflow-disable.md](references/lark-base-workflow-disable.md) + schema
-   - Schema defines StepType enums, step structure, Trigger/Action/Branch/Loop data formats, and value reference syntax
-   - Do not guess `type` from natural language (for example mapping "add record" to `CreateTrigger`). Always copy exact type names from StepType enums in schema.
+For managing the Base itself, or entering subsequent Base operations from a user-supplied link.
+Module index: [`references/lark-base-workspace.md`](references/lark-base-workspace.md)
 
-2. **Confirm dependency info before creation**
-   - Get real table names and field names via `table-list` / `field-list` (`lark_api` GET calls)
-   - Do not guess table/field names in workflow config
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'base-create'})` | Create a new Base | [`lark-base-base-create.md`](references/lark-base-base-create.md), [`lark-base-workspace.md`](references/lark-base-workspace.md) | Write op; read reference first; `folder-token`, `time-zone` are optional |
+| `lark_api({tool:'base', op:'base-get'})` | Get Base info | [`lark-base-base-get.md`](references/lark-base-base-get.md), [`lark-base-workspace.md`](references/lark-base-workspace.md) | Suitable for confirming Base identity; not a substitute for table/field structure reads |
+| `lark_api({tool:'base', op:'base-copy'})` | Copy an existing Base | [`lark-base-base-copy.md`](references/lark-base-base-copy.md), [`lark-base-workspace.md`](references/lark-base-workspace.md) | Write op; read reference first; on success, proactively return new Base identifiers |
 
-## Dashboard module
+### 2.3 Table & data module
 
-**When the user mentions keywords related to dashboards such as "dashboard, data board, chart, visualization, block, component, add component, create chart", you must read** [lark-base-dashboard.md](references/lark-base-dashboard.md) **to understand the dashboard module operations and capabilities before proceeding.**
+This is the most-used module, including four sub-modules: `table / field / record / view`.
+Supplemental examples: [`references/examples.md`](references/examples.md) — read when chaining table / record / view operations end-to-end.
 
-## Core rules
+#### 2.3.1 Table sub-module
 
-1. **Use only atomic operations** — use single-action MCP calls such as `table-list / table-get / field-create / record-upsert / view-set-filter / record-history-list / base-get`; do not attempt to chain or aggregate multiple API calls into one
-2. **Read field schema before writing records** — call `field-list` first, then read [lark-base-shortcut-record-value.md](references/lark-base-shortcut-record-value.md) to confirm value format by field type
-3. **Read field property spec before writing fields** — read [lark-base-shortcut-field-properties.md](references/lark-base-shortcut-field-properties.md) for `field-create`/`field-update` JSON body structure
-4. **Execute filtered queries through view capability** — read [lark-base-view-set-filter.md](references/lark-base-view-set-filter.md) and [lark-base-record-list.md](references/lark-base-record-list.md), and use `view-set-filter` + `record-list`
-5. **For analytical intent on records (highest/lowest/total/average/rank/compare/count)** — read [lark-base-data-query.md](references/lark-base-data-query.md) first, then call `data-query` API for server-side filter + aggregation
-6. **Aggregation analysis and detail retrieval are mutually exclusive** — for grouped stats / SUM / MAX / AVG / COUNT use the `data-query` endpoint (server-side computation); do not fetch full records via `record-list` then compute manually. Conversely, `data-query` does not return raw records, so retrieval use-cases still require `record-list / record-get`.
-7. **All list operations must be serial** — `table-list / field-list / record-list / view-list / record-history-list / role-list` cannot be called concurrently
-8. **Batch write limit is 500 per call** — recommend serial writes per table with 0.5-1 second delay between batches
-9. **Unified parameter name** — always use `base_token` (snake_case in JSON body / query params), not `app_token`
-10. **For intents involving formula / lookup / derived metric / cross-table computation, prioritize field-solution decision** — decide whether to build formula/lookup field or run one-off `data-query`
-11. **Formula, lookup, and system fields are read-only by default** — except for maintaining definitions via `field-create / field-update`, do not write these fields in record operations
-12. **Rename/delete by explicit intent** — if target view and new name are explicit, call `view-rename` directly. If user clearly requests delete and target is clear, call `record-delete / field-delete / table-delete` directly without extra confirmation. Ask follow-up only when target is ambiguous.
+Sub-module index: [`references/lark-base-table.md`](references/lark-base-table.md)
 
-## Questionnaire / Form hints
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'table-list'})` / `lark_api({tool:'base', op:'table-get'})` | List data tables, or get details of a single table | [`lark-base-table-list.md`](references/lark-base-table-list.md), [`lark-base-table-get.md`](references/lark-base-table-get.md) | `table-list` must run serial; `table-get` is for confirming a target before delete/update |
+| `lark_api({tool:'base', op:'table-create'})` / `lark_api({tool:'base', op:'table-update'})` / `lark_api({tool:'base', op:'table-delete'})` | Create, update, or delete a table | [`lark-base-table-create.md`](references/lark-base-table-create.md), [`lark-base-table-update.md`](references/lark-base-table-update.md), [`lark-base-table-delete.md`](references/lark-base-table-delete.md) | Create suits one-off table builds; update requires confirming the target first; if user already states the target, delete may run directly with `yes: true` |
 
-- **Get questionnaire list**: `form-list` (obtain `form-id` first)
-- **Get single questionnaire**: `form-get`
-- **Get form/questionnaire questions**: `form-questions-list`
-- **Delete questionnaire/form questions**: `form-questions-delete`
-- **Create/update questions**: `form-questions-create / form-questions-update`
+#### 2.3.2 Field sub-module
 
-## Intent -> MCP call index
+Regular field management goes here; if the field type is `formula` or `lookup`, switch to the "Formula / Lookup module" below.
+Sub-module index: [`references/lark-base-field.md`](references/lark-base-field.md)
 
-| Intent | V2 MCP call | Note |
-|--------|-------------|------|
-| List / get tables | `lark_api GET /open-apis/bitable/v1/apps/{app_token}/tables` | Atomic |
-| Create table | `lark_api POST /open-apis/bitable/v1/apps/{app_token}/tables` | body: `{name, ...}` |
-| Update / delete table | `lark_api PUT/DELETE /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}` | One call per action |
-| List / get fields | `lark_api GET /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/fields` | Atomic |
-| Create / update field | `lark_api POST/PUT /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/fields[/{field_id}]` | body: field JSON |
-| Create / update formula field | same field endpoint | `type=formula`; read formula guide first |
-| Create / update lookup field | same field endpoint | `type=lookup`; read lookup guide first; formula is default preference |
-| List / get records | `lark_api GET /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records` | For aggregation use data-query |
-| Create / update record | `lark_api POST /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/batch_create` or upsert endpoint | Read reference doc |
-| Aggregation / comparison / ranking | `lark_api POST /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/data_query` | Do not manually compute from full record-list |
-| Configure / query views | view endpoints — see [lark-base-view.md](references/lark-base-view.md) | list/get/create/delete/rename/set-filter |
-| Query record history | `lark_api GET /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/{record_id}/history` | Requires table + record ID |
-| Create / get / copy Base | `lark_api POST/GET /open-apis/base/v3/bases[/{app_token}]` | Read workspace reference doc |
-| List / get workflow | `lark_api GET /open-apis/base/v1/apps/{app_token}/workflows` | Atomic |
-| Create / update workflow | `lark_api POST/PUT /open-apis/base/v1/apps/{app_token}/workflows[/{workflow_id}]` | body: full step JSON; schema required |
-| Enable / disable workflow | `lark_api POST /open-apis/base/v1/apps/{app_token}/workflows/{workflow_id}/enable` or `/disable` | One call per action |
-| Enable / disable advanced permissions | see [lark-base-advperm-enable.md](references/lark-base-advperm-enable.md) | Custom roles require advperm enabled |
-| List / get roles | role endpoints — see [lark-base-role-list.md](references/lark-base-role-list.md) | Role summary/detail |
-| Create / update / delete roles | role endpoints — see reference docs | Manage custom-role permissions |
-| List / get forms | form endpoints — see [lark-base-form-create.md](references/lark-base-form-create.md) | Atomic |
-| Create / update / delete forms | form endpoints | One call per action |
-| List / create / update / delete form questions | form-questions endpoints | One call per action |
-| Create/manage dashboards and charts | dashboard endpoints — **must read** [lark-base-dashboard.md](references/lark-base-dashboard.md) **first** | See reference |
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'field-list'})` / `lark_api({tool:'base', op:'field-get'})` | List field schema, or get details of a single field | [`lark-base-field-list.md`](references/lark-base-field-list.md), [`lark-base-field-get.md`](references/lark-base-field-get.md) | Before writing records / writing fields / running analysis, usually call `field-list` first; `field-list` must run serial; `field-get` is for confirming a target before delete/update |
+| `lark_api({tool:'base', op:'field-create'})` / `lark_api({tool:'base', op:'field-update'})` / `lark_api({tool:'base', op:'field-delete'})` | Create, update, or delete a regular field | [`lark-base-field-create.md`](references/lark-base-field-create.md), [`lark-base-field-update.md`](references/lark-base-field-update.md), [`lark-base-field-delete.md`](references/lark-base-field-delete.md), [`lark-base-shortcut-field-properties.md`](references/lark-base-shortcut-field-properties.md) | Read field-property spec before writing fields; if type is `formula / lookup`, read the corresponding guide first; if user has already specified the target, delete may run directly with `yes: true` |
+| `lark_api({tool:'base', op:'field-search-options'})` | Query selectable options of a field | [`lark-base-field-search-options.md`](references/lark-base-field-search-options.md) | Suitable for single/multi-select option fields |
 
-## Operational notes
+#### 2.3.3 Record sub-module
 
-- **Base token**: always use `app_token` in API paths (the base identifier); in body/params use `base_token` or `app_token` as documented per endpoint
-- **Serial list discipline**: `table-list / field-list / record-list / view-list / record-history-list / role-list / dashboard-list / dashboard-block-list / workflow-list` must be serial, never parallel
-- **`record-list` limit**: max `page_size` is `200`. For more data, paginate with `page_token`; never request >200 in a single call
-- **Check field writability first**: only storage fields are writable; formula / lookup / system fields are read-only
-- **Actively consider formula capability**: for intents like "calculate", "generate labels", "detect anomalies", "cross-table aggregate", or "date-diff alert", first evaluate whether a formula field should be built instead of returning manual analysis
-- **Lookup is not default**: use lookup only when explicitly requested or strictly better for fixed lookup patterns; prioritize formula for general computation, cross-table aggregation, and conditional logic
-- **Attachment fields**: for "upload attachment / add file to record", only use `record-upload-attachment` flow (read field -> read record -> upload asset -> write back record) — see [lark-base-record-upload-attachment.md](references/lark-base-record-upload-attachment.md)
-- **User/person fields**: pay attention to `user_id_type` and execution identity (user / bot)
-- **History usage**: record-history endpoint supports `table_id + record_id`; no full-table history scan
-- **Workspace status**: integrated with `base-create / base-get / base-copy`
-- **`base-create / base-copy` return rule**: after success, always return identifier information of the new Base. If result includes accessible link (e.g. `base.url`), return it as well
-- **`base-create / base-copy` optional params**: `folder_token`, `time_zone`, and copy `name` are optional. Do not interrupt for these unless user explicitly requests them
-- **`base-create / base-copy` permission handling (bot-created base)**: if created by app identity (bot), after create/copy success, by default continue using bot identity to grant current available user `full_access` admin permission. In reply, explicitly report grant outcome (success / no available user / failed + reason). If grant not completed, provide next-step guidance. Owner transfer must be separately confirmed and must not be executed implicitly.
-- **Dashboard usage**: `dashboard-create` returns `dashboard_id`; Block `data_config` is passed as JSON and supports file reference via the MCP client
-- **Advperm usage**: custom role management (`role-*`) requires advperm enabled; advperm-disable is high-risk and invalidates existing custom roles. Operator must be Base admin. Read [lark-base-advperm-enable.md](references/lark-base-advperm-enable.md) / [lark-base-advperm-disable.md](references/lark-base-advperm-disable.md) first.
-- **Role usage**: role-create only supports `custom_role`; role-update uses Delta Merge (`role_name` and `role_type` must always be provided); role-delete is irreversible and only supports custom roles. Role config supports `base_rule_map`, `table_rule_map`, `dashboard_rule_map`, and `docx_rule_map`. Read [role-config.md](references/role-config.md) before role writes.
-- **Form form-id**: get via form-list; `id` returned by form-create is the `form-id` for form-questions-* operations
-- **Workflow usage**: before creating/updating workflow, read [lark-base-workflow-schema.md](references/lark-base-workflow-schema.md) carefully for trigger/node structures. workflow-list does not return full tree structure; use workflow-get for full structure.
-- **Data-query usage**: before calling the data-query endpoint, read [lark-base-data-query.md](references/lark-base-data-query.md) for DSL, supported field types, aggregation functions, and constraints. `field_name` in DSL must exactly match real table field names from field-list.
-- **Formula / lookup usage**: before building expressions or where conditions, get current table schema first; for cross-table, inspect target table schema. Never guess field names from natural language.
-- **View rename confirmation rule**: if user already clearly specified which view to rename and the new name, call the view-rename endpoint directly without extra confirmation.
-- **Delete confirmation rule (record / field / table)**: if user explicitly requests delete and target is clear, call `record-delete / field-delete / table-delete` directly without re-confirmation. Only resolve ambiguity when target is unclear.
+Sub-module index: [`references/lark-base-record.md`](references/lark-base-record.md), [`references/lark-base-history.md`](references/lark-base-history.md)
 
-## Wiki link special handling (critical)
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'record-search'})` / `lark_api({tool:'base', op:'record-list'})` / `lark_api({tool:'base', op:'record-get'})` | Search records by keyword, list / paginate / export record details, or get a single record | [`lark-base-record-search.md`](references/lark-base-record-search.md), [`lark-base-record-list.md`](references/lark-base-record-list.md), [`lark-base-record-get.md`](references/lark-base-record-get.md) | Default to `record-list`; only use `record-search` when the user supplies an explicit search keyword; do not use record retrieval for aggregation analysis; `limit` max `200`; only continue paging when the user explicitly requires more data; `record-list` must run serial |
+| `lark_api({tool:'base', op:'record-upsert'})` / `lark_api({tool:'base', op:'record-batch-create'})` / `lark_api({tool:'base', op:'record-batch-update'})` | Create, update, or batch-write records | [`lark-base-record-upsert.md`](references/lark-base-record-upsert.md), [`lark-base-record-batch-create.md`](references/lark-base-record-batch-create.md), [`lark-base-record-batch-update.md`](references/lark-base-record-batch-update.md), [`lark-base-shortcut-record-value.md`](references/lark-base-shortcut-record-value.md) | Call `field-list` before writing; only write storage fields; `record-batch-update` is same-value update (one patch applied to many records); single-batch limit is `200` records; do not route attachments through here |
+| Two-step attachment upload: (1) `lark_api({tool:'drive', op:'upload'})` returns `file_token`; (2) `lark_api({tool:'base', op:'record-upsert'})` writes the attachment field referencing that `file_token` | Upload an attachment to an existing record | [`lark-base-record-upload-attachment.md`](references/lark-base-record-upload-attachment.md) | Dedicated attachment-upload flow; do not fake attachment values by skipping the upload step or hand-crafting raw values |
+| `lark_api({tool:'docs', op:'media-download'})` | Download a Base attachment file locally | [`../lark-doc/references/lark-doc-media-download.md`](../lark-doc/references/lark-doc-media-download.md) | The `file_token` for a Base attachment comes from the attachment-field array returned by `record-get`; **do NOT use `lark_api({tool:'drive', op:'download'})`** — it returns 403 for Base attachments |
+| `lark_api({tool:'base', op:'record-delete'})` / `lark_api({tool:'base', op:'record-history-list'})` | Delete a record, or query change history of a record | [`lark-base-record-delete.md`](references/lark-base-record-delete.md), [`lark-base-record-history-list.md`](references/lark-base-record-history-list.md) | If user has already specified the target, delete may run directly with `yes: true`; history is queried by `table-id + record-id`, no full-table scan; `record-history-list` must run serial |
 
-Knowledge-base links (`/wiki/TOKEN`) may point to different object types such as docs, sheets, or Base. **Do not assume the URL token is a file token**. You must resolve real type and token first.
+#### 2.3.4 View sub-module
 
-### Processing flow
+Sub-module index: [`references/lark-base-view.md`](references/lark-base-view.md)
 
-1. **Call `lark_api` to query node info**
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'view-list'})` / `lark_api({tool:'base', op:'view-get'})` | List views, or get a single view | [`lark-base-view-list.md`](references/lark-base-view-list.md), [`lark-base-view-get.md`](references/lark-base-view-get.md) | `view-list` must run serial; `view-get` is for inspecting an existing view config |
+| `lark_api({tool:'base', op:'view-create'})` / `lark_api({tool:'base', op:'view-delete'})` / `lark_api({tool:'base', op:'view-rename'})` | Create, delete, or rename a view | [`lark-base-view-create.md`](references/lark-base-view-create.md), [`lark-base-view-delete.md`](references/lark-base-view-delete.md), [`lark-base-view-rename.md`](references/lark-base-view-rename.md) | Confirm table and view type before create; confirm target before delete; if user has stated the new name, rename may run directly |
+| `lark_api({tool:'base', op:'view-get-filter'})` / `lark_api({tool:'base', op:'view-set-filter'})` | Read or configure filter conditions | [`lark-base-view-get-filter.md`](references/lark-base-view-get-filter.md), [`lark-base-view-set-filter.md`](references/lark-base-view-set-filter.md), [`lark-base-record-list.md`](references/lark-base-record-list.md) | Often combined with `record-list` to read records under a view filter |
+| `lark_api({tool:'base', op:'view-get-sort'})` / `lark_api({tool:'base', op:'view-set-sort'})` | Read or configure sort | [`lark-base-view-get-sort.md`](references/lark-base-view-get-sort.md), [`lark-base-view-set-sort.md`](references/lark-base-view-set-sort.md) | Field names must come from real schema |
+| `lark_api({tool:'base', op:'view-get-group'})` / `lark_api({tool:'base', op:'view-set-group'})` | Read or configure grouping | [`lark-base-view-get-group.md`](references/lark-base-view-get-group.md), [`lark-base-view-set-group.md`](references/lark-base-view-set-group.md) | Field names must come from real schema |
+| `lark_api({tool:'base', op:'view-get-visible-fields'})` / `lark_api({tool:'base', op:'view-set-visible-fields'})` | Read or configure visible fields of a view | [`lark-base-view-get-visible-fields.md`](references/lark-base-view-get-visible-fields.md), [`lark-base-view-set-visible-fields.md`](references/lark-base-view-set-visible-fields.md) | Used to control field order and visibility in a view; field names must come from real schema |
+| `lark_api({tool:'base', op:'view-get-card'})` / `lark_api({tool:'base', op:'view-set-card'})` | Read or configure card view | [`lark-base-view-get-card.md`](references/lark-base-view-get-card.md), [`lark-base-view-set-card.md`](references/lark-base-view-set-card.md) | Suitable for card-display scenarios |
+| `lark_api({tool:'base', op:'view-get-timebar'})` / `lark_api({tool:'base', op:'view-set-timebar'})` | Read or configure timebar view | [`lark-base-view-get-timebar.md`](references/lark-base-view-get-timebar.md), [`lark-base-view-set-timebar.md`](references/lark-base-view-set-timebar.md) | Suitable for timeline scenarios |
 
-   ```
-   Call MCP tool `lark_api`:
-   - method: GET
-   - path: /open-apis/wiki/v2/spaces/get_node
-   - params: { "token": "<wiki_token>" }
-   ```
+### 2.4 Formula / Lookup module
 
-2. **Extract key fields from response**
-   - `node.obj_type`: document type (`docx/doc/sheet/bitable/slides/file/mindnote`)
-   - `node.obj_token`: **real object token** for follow-up operations
-   - `node.title`: document title
+If the user's intent involves derived metrics, conditional logic, text processing, date diff, cross-table computation, or cross-table filtered value retrieval, decide first whether to enter this module.
 
-3. **Choose follow-up operation by `obj_type`**
+Default to `formula`: suits routine computation, conditional logic, text processing, date diff, cross-table aggregation, and any derived result that should be persisted in-table.
+Use `lookup` only when the user explicitly requests it, or when the scenario naturally fits `from / select / where / aggregate` fixed-lookup modeling.
 
-   | obj_type | Meaning | Follow-up |
-   |----------|---------|-----------|
-   | `docx` | New cloud doc | `drive file.comments.*`, `docx.*` |
-   | `doc` | Legacy cloud doc | `drive file.comments.*` |
-   | `sheet` | Spreadsheet | `sheets.*` |
-   | `bitable` | Base | use base endpoints (this skill); do **not** call raw bitable API ad hoc |
-   | `slides` | Slides | `drive.*` |
-   | `file` | File | `drive.*` |
-   | `mindnote` | Mind map | `drive.*` |
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'field-create', args:{ type: 'formula', ... }})` | Create a formula field | [`formula-field-guide.md`](references/formula-field-guide.md), [`lark-base-field-create.md`](references/lark-base-field-create.md), [`lark-base-shortcut-field-properties.md`](references/lark-base-shortcut-field-properties.md) | Do not create before reading the guide |
+| `lark_api({tool:'base', op:'field-update', args:{ type: 'formula', ... }})` | Update a formula field | [`formula-field-guide.md`](references/formula-field-guide.md), [`lark-base-field-update.md`](references/lark-base-field-update.md), [`lark-base-shortcut-field-properties.md`](references/lark-base-shortcut-field-properties.md) | Get current table schema first |
+| `lark_api({tool:'base', op:'field-create', args:{ type: 'lookup', ... }})` | Create a lookup field | [`lookup-field-guide.md`](references/lookup-field-guide.md), [`lark-base-field-create.md`](references/lark-base-field-create.md), [`lark-base-shortcut-field-properties.md`](references/lark-base-shortcut-field-properties.md) | Do not create before reading the guide |
+| `lark_api({tool:'base', op:'field-update', args:{ type: 'lookup', ... }})` | Update a lookup field | [`lookup-field-guide.md`](references/lookup-field-guide.md), [`lark-base-field-update.md`](references/lark-base-field-update.md), [`lark-base-shortcut-field-properties.md`](references/lark-base-shortcut-field-properties.md) | Cross-table also requires the target table schema |
 
-4. **Use wiki-resolved `obj_token` as Base token**
-   - When `obj_type=bitable`, `node.obj_token` is the correct token for base operations.
-   - If original input is `/wiki/...`, do not pass `wiki_token` directly as `app_token`.
+### 2.5 Data analysis module
 
-5. **If token error already occurred, fallback and re-check wiki resolution**
-   - If API returns `param baseToken is invalid`, `base_token invalid`, or `not found`, and original input is `/wiki/...` link or `wiki_token`, first suspect wiki token being used as base token.
-   - Re-call `wiki/v2/spaces/get_node`, confirm `obj_type=bitable`, then retry with `node.obj_token` as the base `app_token`.
+For one-off analysis and ad-hoc aggregation queries. When the user wants "the result computed this time" rather than persisting it as a field, prefer this module.
 
-### Query example
+Confirm a few things before entering this module:
+
+- `data-query` only does aggregation queries (group, filter, sort, aggregate compute) — not raw record listing or per-row detail.
+- The caller MUST be an admin of the target Base with FA (Full Access), otherwise a permission error is returned.
+- `data-query` only supports a whitelisted set of field types; `formula`, `lookup`, attachment, system fields, link fields cannot be used in `dimensions / measures / filters / sort`.
+
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'data-query'})` | Grouped statistics, SUM / AVG / COUNT / MAX / MIN, conditional aggregation analysis | [`lark-base-data-query.md`](references/lark-base-data-query.md) | Field names must exactly match real ones; do not pull all rows via `record-list` / `record-search` and compute manually; `data-query` does not return raw records; verify permission and field-type support before use |
+
+### 2.6 Workflow module
+
+This is a high-constraint module. Before any workflow operation, read the corresponding command doc and schema.
+Module index: [`references/lark-base-workflow.md`](references/lark-base-workflow.md)
+
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'workflow-list'})` / `lark_api({tool:'base', op:'workflow-get'})` | List workflows, or get a complete workflow structure | [`lark-base-workflow-list.md`](references/lark-base-workflow-list.md), [`lark-base-workflow-get.md`](references/lark-base-workflow-get.md), [`lark-base-workflow-schema.md`](references/lark-base-workflow-schema.md) | `workflow-list` returns summaries only and must run serial; use `workflow-get` for full structure |
+| `lark_api({tool:'base', op:'workflow-create'})` / `lark_api({tool:'base', op:'workflow-update'})` | Create or update a workflow | [`lark-base-workflow-create.md`](references/lark-base-workflow-create.md), [`lark-base-workflow-update.md`](references/lark-base-workflow-update.md), [`lark-base-workflow-schema.md`](references/lark-base-workflow-schema.md) | Read schema first; do NOT guess `type` from natural language; confirm real table and field names first |
+| `lark_api({tool:'base', op:'workflow-enable'})` / `lark_api({tool:'base', op:'workflow-disable'})` | Enable or disable a workflow | [`lark-base-workflow-enable.md`](references/lark-base-workflow-enable.md), [`lark-base-workflow-disable.md`](references/lark-base-workflow-disable.md), [`lark-base-workflow-schema.md`](references/lark-base-workflow-schema.md) | Confirm the target workflow before enable/disable; `workflow_id` and `table_id` must be distinguished by prefix |
+
+### 2.7 Dashboard module
+
+When the user mentions keywords such as "dashboard, data board, chart, visualization, block, component, add component, create chart", enter this module and read [`lark-base-dashboard.md`](references/lark-base-dashboard.md) first.
+
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'dashboard-list'})` / `lark_api({tool:'base', op:'dashboard-get'})` | List dashboards, or get dashboard details | [`lark-base-dashboard-list.md`](references/lark-base-dashboard-list.md), [`lark-base-dashboard-get.md`](references/lark-base-dashboard-get.md), [`lark-base-dashboard.md`](references/lark-base-dashboard.md) | Read the guide once dashboard semantics are entered; `dashboard-list` must run serial |
+| `lark_api({tool:'base', op:'dashboard-create'})` / `lark_api({tool:'base', op:'dashboard-update'})` / `lark_api({tool:'base', op:'dashboard-delete'})` | Create, update, or delete a dashboard | [`lark-base-dashboard-create.md`](references/lark-base-dashboard-create.md), [`lark-base-dashboard-update.md`](references/lark-base-dashboard-update.md), [`lark-base-dashboard-delete.md`](references/lark-base-dashboard-delete.md), [`lark-base-dashboard.md`](references/lark-base-dashboard.md) | Clarify dashboard goals and display scenario before create; read current config before update; confirm target before delete |
+| `lark_api({tool:'base', op:'dashboard-block-list'})` / `lark_api({tool:'base', op:'dashboard-block-get'})` | List chart blocks, or get a single block | [`lark-base-dashboard-block-list.md`](references/lark-base-dashboard-block-list.md), [`lark-base-dashboard-block-get.md`](references/lark-base-dashboard-block-get.md), [`lark-base-dashboard.md`](references/lark-base-dashboard.md), [`dashboard-block-data-config.md`](references/dashboard-block-data-config.md) | `dashboard-block-list` must run serial; read block-config doc when inspecting config details |
+| `lark_api({tool:'base', op:'dashboard-block-create'})` / `lark_api({tool:'base', op:'dashboard-block-update'})` / `lark_api({tool:'base', op:'dashboard-block-delete'})` | Create, update, or delete a chart block | [`lark-base-dashboard-block-create.md`](references/lark-base-dashboard-block-create.md), [`lark-base-dashboard-block-update.md`](references/lark-base-dashboard-block-update.md), [`lark-base-dashboard-block-delete.md`](references/lark-base-dashboard-block-delete.md), [`lark-base-dashboard.md`](references/lark-base-dashboard.md), [`dashboard-block-data-config.md`](references/dashboard-block-data-config.md) | When `data_config`, chart type, or filter is involved, read the block-config doc; confirm target before delete |
+
+### 2.8 Form module
+
+Manages forms and form questions.
+Module index: [`references/lark-base-form.md`](references/lark-base-form.md), [`references/lark-base-form-questions.md`](references/lark-base-form-questions.md)
+Form-question operations require `form-id`; see the references for `form-list` and `form-create` for how to obtain it.
+
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'form-list'})` / `lark_api({tool:'base', op:'form-get'})` | List forms, or get a single form | [`lark-base-form-list.md`](references/lark-base-form-list.md), [`lark-base-form-get.md`](references/lark-base-form-get.md) | `form-list` is the source of `form-id`; `form-get` is for inspecting an existing form |
+| `lark_api({tool:'base', op:'form-create'})` / `lark_api({tool:'base', op:'form-update'})` / `lark_api({tool:'base', op:'form-delete'})` | Create, update, or delete a form | [`lark-base-form-create.md`](references/lark-base-form-create.md), [`lark-base-form-update.md`](references/lark-base-form-update.md), [`lark-base-form-delete.md`](references/lark-base-form-delete.md) | After create, may continue into form-question ops; confirm the target form before update or delete |
+| `lark_api({tool:'base', op:'form-questions-list'})` | List form questions | [`lark-base-form-questions-list.md`](references/lark-base-form-questions-list.md) | For inspecting an existing question structure |
+| `lark_api({tool:'base', op:'form-questions-create'})` / `lark_api({tool:'base', op:'form-questions-update'})` / `lark_api({tool:'base', op:'form-questions-delete'})` | Create, update, or delete questions | [`lark-base-form-questions-create.md`](references/lark-base-form-questions-create.md), [`lark-base-form-questions-update.md`](references/lark-base-form-questions-update.md), [`lark-base-form-questions-delete.md`](references/lark-base-form-questions-delete.md) | Confirm `form-id` first; confirm question target before update or delete |
+
+### 2.9 Permission & role module
+
+For enabling advanced permissions and managing Base custom roles.
+Calling `advperm-enable / advperm-disable / role-*` requires the operating user to be a Base admin, otherwise a permission error is returned.
+
+| Operation | Purpose / when to use | Required reference | Routing reminder |
+|---|---|---|---|
+| `lark_api({tool:'base', op:'advperm-enable'})` / `lark_api({tool:'base', op:'advperm-disable'})` | Enable or disable advanced permissions | [`lark-base-advperm-enable.md`](references/lark-base-advperm-enable.md), [`lark-base-advperm-disable.md`](references/lark-base-advperm-disable.md) | Must be enabled before role management; disabling is high risk and invalidates existing custom roles |
+| `lark_api({tool:'base', op:'role-list'})` / `lark_api({tool:'base', op:'role-get'})` | List roles, or get role details | [`lark-base-role-list.md`](references/lark-base-role-list.md), [`lark-base-role-get.md`](references/lark-base-role-get.md), [`role-config.md`](references/role-config.md) | `role-list` must run serial; `role-get` is for inspecting full permission config |
+| `lark_api({tool:'base', op:'role-create'})` / `lark_api({tool:'base', op:'role-update'})` / `lark_api({tool:'base', op:'role-delete'})` | Create, update, or delete a role | [`lark-base-role-create.md`](references/lark-base-role-create.md), [`lark-base-role-update.md`](references/lark-base-role-update.md), [`lark-base-role-delete.md`](references/lark-base-role-delete.md), [`role-config.md`](references/role-config.md) | `role-create` only supports `custom_role`; `role-update` uses Delta Merge — `role_name` and `role_type` must always be supplied even if unchanged; `role-delete` is irreversible |
+
+## 3. Bitable common knowledge
+
+Lark Base's English name is `Base`; its legacy name is `Bitable`. Therefore `bitable` appearing in old docs, return fields, params, or error messages is mostly historical compatibility — it does NOT mean another command set should be used.
+
+### 3.1 Field categories and writability
+
+| Field type | Meaning | Can be a direct write target for `record-upsert / record-batch-create / record-batch-update`? | Notes |
+|---|---|---|---|
+| Storage field | Holds real user input | Yes | Common: text, number, date, single select, multi select, user, link |
+| Attachment field | Holds file attachments | Should not be written like a normal field | Upload via two-step flow: `lark_api({tool:'drive', op:'upload'})` then `lark_api({tool:'base', op:'record-upsert'})` with the returned `file_token`; download via `lark_api({tool:'docs', op:'media-download'})` |
+| System field | Maintained by the platform | No | Common: created time, updated time, created by, modified by, auto number |
+| `formula` field | Computed from an expression | No | Read-only |
+| `lookup` field | Cross-table lookup reference | No | Read-only |
+
+### 3.2 Task-routing mental model
+
+| User intent | Preferred path | Do not mistake for |
+|---|---|---|
+| One-off analysis / ad-hoc statistics | `lark_api({tool:'base', op:'data-query'})` | Do not pull everything via `record-list` / `record-search` then compute manually |
+| Result must persist in the table long term | formula field | Do not return only a one-shot manual analysis |
+| User explicitly requests lookup, or it's naturally a fixed lookup configuration | lookup field | Do not default to lookup; first decide whether formula is more suitable |
+| Read raw record details / keyword search / export | `lark_api({tool:'base', op:'record-search'})` / `record-list` / `record-get` | Do not use `data-query` as a record-fetching command |
+| Upload an attachment to a record | Two-step: `lark_api({tool:'drive', op:'upload'})` then `lark_api({tool:'base', op:'record-upsert'})` writing the returned `file_token` into the attachment field | Do not fake attachment values via raw `record-upsert` / `record-batch-*` payloads bypassing the upload step |
+| Download an attachment file from a record | `lark_api({tool:'docs', op:'media-download', args:{ token: '<file_token>', output: '<path>' }})` | `file_token` comes from the attachment field returned by `record-get`; usage in [`../lark-doc/references/lark-doc-media-download.md`](../lark-doc/references/lark-doc-media-download.md) |
+| Read records via a view filter | `view-set-filter` + `record-list` | Do not skip the view filter and guess conditions |
+| Import a local Excel / CSV as Base | `lark_api({tool:'drive', op:'import', args:{ type: 'bitable', ... }})` | Do not mistakenly call `base-create`, `table-create`, or `record-upsert` |
+
+### 3.3 Table names, field names, and expression references
+
+1. Table and field names must exactly match the real return; the source must be `table-list / table-get / field-list`.
+2. Do not guess names from natural language; do not silently rewrite table/field names from the user's verbal description.
+3. Names appearing in `formula / lookup / data-query / workflow` must also match exactly; expression references, where conditions, DSL field names, workflow configs all obey the same rule.
+4. Cross-table scenarios additionally require reading the target table schema — current-table-only is not enough.
+
+### 3.4 Token and link
+
+This is a high-priority section. Whenever input contains a link or token, or an error mentions `baseToken` / `wiki_token` / `obj_token`, return here first to check.
+
+| Input type | Correct handling | Notes |
+|---|---|---|
+| Direct Base link `/base/{token}` | Extract token directly as `base_token` arg | Do not pass the full URL as `base_token` |
+| Wiki link `/wiki/{token}` | First call `lark_api` with `{ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: '<wiki_token>' } }`, then take `node.obj_token` | Do not pass `wiki_token` directly as `base_token` |
+| `?table={id}` in URL | Decide object type by prefix first | `tbl` prefix = data table `table_id` arg; `blk` prefix = dashboard `dashboard_id`; `wkf` prefix = `workflow_id`; `ldx` prefix = embedded doc — do NOT treat all of these as `table_id` |
+| `?view={id}` in URL | Extract as `view_id` arg | Suitable for direct view targeting |
+
+| `obj_type` returned by the wiki `get_node` HTTP call above | Follow-up route | Notes |
+|---|---|---|
+| `bitable` | Prefer `lark_api({tool:'base', op:'...'})` | If a typed op is missing, do NOT fall back to raw `/open-apis/bitable/v1/...`; check the catalog first |
+| `docx` | Switch to docs / Drive related skill | Do not continue with this skill's Base ops |
+| `sheet` | Switch to Sheets-related skill | Do not continue with this skill's Base ops |
+| `slides` | Switch to Drive-related skill | Do not continue with this skill's Base ops |
+| `mindnote` | Switch to Drive-related skill | Do not continue with this skill's Base ops |
+
+### 3.5 Identity selection and permission-fallback strategy
+
+Lark Base usually belongs to a user's personal or team resources. **Default to user identity for all Base operations**, and always specify identity explicitly via the active profile.
+
+- **User identity (recommended)**: operate as the logged-in user against Bases they have access to. Complete user authorization first via the LarkSkill MCP auth flow:
 
 ```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/wiki/v2/spaces/get_node
-- params: { "token": "Pgrr***************UnRb" }
+Call MCP tool `lark_auth_login`:
+- domain: "base"
 ```
 
-Response example:
-```json
-{
-  "node": {
-    "obj_type": "docx",
-    "obj_token": "UAJ***************E9nic",
-    "title": "ai friendly test - 1 copy",
-    "node_type": "origin",
-    "space_id": "6946843325487906839"
-  }
-}
-```
+Then `lark_auth_poll` to wait for authorization, and confirm via `lark_whoami` / `lark_auth_status`.
 
-## Base link parsing rules
+- **Bot identity (fallback)**: only when user-identity permission is insufficient AND bot identity actually has access to the target Base. Bots cannot see user-private resources; behavior runs under the app identity. Switch via `lark_profile_switch`.
 
-| Link type | Format | Handling |
-|-----------|--------|----------|
-| Direct Base link | `/base/{token}` | Extract directly as `app_token` in API path |
-| Wiki link | `/wiki/{token}` | Call `wiki/v2/spaces/get_node` first, then use `node.obj_token` |
+**Execution rules**:
 
-### URL parameter extraction
+1. All ops default to user identity.
+2. If user identity returns a permission error, first check whether it is a **non-retryable error code** (e.g. `91403`). If so, **stop immediately** — do not retry or fall back. Follow the `lark-shared` insufficient-permission flow to guide the user.
+3. For retryable codes, check the error response for hints like `permission_violations` / `hint` indicating scope-elevation:
+   - **Has elevation hint**: follow the `lark-shared` flow to guide the user through user-identity scope elevation (re-run `lark_auth_login` with the requested scope, or `lark_enable_domain`); after confirmation, retry as user.
+   - **No elevation hint** (e.g. resource-level access denied, not a scope issue): switch to bot identity via `lark_profile_switch` and retry **once**.
+4. If bot identity also returns a permission error, **stop retrying immediately**, and per the error response follow the `lark-shared` flow to guide the user (developer-console scope or resource-access).
+5. Only when the user explicitly says "use app identity / bot identity", skip user and go straight to bot via `lark_profile_switch`.
 
-```
-https://{domain}/base/{base-token}?table={table-id}&view={view-id}
-```
+**Additional notes**:
 
-- `/base/{token}` -> `app_token`
-- `?table={id}` -> `table_id`
-- `?view={id}` -> `view_id`
+- User / person fields: pay attention to `user_id_type` differences vs. execution identity (user / bot).
 
-### Prohibited behavior
+## 4. Execution rules
 
-- **Do not** pass full URL as `app_token`
-- **Do not** pass `wiki_token` directly as `app_token`
+### 4.1 Standard execution order
 
-## Common error quick reference
+1. Decide which module the task belongs to and pick the right operation family.
+2. If the user gave a link, parse the token first — do not mistake a wiki token, full URL, or other object ID for `base_token`.
+3. Get schema before writing ops; avoid guessing table names, field names, expression references.
+4. After locating the operation, read the corresponding reference, then execute.
+5. Execute and decide next step from the return value.
+6. Reply with the key result and follow-up actions, so the agent can continue chaining.
 
-| Error code | Meaning | Resolution |
-|------------|---------|------------|
-| 1254064 | Date format error | Use millisecond timestamp, not string / second-level timestamp |
-| 1254068 | Hyperlink format error | Use `{text, link}` object |
-| 1254066 | User field format error | Use `[{id:"ou_xxx"}]` and verify `user_id_type` |
-| 1254045 | Field name not found | Check exact field name (spaces and case included) |
-| 1254015 | Field value type mismatch | Call `field-list` first, then build by field type |
-| `param baseToken is invalid` / `base_token invalid` | Using wiki token/workspace token/other token as `app_token` | If input comes from `/wiki/...`, get real `obj_token` via `wiki/v2/spaces/get_node`; when `obj_type=bitable`, retry with `node.obj_token`; do not switch to raw bitable/v1 |
-| formula / lookup creation failure | Guide not read or invalid structure | Read `formula-field-guide.md` / `lookup-field-guide.md` first, then rebuild request per guide |
-| system/formula field write failure | Read-only field treated as writable | Write storage fields; let formula/lookup/system fields produce computed outputs |
-| 1254104 | Batch exceeds 500 | Split into batches |
-| 1254291 | Concurrent write conflict | Use serial writes + delay between batches |
+### 4.2 Inviolable rules
 
-## Reference docs
+1. Get schema before writing ops; at minimum get current table schema, and target table for cross-table.
+2. Do not guess table names, field names, or expression references — always honor the real return.
+3. Use only atomic ops; do not regress to legacy aggregated forms `+table / +field / +record / +view / +history / +workspace`.
+4. Read field schema before writing records; call `field-list` first, then build write values per field type.
+5. Read field-property spec before writing fields; read `lark-base-shortcut-field-properties.md` first, then build the JSON for `field-create / field-update`.
+6. Only write writable fields; system fields, attachment fields, `formula`, `lookup` are NOT default write targets in record ops.
+7. Aggregation analysis vs. retrieval are split: stats go to `data-query`, keyword search goes to `record-search`, details go to `record-list / record-get`.
+8. Filtered queries go through view capability: configure with `view-set-filter` first, then read with `record-list`.
+9. In Base scenarios, do not bypass the catalog and call raw `/open-apis/bitable/v1/...` paths.
+10. Use `base_token` uniformly in args; do not use the legacy `app_token` style.
+11. In workflow scenarios, read schema first; do not guess `type` from natural language.
+12. In dashboard scenarios, read the guide first; once chart / board / block is mentioned, enter the dashboard module.
+13. In formula / lookup scenarios, read the guide first; do not create or update before reading the guide.
 
-- [lark-base-shortcut-field-properties.md](references/lark-base-shortcut-field-properties.md) - `field-create`/`field-update` JSON spec (recommended)
-- [role-config.md](references/role-config.md) - role permission config details
-- [lark-base-shortcut-record-value.md](references/lark-base-shortcut-record-value.md) - `record-upsert` value format spec (recommended)
-- [formula-field-guide.md](references/formula-field-guide.md) - formula syntax, function constraints, CurrentValue rules, cross-table computation patterns (strongly recommended)
-- [lookup-field-guide.md](references/lookup-field-guide.md) - lookup config rules, where/aggregate constraints, and formula-vs-lookup decisions
-- [lark-base-view-set-filter.md](references/lark-base-view-set-filter.md) - view filter config
-- [lark-base-record-list.md](references/lark-base-record-list.md) - record list retrieval and pagination
-- [lark-base-advperm-enable.md](references/lark-base-advperm-enable.md) - advperm-enable
-- [lark-base-advperm-disable.md](references/lark-base-advperm-disable.md) - advperm-disable
-- [lark-base-role-list.md](references/lark-base-role-list.md) - role-list
-- [lark-base-role-get.md](references/lark-base-role-get.md) - role-get
-- [lark-base-role-create.md](references/lark-base-role-create.md) - role-create
-- [lark-base-role-update.md](references/lark-base-role-update.md) - role-update
-- [lark-base-role-delete.md](references/lark-base-role-delete.md) - role-delete
-- [lark-base-dashboard.md](references/lark-base-dashboard.md) - dashboard module workflow guide
-- [dashboard-block-data-config.md](references/dashboard-block-data-config.md) - Block data_config structure, chart types, filter rules
-- [lark-base-workflow.md](references/lark-base-workflow.md) - workflow operation index
-- [lark-base-workflow-schema.md](references/lark-base-workflow-schema.md) - `workflow-create`/`workflow-update` JSON body schema details for triggers and nodes (strongly recommended)
-- [lark-base-data-query.md](references/lark-base-data-query.md) - `data-query` aggregation analysis (DSL, supported field types, aggregation functions)
-- [examples.md](references/examples.md) - full operation examples (table creation, import, filter, update)
+### 4.3 Concurrency, pagination, and batching limits
 
-## Operation groups
+- `table-list / field-list / record-list / view-list / record-history-list / role-list / dashboard-list / dashboard-block-list / workflow-list` MUST NOT be called concurrently — serial only.
+- For `record-list` pagination, `limit` max is `200`; first fetch the initial batch and inspect `has_more`, only continue paging when the user explicitly requires more data.
+- Batch writes are capped at `200` records per call.
+- Continuous writes against the same table MUST be serial, with `0.5–1` second delay between batches.
 
-> **Mandatory before execution:** After locating an operation in this table, always read the corresponding reference doc before calling `lark_api`.
+### 4.4 Confirmation and reply rules
 
-| Operation group | Description |
-|-----------------|-------------|
-| [`table operations`](references/lark-base-table.md) | `table-list / table-get / table-create / table-update / table-delete` |
-| [`field operations`](references/lark-base-field.md) | `field-list / field-get / field-create / field-update / field-delete / field-search-options` |
-| [`record operations`](references/lark-base-record.md) | `record-list / record-get / record-upsert / record-upload-attachment / record-delete` |
-| [`view operations`](references/lark-base-view.md) | `view-list / view-get / view-create / view-delete / view-get-* / view-set-* / view-rename` |
-| [`data-query operations`](references/lark-base-data-query.md) | `data-query` |
-| [`history operations`](references/lark-base-history.md) | `record-history-list` |
-| [`base / workspace operations`](references/lark-base-workspace.md) | `base-create / base-get / base-copy` |
-| [`advperm operations`](references/lark-base-advperm-enable.md) | `advperm-enable / advperm-disable` |
-| [`role operations`](references/lark-base-role-list.md) | `role-list / role-get / role-create / role-update / role-delete` |
-| [`form operations`](references/lark-base-form-create.md) | `form-list / form-get / form-create / form-update / form-delete` |
-| [`form questions operations`](references/lark-base-form-questions-create.md) | `form-questions-list / form-questions-create / form-questions-update / form-questions-delete` |
-| [`workflow operations`](references/lark-base-workflow.md) | `workflow-list / workflow-get / workflow-create / workflow-update / workflow-enable / workflow-disable` |
-| [`dashboard / dashboard-block operations`](references/lark-base-dashboard.md) | `dashboard-list / dashboard-get / dashboard-create / dashboard-update / dashboard-delete / dashboard-block-list / dashboard-block-get / dashboard-block-create / dashboard-block-update / dashboard-block-delete` |
+- For view rename, when the user has clearly stated "which view, what new name", call `view-rename` directly.
+- For deleting records / fields / tables, when the user has clearly requested deletion AND the target is unambiguous, call `record-delete / field-delete / table-delete` directly with `yes: true` arg.
+- When the delete target is still ambiguous, call `record-get / field-get / table-get` or the corresponding list to confirm first.
+- After `base-create / base-copy` succeeds, the reply MUST proactively return identifiers for the new Base; if the result includes an accessible link, return it as well.
+- If a Base was created or copied under bot identity, the op auto-attempts to grant the current CLI user `full_access`, returning `permission_grant` in the output; the agent does NOT need to orchestrate a separate grant. Owner transfer must be confirmed separately and never executed implicitly.
+
+## 5. Common errors and recovery
+
+| Error / symptom | Meaning | Recovery |
+|---|---|---|
+| `1254064` | Date format error | Use millisecond timestamp, not string / second-level timestamp |
+| `1254068` | Hyperlink format error | Use `{text, link}` object |
+| `1254066` | User-field error | Use `[{id:"ou_xxx"}]` and confirm `user_id_type` |
+| `1254045` | Field name not found | Check field name (spaces, case included) |
+| `1254015` | Field value type mismatch | Call `field-list` first, then build by type |
+| `param baseToken is invalid` / `base_token invalid` | A wiki token, workspace token, or other token was used as `base_token` | If input came from `/wiki/...`, call `lark_api` with `{ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: '<wiki_token>' } }` to get the real `obj_token`; when `obj_type=bitable`, retry with `node.obj_token` as `base_token`; do not switch to raw `bitable/v1` |
+| `not found` when user gave a wiki link | Common when wiki token is mistaken for base token | Roll back and re-check wiki resolution; do not switch to raw `bitable/v1` |
+| formula / lookup creation fails | Guide not read or invalid structure | Read `formula-field-guide.md` / `lookup-field-guide.md` first, rebuild request per guide |
+| System field / formula field write fails | A read-only field treated as writable | Write storage fields; let formula / lookup / system fields produce computed outputs |
+| `1254104` | Batch over 200 records | Split into batches |
+| `1254291` | Concurrent write conflict | Serial writes + delay between batches |
+| `91403` | No permission to access the Base | **Do NOT retry**. Follow the `lark-shared` insufficient-permission flow to guide the user |

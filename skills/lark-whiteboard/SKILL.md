@@ -1,234 +1,190 @@
 ---
 name: lark-whiteboard
 version: 2.0.0
-description: "Use this skill when users are asked to draw diagrams in Feishu Cloud documents, or use Feishu Sketchpad to draw architecture diagrams, flow charts, mind maps, sequence diagrams or other visual diagrams via LarkSkill MCP."
+description: "Use this skill when operating Lark Whiteboard via LarkSkill MCP: query and edit whiteboards in Lark Docs, export preview images or raw nodes, and update content via Mermaid, PlantUML, or DSL. Also use it for visualizing architecture, flow, org charts, timelines, causality, or comparisons."
 metadata:
   requires:
     mcp: "larkskill"
   mcpTools: ["lark_api", "lark_api_search"]
 ---
 
-# Whiteboard Skill
-
-> [!NOTE]
-> **Environment dependencies**: Drawing the artboard requires `@larksuite/whiteboard-cli` (the artboard Node.js CLI tool).
-> If the execution fails, try again after manual installation: `npm install -g @larksuite/whiteboard-cli@^0.1.0`
-
 > [!IMPORTANT]
-> Before executing `npm install` to install new dependencies, be sure to obtain user consent!
+> **Environment check before execution**:
+> - This skill renders diagrams locally via the standalone `@larksuite/whiteboard-cli` package, then writes the result to Lark via the LarkSkill MCP. Run `whiteboard-cli --version` and confirm version `0.2.x`; if not installed or version mismatched → `npm install -g @larksuite/whiteboard-cli@^0.2.0`.
+> - Confirm the LarkSkill MCP server is connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup).
+> - Before running any `npm install`, **you MUST get user consent**.
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+**CRITICAL — Before starting, you MUST first use the Read tool to read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which contains authentication and permission handling.**
 
-## Workflow
+---
 
-> **This is an artboard, not a web page. ** The artboard is an infinite canvas for freely placing elements, and flex layout is an optional enhancement.
+## Quick decisions
+
+| User need | Action |
+|---|---|
+| View whiteboard content / export image | [`whiteboard +query` with `output_as: image`](references/lark-whiteboard-query.md) |
+| Get the Mermaid/PlantUML code of a whiteboard | [`whiteboard +query` with `output_as: code`](references/lark-whiteboard-query.md) |
+| Check whether a whiteboard is drawn from code | [`whiteboard +query` with `output_as: code`](references/lark-whiteboard-query.md) |
+| Modify node text/color (simple change) | `whiteboard +query` with `output_as: raw` → manually edit JSON → `whiteboard +update` with `input_format: raw` |
+| User **already provided** Mermaid/PlantUML code, or explicitly specifies that format | Generate/use the code yourself → [`whiteboard +update` with `input_format: mermaid` / `plantuml`](references/lark-whiteboard-update.md) |
+| Draw a complex diagram (architecture/flow/org chart, etc.) | → **[§ Authoring Workflow](#authoring-workflow)** |
+| Modify/redraw an existing complex whiteboard | → **[§ Modification Workflow](#modification-workflow)** |
+
+> **⚠️ Mandatory rule (updating via stdin)**:
+> When data comes from a local file, you **MUST** stream it through `source: '-'` with the matching `input_format`. Pipe the file content into the MCP call.
+> Example: read `chart.mmd` locally, then call:
+>
+> ```
+> lark_api({
+>   tool: 'whiteboard',
+>   op: 'update',
+>   args: {
+>     whiteboard_token: '<token>',
+>     source: '-',
+>     input_format: 'mermaid',
+>     stdin: '<contents of chart.mmd>',
+>     as: 'user'
+>   }
+> })
+> ```
+
+## Shortcuts
+
+| Shortcut | Description |
+|---|---|
+| [`whiteboard +query`](references/lark-whiteboard-query.md) | Query a whiteboard, export as preview image, code, or raw node structure |
+| [`whiteboard +update`](references/lark-whiteboard-update.md) | Update a whiteboard, supports PlantUML, Mermaid, or OpenAPI native format |
+
+Example query call:
 
 ```
-Step 1: Routing & reading knowledge
-  - Determine rendering path (see routing table): Mermaid or DSL?
-  - Read corresponding scene guides — understand structural features and layout strategies
-  - Determine layout strategy (see quick judgment below) and construction method
-  - Read references/ core modules - syntax, layout, color matching, typesetting, wiring
-
-Step 2: Generate complete DSL (including color)
-  - Plan information volume and grouping by content.md
-  - Press layout.md to select layout mode and spacing
-  - Color according to style.md (the default classic color palette is used when the user does not specify it)
-  - Output complete JSON according to schema.md syntax
-  - Refer to connectors.md for wiring and typography.md for layout.
-
-  Note: For some graphics (fishbone/flywheel/column/polyline, etc.), you need to write a .js script according to the script template of the scene guide to generate JSON:
-    - node xxx.js → Output JSON file
-    - Use the output JSON file to enter Step 3
-
-Step 3: Render & Review → Deliver
-  - Self-check before rendering (see checklist below)
-  - Render PNG, check:
-    · Is the information complete? Is the layout reasonable? Color coordination?
-    · No text truncation? No cross-connections?
-  - Problematic → Fix by symptom table → Re-render (max 2 rounds)
-  - Still having serious problems after 2 rounds → Consider taking the Mermaid route to find out.
-  - No problem → Delivery:
-    · The user requests to upload Feishu → See the instructions in the "Uploading Feishu Drawing Board" section below
-    · Not specified by user → Show PNG image to user
-```
-
-**Quick judgment of layout strategy** (see layout.md for details):
-
-| Judgment conditions | Layout strategy | Construction method |
-|----------|----------|----------|
-| There are clear upper and lower levels (user layer → service layer → data layer) | Flex layering | Write JSON directly |
-| Spatial location carries information (geography, topology, angle) | Pure absolute positioning | Write script to calculate coordinates (node ​​xxx.js) |
-| Multiple independent modules are interconnected horizontally | Hybrid (island style) | Directly write JSON + estimation assistance |
-| Unsure | Default Flex (safest) | Write JSON directly |
-
-> **The construction method is a strong constraint**: When the scene guide requires "script generation", you must first write a script (.js) and execute it with `node` to produce a JSON file. The coordinates of absolute positioning scenes (fishbone diagrams, flywheel diagrams, histograms, line diagrams, etc.) require mathematical calculations, and directly handwriting JSON can easily lead to overlapping nodes or cross-moulding.
-
----
-
-## Rendering path selection (DSL or Mermaid)
-
-| Chart Type | Path | Reason |
-|----------|------|------|
-| Mind map | **Mermaid** | Radial structure automatic layout |
-| Sequence diagram | **Mermaid** | Automatic arrangement of participants + messages |
-| Class diagram | **Mermaid** | Class relationship automatic layout |
-| Pie chart | **Mermaid** | Mermaid native support |
-| Flowchart | **Mermaid** | Stable structure generation through Mermaid syntax |
-| All other types | **DSL** | Precise control over style and layout |
-
-**Routing Rules**:
-1. **Automatic Mermaid**: mind map, sequence diagram, class diagram, pie chart, flow chart → default to Mermaid
-2. **Explicit Mermaid**: User input contains Mermaid syntax → Go Mermaid
-3. **DSL path**: all other types → Read the core module first, then read the corresponding scenario guide
-
-**Mermaid path**: Refer to `scenes/mermaid.md` to write the `.mmd` file and skip the DSL module.
-**DSL Path**: Follow Workflow 3 steps.
-
----
-
-## Module index
-
-### Core Reference (required reading for DSL paths)
-
-| Module | File | Description |
-|------|------|------|
-| DSL syntax | `references/schema.md` | Node types, attributes, size values ​​|
-| Content planning | `references/content.md` | Information extraction, density decision-making, connection prediction |
-| Layout system | `references/layout.md` | Grid methodology, Flex mapping, spacing rules |
-| Typesetting rules | `references/typography.md` | Font size level, alignment, line spacing |
-| Connection system | `references/connectors.md` | Topology planning, anchor point selection |
-| Color matching system | `references/style.md` | Multi-color palette, visual hierarchy |
-
-
-### Scenario guide (select one by type)
-
-| Chart type | File | Applicable scenarios |
-|----------|------|----------|
-| Architecture diagram | `scenes/architecture.md` | Layered architecture, microservice architecture |
-| Organization chart | `scenes/organization.md` | Company organization, tree hierarchy |
-| Comparison chart | `scenes/comparison.md` | Scheme comparison, function matrix |
-| Fishbone diagram | `scenes/fishbone.md` | Cause and effect analysis, root cause analysis |
-| Histogram | `scenes/bar-chart.md` | Histogram, bar chart |
-| Line chart | `scenes/line-chart.md` | Line chart, trend chart |
-| Treemap | `scenes/treemap.md` | Rectangular treemap, level proportions |
-| Funnel chart | `scenes/funnel.md` | Conversion funnel, sales funnel |
-| Pyramid diagram | `scenes/pyramid.md` | Hierarchical structure, hierarchy of needs |
-| Loop/flywheel diagram | `scenes/flywheel.md` | Growing flywheel, closed-loop link |
-| Milestone | `scenes/milestone.md` | Timeline, version evolution |
-| Mermaid | `scenes/mermaid.md` | Mind maps, sequence diagrams, class diagrams, pie charts, flow charts |
-
----
-
-## Rendering commands
-
-**Rendering** (uses local `@larksuite/whiteboard-cli` npm tool — not MCP):
-```bash
-npx -y @larksuite/whiteboard-cli@^0.1.0 -i my-diagram.json -o ./images/my-diagram.png # DSL path
-npx -y @larksuite/whiteboard-cli@^0.1.0 -i diagram.mmd -o ./images/diagram.png # Mermaid path
-npx -y @larksuite/whiteboard-cli@^0.1.0 -i skeleton.json -o ./images/step1.png -l coords.json # Two stages (extracting coordinates)
+lark_api({
+  tool: 'whiteboard',
+  op: 'query',
+  args: {
+    whiteboard_token: '<token>',
+    output_as: 'image',  // or 'code' / 'raw'
+    as: 'user'
+  }
+})
 ```
 
 ---
 
-## Uploading to Feishu Drawing Board
+## Authoring Workflow
 
-> Feishu authentication is required for uploading. When encountering authentication or permission errors, read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) to learn about login and permission handling.
+> This workflow is for **independently authoring a single whiteboard**.
+> When you need to bulk-create multiple whiteboards inside a document, lark-doc orchestrates the flow — see `references/lark-doc-whiteboard.md` in the lark-doc skill.
 
-**Step one: Obtain the drawing board token**
+**Step 1: Obtain board_token**
 
-| What the user gave | How to obtain Token |
-|------------|--------------|
-| Sketchboard Token (`XXX`) | Use directly |
-| Document URL or doc_id, there is an artboard in the document | Call `lark_api GET /open-apis/docx/v1/documents/{document_id}/blocks` to find the whiteboard block and extract `token` |
-| Document URL or doc_id, you need to create a new artboard | Call `lark_api PATCH /open-apis/docx/v1/documents/{document_id}/blocks/{block_id}` to append a whiteboard block, then extract `board_token` from the response |
+| What the user gave you | How to obtain it |
+|---|---|
+| Whiteboard token directly (`wbcnXXX`) | Use it directly |
+| Document URL or doc_id, document already contains a whiteboard | `lark_api({ tool: 'docs', op: 'fetch', args: { doc: '<URL>', as: 'user' } })`, extract from the returned `<whiteboard token="xxx"/>` |
+| Document URL or doc_id, need to create a new whiteboard | `lark_api({ tool: 'docs', op: 'update', args: { doc: '<doc_id>', mode: 'append', markdown: '<whiteboard type="blank"></whiteboard>', as: 'user' } })`, take from response `data.board_tokens[0]` (see lark-doc SKILL.md for parameter details) |
 
-For more information on creating, reading, and reading Feishu documents, please refer to lark-doc skill [`../lark-doc/SKILL.md`](../lark-doc/SKILL.md).
+**Step 2: Render & write**
 
-**Step 2: Convert DSL to Whiteboard API format**
+→ Enter the **[§ Render & write to whiteboard](#render--write-to-whiteboard)** section, follow the flow, and return the result to the user when done.
 
-Convert the local DSL JSON to the whiteboard node format using the CLI tool, then upload via MCP:
+---
 
-```bash
-# Convert DSL to API format (outputs JSON to stdout)
-npx -y @larksuite/whiteboard-cli@^0.1.0 --to openapi -i <input file> --format json
+## Modification Workflow
+
+**Step 1: Obtain board_token** (same as Authoring Workflow Step 1)
+
+**Step 2: Decide modification strategy**
+
+```
+whiteboard +query (output_as: code)
+  ├─ Returns Mermaid/PlantUML code
+  │   → Edit on top of the original code → whiteboard +update (input_format: mermaid/plantuml)
+  ├─ No code returned (whiteboard drawn via DSL or other means)
+  │   ├─ Only changing text/color → whiteboard +query (output_as: raw) → manually edit JSON → whiteboard +update (input_format: raw)
+  │   └─ Redraw / structural change → whiteboard +query (output_as: image) → review the image, then enter [§ Render & write to whiteboard]
+  └─ User has explicit requirements → user requirements take precedence
 ```
 
-**Step 3: Check existing nodes (pre-flight)**
+---
+
+## Render & write to whiteboard
+
+### Render routing
+
+**First, self-identify**: by your training origin, which family do you belong to? `Claude` / `Gemini` / `GPT` / `GLM` / `Doubao or Seed` / `Other`. Identity decides the SVG / DSL split (different families have uneven capability between these two expression languages). Do not skip this step.
+
+**Then pick the path by diagram type × identity**, read the corresponding file, and execute its full workflow (including reading the scene guide, generating content, render review, and delivery):
+
+| Diagram type | Identity | Path |
+|---|---|---|
+| Mind map, sequence diagram, class diagram, pie chart, Gantt chart | Any identity | [`routes/mermaid.md`](routes/mermaid.md) |
+| Other diagrams | `Claude` / `Gemini` / `GPT` / `GLM` | [`routes/svg.md`](routes/svg.md) |
+| Other diagrams | `Doubao` / `Seed` / `Other` | [`routes/dsl.md`](routes/dsl.md) |
+
+> **⚠️ SVG path failure fallback**: when on `routes/svg.md`, if any of the following occur → **discard the current SVG and switch to `routes/dsl.md` to redraw from scratch — do NOT patch line-by-line**:
+> - Render command errors out directly (syntax-level crash, not a `--check` warn/error)
+> - After two rewrite rounds the `text-overflow` error from `--check` still cannot be eliminated
+> - Visual inspection of the PNG shows severe layout corruption (large-scale text overflow, elements overlapping and covering critical info, overall layout collapsed)
+>
+> Patching SVG source often introduces new bugs; switching to DSL and redrawing from scratch is usually more stable. This is the hard fallback for the SVG free-form path — do NOT intrude into the `routes/svg.md` authoring flow.
+
+### Output artifact spec
+
+Output directory: `./diagrams/YYYY-MM-DDTHHMMSS/` (local time, no colons, no timezone suffix). If the user specifies a path, follow the user.
+
+Fixed file names inside the directory:
+
+```
+diagram.svg           ← SVG source (SVG path)
+diagram.mmd           ← Mermaid source (Mermaid path)
+diagram.json          ← DSL source file (DSL path) / OpenAPI JSON (SVG path exports from diagram.svg)
+diagram.gen.cjs       ← Coordinate-calculation script (DSL script-build mode only)
+diagram.png           ← Render result
+```
+
+### Write to whiteboard
 
 > [!CAUTION]
-> **MANDATORY PRE-FLIGHT CHECK (mandatory interception check before uploading)**
-> When you want to write content to an **existing artboard Token**, you **must** first check if the artboard is empty.
-
-Check if the whiteboard has existing nodes:
+> **Mandatory dry-run before write**: when writing to a whiteboard that already has content, you MUST first probe with `overwrite: true` and `dry_run: true`.
+> If output contains `XX whiteboard nodes will be deleted` → you MUST confirm with the user before executing.
 
 ```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/board/v1/whiteboards/{whiteboard_id}/nodes
-- as: user
+# Step 1: render the artifact to OpenAPI JSON locally
+npx -y @larksuite/whiteboard-cli@^0.2.0 -i <artifact-file> --to openapi --format json
+# (capture the resulting JSON; pass it as the stdin payload below)
+
+# Step 2: dry-run probe via LarkSkill MCP
+lark_api({
+  tool: 'whiteboard',
+  op: 'update',
+  args: {
+    whiteboard_token: '<Token>',
+    source: '-',
+    input_format: 'raw',
+    idempotent_token: '<10+-char unique string>',
+    overwrite: true,
+    dry_run: true,
+    as: 'user',
+    stdin: '<OpenAPI JSON from Step 1>'
+  }
+})
+
+# Step 3: execute after confirmation (drop dry_run)
+lark_api({
+  tool: 'whiteboard',
+  op: 'update',
+  args: {
+    whiteboard_token: '<Token>',
+    source: '-',
+    input_format: 'raw',
+    idempotent_token: '<10+-char unique string>',
+    overwrite: true,
+    as: 'user',
+    stdin: '<OpenAPI JSON from Step 1>'
+  }
+})
 ```
 
-**Parse the results and intercept**:
-- If the response contains existing nodes: the artboard is **not empty** — the current operation will overwrite and destroy the user's original chart!
-- **You must stop the operation immediately** and confirm to the user: "The target artboard is currently not empty. Continuing the update will clear the original nodes. Are you sure to overwrite?"
-- Only proceed with the upload if the user explicitly authorizes "agree to override".
-
-**Step 4: Upload whiteboard nodes via MCP**
-
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/board/v1/whiteboards/{whiteboard_id}/nodes
-- body: <converted node JSON from CLI output>
-- as: user
-```
-
-> Once uploaded, the artboard cannot be modified. To apply bot identity, use `as: bot` instead.
-
-**Symptom → Fix Table** (refer to when visual inspection reveals problems):
-
-| Problems seen | What to change |
-|-----------|--------|
-| Text is truncated | height changed to fit-content |
-| The text overflows the right side of the container | Increase the width, or shorten the text |
-| Nodes overlap and stick together | Increase gap |
-| Nodes are crowded together | Increase padding and gap |
-| Connect lines through nodes | Adjust fromAnchor/toAnchor or increase the spacing |
-| Large blank area | Reduce outer frame width |
-| The text and background colors are too close | Adjust fillColor or textColor |
-| The overall layout is left/right | Adjust the x coordinate of absolute positioning to center the content |
-
----
-
-## Self-check before rendering
-
-After generating the DSL and before rendering, a quick check:
-
-- [ ] Different colors are used for different groups? Are the styles of nodes in the same group exactly the same?
-- [ ] Light colored background on the outer layer and white nodes on the inner layer? (Heavy on the outside and light on the inside)
-- [ ] All nodes have borders (borderWidth=2)? Is the text legible against the background?
-- [ ] Use gray (#BBBFC4) for connections, not color?
-- [ ] frame has layout attribute written? Are both gap and padding explicitly set?
-- [ ] contains text node height. Use fit-content? connector in the top level nodes array?
-
----
-
-## Quick check on key constraints
-
-> The most frequently errored rules must be followed even if submodule files are not read.
-
-1. **The height of nodes containing text must use `'fit-content'`** - hard-coding the value will truncate the text
-2. **`fill-container` only takes effect in the flex parent container** — the width degenerates to 0 under `layout: 'none'`
-3. **connector must be placed in the top-level nodes array** — cannot be nested in frame children
-4. **Layer Order** — Array Order = Draw Order. The higher the level of elements defined later, they will overwrite those defined earlier. Overlapping/floating/label elements must be placed at the end of the array.
-5. **x/y in the flex container will be completely ignored** — use `layout: 'none'` or place it on top-level nodes when free positioning is required
-
-❌ Fatal error: The flex container is set to x/y, the coordinates do not take effect, and the nodes are arranged in order
-```json
-{ "type": "frame", "layout": "vertical", "children": [
-  { "type": "rect", "x": 100, "y": 0, "text": "Chengdu" },
-  { "type": "rect", "x": 540, "y": 0, "text": "Kangding" }
-]}
-```
-✅ Correct: Use `layout: "none"` or put it on top nodes and use x/y positioning.
+> `idempotent_token` requires at least 10 characters; recommend concatenating timestamp + identifier (e.g. `1744800000-board-1`) to avoid duplicate writes on retry.
+> If you need to upload as the application identity, replace `as: 'user'` with `as: 'bot'`.

@@ -1,136 +1,109 @@
 ---
 name: lark-workflow-meeting-summary
-version: 2.0.0
-description: "Meeting minutes consolidation workflow via LarkSkill MCP: collect meeting notes within a specified time range and generate a structured report. Use when users need to organize meeting notes, generate weekly meeting reports, or review meetings over a period."
+version: 1.0.0
+description: "Meeting minutes summarization workflow via LarkSkill MCP. Aggregate Lark Video Conferencing minutes within a time range and generate a structured report (single-day overview or weekly digest). Use when the user asks to organize, summarize, or review meetings."
 metadata:
   requires:
     mcp: "larkskill"
-  mcpTools: ["lark_api", "lark_api_search"]
+  mcpTools: ["lark_api", "lark_api_search", "lark_auth_login", "lark_auth_status", "lark_whoami", "lark_enable_domain"]
 ---
 
-# Meeting Minutes Consolidation Workflow (v2)
+# Meeting Minutes Summary Workflow
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected. Also read [`../lark-vc/SKILL.md`](../lark-vc/SKILL.md) to understand meeting-note-related operations.
+**CRITICAL — Before starting, MUST first use the Read tool to read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which covers authentication and permission handling.** Then read [`../lark-vc/SKILL.md`](../lark-vc/SKILL.md) for meeting minutes related operations.
 
-## Applicable Scenarios
+## Use this skill when
 
-- "Help me organize this week's meeting notes" / "Summarize recent meetings" / "Generate a weekly meeting report"
-- "What meetings did we have today" / "Review what meetings were held in the past week"
+- "Help me organize this week's meeting minutes" / "Summarize recent meetings" / "Generate a meeting weekly report"
+- "Show me what meetings happened today" / "Review meetings from the past week"
 
 ## Prerequisites
 
-Only supports **user identity** (`as: "user"`). Ensure user OAuth is completed before execution. Required scopes:
-- `vc:meeting.search:read` — for meeting search
-- `vc:note:read` — for meeting notes
-- `drive:drive:readonly` — for document metadata (if fetching doc URLs)
+- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
+- MCP tools available: `lark_api`, `lark_api_search`, `lark_auth_login`, `lark_auth_status`, `lark_whoami`, `lark_enable_domain`
+- Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for auth, global flags, and safety rules
+
+Only **user identity** is supported. Before execution, ensure authorization for the required domains:
+
+```
+lark_auth_login({ domain: 'vc' })          // Basic (search + minutes)
+lark_auth_login({ domain: 'vc,drive' })    // Includes reading minutes doc body, generating docs
+```
 
 ## Workflow
 
 ```
-{time range} ─► vc search ──► Meeting list (meeting_ids)
+{time range} ─► vc +search ──► meeting list (meeting_ids)
                    │
                    ▼
-               vc notes ──► Note document tokens
+               vc +notes ──► minutes doc tokens
                    │
                    ▼
-               drive metas batch_query ──► Document metadata + URLs
+               drive metas batch_query minutes metadata
                    │
                    ▼
-               Structured reporting
+               structured report
 ```
 
-### Step 1: Determine Time Range
+### Step 1: Determine time range
 
-Default is **past 7 days**. Inference rules: "today" → same day, "this week" → Monday to now, "last week" → last Monday to last Sunday, "this month" → day 1 to now.
+Default is **the past 7 days**. Inference rules: "today" → today, "this week" → Monday of this week ~ now, "last week" → last Monday ~ last Sunday, "this month" → 1st ~ now.
 
-> **Note**: compute dates from the current date using reasoning, not natural language strings. Time parameters must be ISO 8601.
+> **Note**: Date conversion MUST call a system command (e.g. `date`); do not compute mentally. Time range parameters must be formatted per the underlying API requirements (typically `YYYY-MM-DD` or ISO 8601).
 
-### Step 2: Query Meeting Records
-
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/vc/v1/meetings/search
-- body:
-  {
-    "start_time": "<YYYY-MM-DDTHH:mm:ss+08:00>",
-    "end_time": "<YYYY-MM-DDTHH:mm:ss+08:00>",
-    "page_size": 30
-  }
-- as: user
-```
-
-- Max searchable range per query is 1 month. For longer ranges, split into monthly queries.
-- `end_time` is **inclusive** (for "today", both start and end should span the full day)
-- Max page_size is 30; paginate with `page_token` if `has_more=true`
-- Collect all `id` fields (meeting_id) from results
-
-### Step 3: Get Notes Metadata
-
-Query notes for each meeting using the meeting_ids collected in Step 2:
+### Step 2: Query meeting records
 
 ```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/vc/v1/meetings/{meeting_id}/notes
-- as: user
+lark_api({ tool: 'vc', op: 'search', args: { start: '<YYYY-MM-DD>', end: '<YYYY-MM-DD>', format: 'json', 'page-size': 30 } })
 ```
 
-- Call once per meeting_id (batch up to 50 per logical group)
-- Some meetings return no notes; mark these as "no notes" in final output
-- Record each meeting's `note_doc_token` and `verbatim_doc_token`
+- Time range splitting: max search range is 1 month. For longer spans, split into multiple one-month queries.
+- `end` is **inclusive of that day** (i.e. when querying "today", both `start` and `end` are today)
+- `format: 'json'` returns JSON, which you parse better.
+- `page-size` max is 30 entries per page.
+- When `page_token` is present, MUST continue paginating and collect every `id` field (meeting-id)
 
-To get document URLs in batch:
+### Step 3: Fetch minutes metadata
 
+1. Query meeting-related minutes info
 ```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/drive/v1/metas/batch_query
-- body:
-  {
-    "request_docs": [{ "doc_type": "docx", "doc_token": "<doc_token>" }],
-    "with_url": true
-  }
-- as: user
+lark_api({ tool: 'vc', op: 'notes', args: { 'meeting-ids': 'id1,id2,...,idN' } })
+```
+- Use `meeting-id` collected in the previous step to query meeting minutes.
+- Up to 50 minutes per call; if more than 50, split into batches.
+- Some meetings return `no notes available`; mark "no minutes" in the final output.
+- Record each meeting's `note_doc_token` (minutes doc token) and `verbatim_doc_token` (verbatim transcript doc token)
+
+
+2. Get minutes doc and verbatim transcript doc links
+```
+// Discover the operation shape via search — confirm exact op token before calling
+lark_api_search({ query: 'drive metas batch_query' })
+
+// Batch fetch minutes doc and verbatim transcript links: max 10 docs per call
+lark_api({ tool: 'drive', op: 'metas.batch_query', args: { request_docs: [{ doc_type: 'docx', doc_token: '<doc_token>' }], with_url: true } })
 ```
 
-### Step 4: Produce Minutes Report
+### Step 4: Compose minutes report
 
 Choose output format based on time span:
 
-- **Single-day summary** ("today"/"yesterday"): title "Today Meeting Overview", list each meeting with time, topic, notes link, transcript link.
-- **Multi-day/weekly report** ("this week"/"past 7 days", etc.): title "Meeting Minutes Weekly Report", including overview stats and per-meeting details.
+- **Single-day summary** ("today" / "yesterday"): use the heading "Today's Meeting Overview"; for each meeting list time, topic, minutes link, verbatim transcript link.
+- **Multi-day / weekly report** ("this week" / "past 7 days" etc.): use the heading "Meeting Minutes Weekly Report"; include overview stats and per-meeting details.
 
-### Step 5: Generate Document (Optional, when user requests)
+### Step 5: Generate document (optional, when user asks)
 
-Read [`../lark-doc/SKILL.md`](../lark-doc/SKILL.md) to understand doc creation operations.
-
-Create a new doc:
+Read [`../lark-doc/SKILL.md`](../lark-doc/SKILL.md) for cloud doc skills.
 
 ```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/docx/v1/documents
-- body:
-  {
-    "title": "Summary of meeting minutes (<start> - <end>)"
-  }
-- as: user
+lark_api({ tool: 'docs', op: 'create', args: { title: 'Meeting Minutes Summary (<start> - <end>)', markdown: '<content>' } })
+
+// Or append to an existing doc
+lark_api({ tool: 'docs', op: 'update', args: { doc: '<url_or_token>', mode: 'append', markdown: '<content>' } })
 ```
-
-Then append content blocks using the doc token returned.
-
-## Permission Table
-
-| Operation | Required Scope |
-|-----------|---------------|
-| vc search | `vc:meeting.search:read` |
-| vc notes | `vc:meeting.meetingevent:read`, `vc:note:read` |
-| drive metas batch_query | `drive:drive:readonly` |
-| doc create | `docx:document:create` |
 
 ## References
 
-- [lark-shared](../lark-shared/SKILL.md) — Authentication and permissions (required)
-- [lark-vc](../lark-vc/SKILL.md) — Detailed vc search and notes operations
-- [lark-doc](../lark-doc/SKILL.md) — Detailed doc create and update operations
+- [lark-shared](../lark-shared/SKILL.md) — auth, permissions (mandatory)
+- [lark-vc](../lark-vc/SKILL.md) — `+search`, `+notes` detailed usage
+- [lark-doc](../lark-doc/SKILL.md) — `+fetch`, `+create`, `+update` detailed usage

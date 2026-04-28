@@ -1,16 +1,22 @@
 ---
 name: lark-im
 version: 2.0.0
-description: "Lark Instant Messaging: Send and receive messages and manage group chats via LarkSkill MCP. Send and reply to messages, search chat records, manage group chat members, upload and download images and files, manage emoji reactions. Use when users need to send messages, view or search chat records, download files in chats, or view group members."
+description: "Lark Messenger via LarkSkill MCP: send and receive messages, manage group chats and members, search chat history, upload/download images and files (chunked for large files), and manage emoji reactions. Use when you need to send messages, view or search chats, or download chat files."
 metadata:
   requires:
     mcp: "larkskill"
   mcpTools: ["lark_api", "lark_api_search"]
 ---
 
-# im (v2)
+# im
 
-**CRITICAL - Before starting, MUST read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which includes authentication and permission handling. LarkSkill MCP server must be connected.**
+## Prerequisites
+
+- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
+- MCP tools available: `lark_api`, `lark_api_search`
+- Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for authentication, global flags, and safety rules
+
+> **Mandatory before execution:** Before calling any `im` operation, read the corresponding reference doc first.
 
 ## Core Concepts
 
@@ -34,103 +40,160 @@ Chat (oc_xxx)
 
 ### Identity and Token Mapping
 
-- `as: user` means **user identity** and uses `user_access_token`. Calls run as the authorized end user, so permissions depend on both the app scopes and that user's own access to the target chat/message/resource.
-- `as: bot` means **bot identity** and uses `tenant_access_token`. Calls run as the app bot, so behavior depends on the bot's membership, app visibility, availability range, and bot-specific scopes.
+- `as: 'user'` means **user identity** and uses `user_access_token`. Calls run as the authorized end user, so permissions depend on both the app scopes and that user's own access to the target chat/message/resource.
+- `as: 'bot'` means **bot identity** and uses `tenant_access_token`. Calls run as the app bot, so behavior depends on the bot's membership, app visibility, availability range, and bot-specific scopes.
 - If an IM API says it supports both `user` and `bot`, the token type changes who the operator is. The same API can succeed with one identity and fail with the other because owner/admin status, chat membership, tenant boundary, or app availability are checked against the current caller.
 
 ### Sender Name Resolution with Bot Identity
 
-When using bot identity (`as: bot`) to fetch messages, sender names may not be resolved (shown as open_id instead of display name). This happens when the bot cannot access the user's contact info.
+When using bot identity (`as: 'bot'`) to fetch messages (e.g. `chat-messages-list`, `threads-messages-list`, `messages-mget`), sender names may not be resolved (shown as open_id instead of display name). This happens when the bot cannot access the user's contact info.
 
 **Root cause**: The bot's app visibility settings do not include the message sender, so the contact API returns no name.
 
-**Solution**: Check the app's visibility settings in the Lark Developer Console — ensure the app's visible range covers the users whose names need to be resolved. Alternatively, use `as: user` to fetch messages with user identity, which typically has broader contact access.
+**Solution**: Check the app's visibility settings in the Lark Developer Console — ensure the app's visible range covers the users whose names need to be resolved. Alternatively, use `as: 'user'` to fetch messages with user identity, which typically has broader contact access.
 
 ### Card Messages (Interactive)
 
-Card messages (`interactive` type) may return raw event data. Handle accordingly.
+Card messages (`interactive` type) are not yet supported for compact conversion in event subscriptions. The raw event data will be returned instead, with a hint printed to stderr.
 
-## Shortcuts (recommended, use first)
+## Shortcut operations (recommended — prefer these)
 
-Shortcuts are high-level operations via MCP `lark_api`. Read the corresponding reference doc before calling.
+A Shortcut is a high-level wrapper around a common operation. When a Shortcut exists for an operation, prefer it over a raw API call.
 
-| Shortcut | Reference | Description |
-|----------|-----------|-------------|
-| `+chat-create` | [`references/lark-im-chat-create.md`](references/lark-im-chat-create.md) | Create a group chat; user/bot; creates private/public chats, invites users/bots, optionally sets bot manager |
-| `+chat-messages-list` | [`references/lark-im-chat-messages-list.md`](references/lark-im-chat-messages-list.md) | List messages in a chat or P2P conversation; user/bot; supports time range/sort/pagination |
-| `+chat-search` | [`references/lark-im-chat-search.md`](references/lark-im-chat-search.md) | Search visible group chats by keyword and/or member open_ids; user/bot; supports member/type filters, sorting, and pagination |
-| `+chat-update` | [`references/lark-im-chat-update.md`](references/lark-im-chat-update.md) | Update group chat name or description; user/bot |
-| `+messages-mget` | [`references/lark-im-messages-mget.md`](references/lark-im-messages-mget.md) | Batch get messages by IDs; user/bot; fetches up to 50 om_ message IDs, formats sender names |
-| `+messages-reply` | [`references/lark-im-messages-reply.md`](references/lark-im-messages-reply.md) | Reply to a message; user/bot; supports text/markdown/post/media replies, reply-in-thread, idempotency key |
-| `+messages-resources-download` | [`references/lark-im-messages-resources-download.md`](references/lark-im-messages-resources-download.md) | Download images/files from a message; user/bot |
-| `+messages-search` | [`references/lark-im-messages-search.md`](references/lark-im-messages-search.md) | Search messages across chats; user-only; filters by chat/sender/attachment/time, supports auto-pagination |
-| `+messages-send` | [`references/lark-im-messages-send.md`](references/lark-im-messages-send.md) | Send a message to a chat or direct message; user/bot; sends to chat-id or user-id with text/markdown/post/media |
-| `+threads-messages-list` | [`references/lark-im-threads-messages-list.md`](references/lark-im-threads-messages-list.md) | List messages in a thread; user/bot; accepts om_/omt_ input, supports sort/pagination |
+| Shortcut op | Description |
+|-------------|-------------|
+| [`chat-create`](references/lark-im-chat-create.md) | Create a group chat; user/bot; creates private/public chats, invites users/bots, optionally sets bot manager |
+| [`chat-messages-list`](references/lark-im-chat-messages-list.md) | List messages in a chat or P2P conversation; user/bot; accepts `chat-id` or `user-id`, resolves P2P chat_id, supports time range/sort/pagination |
+| [`chat-search`](references/lark-im-chat-search.md) | Search visible group chats by keyword and/or member open_ids (e.g. look up chat_id by group name); user/bot; supports member/type filters, sorting, and pagination |
+| [`chat-update`](references/lark-im-chat-update.md) | Update group chat name or description; user/bot |
+| [`messages-mget`](references/lark-im-messages-mget.md) | Batch get messages by IDs; user/bot; fetches up to 50 om_ message IDs, formats sender names, expands thread replies |
+| [`messages-reply`](references/lark-im-messages-reply.md) | Reply to a message (supports thread replies); user/bot; supports text/markdown/post/media replies, reply-in-thread, idempotency key |
+| [`messages-search`](references/lark-im-messages-search.md) | Search messages across chats (supports keyword, sender, time range filters) with user identity; user-only; filters by chat/sender/attachment/time, supports auto-pagination via `page-all` / `page-limit`, enriches results via batched mget and chats batch_query |
+| [`messages-send`](references/lark-im-messages-send.md) | Send a message to a chat or direct message; user/bot; sends to `chat-id` or `user-id` with text/markdown/post/media, supports idempotency key |
+| [`threads-messages-list`](references/lark-im-threads-messages-list.md) | List messages in a thread; user/bot; accepts om_/omt_ input, resolves message IDs to thread_id, supports sort/pagination |
 
-## Intent → MCP call index
+### Shortcut invocation pattern
 
-| Intent | MCP call | Note |
-|--------|----------|------|
-| Send message to chat | `lark_api POST /open-apis/im/v1/messages` | params: `receive_id_type=chat_id`; body: `{receive_id, msg_type, content}` |
-| Send DM to user | `lark_api POST /open-apis/im/v1/messages` | params: `receive_id_type=open_id`; body: `{receive_id, msg_type, content}` |
-| Reply to message | `lark_api POST /open-apis/im/v1/messages/{message_id}/reply` | body: `{content, msg_type, reply_in_thread}` |
-| List chat messages | `lark_api GET /open-apis/im/v1/messages` | params: `container_id_type=chat&container_id=oc_xxx` |
-| List thread messages | `lark_api GET /open-apis/im/v1/messages` | params: `container_id_type=thread&container_id=omt_xxx` |
-| Batch get messages | `lark_api GET /open-apis/im/v1/messages/mget` | params: `message_ids=om_aaa,om_bbb` |
-| Search messages | `lark_api POST /open-apis/im/v1/messages/search` | body: `{query, chat_id, ...}` |
-| Search chats | `lark_api POST /open-apis/im/v2/chats/search` | body: `{query, member_ids_list, ...}` |
-| Create group | `lark_api POST /open-apis/im/v1/chats` | body: `{name, user_id_list, bot_id_list, ...}` |
-| Update group | `lark_api PUT /open-apis/im/v1/chats/{chat_id}` | body: `{name, description}` |
-| Add member to group | `lark_api POST /open-apis/im/v1/chats/{chat_id}/members` | body: `{id_list}` |
-| Add reaction | `lark_api POST /open-apis/im/v1/messages/{message_id}/reactions` | body: `{reaction_type:{emoji_type}}` |
-| List reactions | `lark_api GET /open-apis/im/v1/messages/{message_id}/reactions` | |
-| Delete reaction | `lark_api DELETE /open-apis/im/v1/messages/{message_id}/reactions/{reaction_id}` | |
-| Download resource | `lark_api GET /open-apis/im/v1/messages/{message_id}/resources/{file_key}` | params: `type=image\|file` |
+Call shortcut ops via the `lark_api` MCP tool with `tool: 'im'` and the op name from the table above:
 
-## API Resources
+```
+lark_api({ tool: 'im', op: 'messages-send', args: { 'chat-id': 'oc_xxx', text: 'hello', as: 'user' } })
+```
+
+Concrete examples:
+
+```
+# Create a group chat
+lark_api({ tool: 'im', op: 'chat-create', args: { name: 'Project Alpha', 'user-ids': ['ou_aaa', 'ou_bbb'], as: 'bot' } })
+
+# Reply in thread
+lark_api({ tool: 'im', op: 'messages-reply', args: { 'message-id': 'om_xxx', text: 'roger', 'in-thread': true, as: 'user' } })
+
+# Search messages with auto-pagination
+lark_api({ tool: 'im', op: 'messages-search', args: { keyword: 'release notes', 'page-all': true, as: 'user' } })
+
+# Batch get messages
+lark_api({ tool: 'im', op: 'messages-mget', args: { 'message-ids': ['om_a', 'om_b'], as: 'user' } })
+
+# List messages in a thread
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { 'message-id': 'om_xxx', as: 'user' } })
+```
+
+## Native API operations
+
+When a Shortcut does not exist for an operation, call the underlying API via raw `lark_api` HTTP form. Use `lark_api_search` first to discover endpoints when unsure.
+
+> **Important:** Before calling a native endpoint, you MUST inspect its parameter shape — never guess `body` / `params` field formats. Use `lark_api_search` to discover the endpoint and its schema, e.g.:
+>
+> ```
+> lark_api_search({ query: 'im messages forward' })
+> ```
 
 ### chats
 
-  - `create` - Create a group. Identity: `bot` only (`tenant_access_token`).
-  - `get` - Get group information. Identity: supports `user` and `bot`; the caller must be in the target chat to get full details, and must belong to the same tenant for internal chats.
-  - `link` - Get group sharing link. Identity: supports `user` and `bot`; the caller must be in the target chat, must be an owner or admin when chat sharing is restricted to owners/admins, and must belong to the same tenant for internal chats.
-  - `list` - Get the list of groups the user or bot belongs to. Identity: supports `user` and `bot`.
-  - `update` - Update group information. Identity: supports `user` and `bot`.
+  - `create` — Create a group. Identity: `bot` only (`tenant_access_token`).
+  - `get` — Get group info. Identity: supports `user` and `bot`; the caller must be in the target chat to get full details, and must belong to the same tenant for internal chats.
+  - `link` — Get group share link. Identity: supports `user` and `bot`; the caller must be in the target chat, must be an owner or admin when chat sharing is restricted to owners/admins, and must belong to the same tenant for internal chats.
+  - `list` — List the chats the user or bot belongs to. Identity: supports `user` and `bot`.
+  - `update` — Update group info. Identity: supports `user` and `bot`.
 
 ### chat.members
 
-  - `create` - Add a user or bot to a group chat. Identity: supports `user` and `bot`; the caller must be in the target chat; for `bot` calls, added users must be within the app's availability; for internal chats the operator must belong to the same tenant; if only owners/admins can add members, the caller must be an owner/admin, or a chat-creator bot with `im:chat:operate_as_owner`.
-  - `delete` - Remove a user or bot from a group chat. Identity: supports `user` and `bot`; only group owner, admin, or creator bot can remove others; max 50 users or 5 bots per request.
-  - `get` - Get group member list. Identity: supports `user` and `bot`; the caller must be in the target chat and must belong to the same tenant for internal chats.
+  - `create` — Add users or bots to a group chat. Identity: supports `user` and `bot`; the caller must be in the target chat; for `bot` calls, added users must be within the app's availability; for internal chats the operator must belong to the same tenant; if only owners/admins can add members, the caller must be an owner/admin, or a chat-creator bot with `im:chat:operate_as_owner`.
+  - `delete` — Remove users or bots from a group chat. Identity: supports `user` and `bot`; only group owner, admin, or creator bot can remove others; max 50 users or 5 bots per request.
+  - `get` — List group members. Identity: supports `user` and `bot`; the caller must be in the target chat and must belong to the same tenant for internal chats.
 
 ### messages
 
-  - `delete` - Recall a message. Identity: supports `user` and `bot`; for `bot` calls, the bot must be in the chat to revoke group messages; to revoke another user's group message, the bot must be the owner, an admin, or the creator; for user P2P recalls, the target user must be within the bot's availability.
-  - `forward` - Forward a message. Identity: `bot` only (`tenant_access_token`).
-  - `merge_forward` - Merge forward messages. Identity: `bot` only (`tenant_access_token`).
-  - `read_users` - Query message read status. Identity: `bot` only (`tenant_access_token`); the bot must be in the chat, and can only query read status for messages it sent within the last 7 days.
+  - `delete` — Recall a message. Identity: supports `user` and `bot`; for `bot` calls, the bot must be in the chat to revoke group messages; to revoke another user's group message, the bot must be the owner, an admin, or the creator; for user P2P recalls, the target user must be within the bot's availability.
+  - `forward` — Forward a message. Identity: `bot` only (`tenant_access_token`).
+  - `merge_forward` — Merge-forward messages. Identity: `bot` only (`tenant_access_token`).
+  - `read_users` — Query message read status. Identity: `bot` only (`tenant_access_token`); the bot must be in the chat, and can only query read status for messages it sent within the last 7 days.
 
 ### reactions
 
-  - `batch_query` - Batch get message reactions. Identity: supports `user` and `bot`. [Must-read](references/lark-im-reactions.md)
-  - `create` - Add a message reaction. Identity: supports `user` and `bot`; the caller must be in the conversation that contains the message. [Must-read](references/lark-im-reactions.md)
-  - `delete` - Delete a message reaction. Identity: supports `user` and `bot`; the caller must be in the conversation that contains the message, and can only delete reactions added by itself. [Must-read](references/lark-im-reactions.md)
-  - `list` - Get message reactions. Identity: supports `user` and `bot`; the caller must be in the conversation that contains the message. [Must-read](references/lark-im-reactions.md)
+  - `batch_query` — Batch get message reactions. Identity: supports `user` and `bot`. [Must-read](references/lark-im-reactions.md)
+  - `create` — Add an emoji reaction to a message. Identity: supports `user` and `bot`; the caller must be in the conversation that contains the message. [Must-read](references/lark-im-reactions.md)
+  - `delete` — Remove an emoji reaction from a message. Identity: supports `user` and `bot`; the caller must be in the conversation that contains the message, and can only delete reactions added by itself. [Must-read](references/lark-im-reactions.md)
+  - `list` — List emoji reactions on a message. Identity: supports `user` and `bot`; the caller must be in the conversation that contains the message. [Must-read](references/lark-im-reactions.md)
 
 ### images
 
-  - `create` - Upload an image. Identity: `bot` only (`tenant_access_token`).
+  - `create` — Upload an image. Identity: `bot` only (`tenant_access_token`).
+
+### messages.resources
+
+  - `get` — Download an image or file from a message. Identity: supports `user` and `bot`. For large files, paginate the byte range manually via `Range` headers (8MB chunks recommended); auto-detect file extension from `Content-Type`.
 
 ### pins
 
-  - `create` - Pin a message. Identity: supports `user` and `bot`.
-  - `delete` - Remove a pinned message. Identity: supports `user` and `bot`.
-  - `list` - Get pinned messages in the group. Identity: supports `user` and `bot`.
+  - `create` — Pin a message. Identity: supports `user` and `bot`.
+  - `delete` — Unpin a message. Identity: supports `user` and `bot`.
+  - `list` — List pinned messages in a chat. Identity: supports `user` and `bot`.
 
-## Permission Table
+### Native API invocation pattern
 
-| Method | Required Scope |
-|--------|---------------|
+Native API calls use the raw HTTP shape on `lark_api` (method + path + body/params):
+
+```
+# Send a forward (bot only)
+lark_api({
+  method: 'POST',
+  path: '/open-apis/im/v1/messages/{message_id}/forward',
+  body: { receive_id_type: 'chat_id', receive_id: 'oc_xxx' },
+  as: 'bot'
+})
+
+# Pin a message
+lark_api({
+  method: 'POST',
+  path: '/open-apis/im/v1/pins',
+  body: { message_id: 'om_xxx' }
+})
+
+# Batch query reactions on a message
+lark_api({
+  method: 'GET',
+  path: '/open-apis/im/v1/messages/{message_id}/reactions/batch_query',
+  params: { reaction_types: ['LAUGH', 'THUMBSUP'] }
+})
+
+# Download an image or file from a message (chunked: paginate via Range header for large files)
+lark_api({
+  method: 'GET',
+  path: '/open-apis/im/v1/messages/{message_id}/resources/{file_key}',
+  params: { type: 'file' },
+  out: '/tmp/file.bin'
+})
+
+# Discover an endpoint when unsure
+lark_api_search({ query: 'im messages read users' })
+```
+
+## Permissions Table
+
+| Method | Required scope |
+|--------|----------------|
 | `chats.create` | `im:chat:create` |
 | `chats.get` | `im:chat:read` |
 | `chats.link` | `im:chat:read` |
