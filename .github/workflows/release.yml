@@ -2,8 +2,14 @@ name: Release
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'skills/**'
+      - 'plugin.yaml'
+      - '.github/workflows/release.yml'
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   release:
@@ -14,18 +20,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read version from plugin.yaml
+        id: ver
+        run: |
+          VERSION=$(grep '^version:' plugin.yaml | awk '{print $2}' | tr -d '"')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Build skills zip
         run: |
           zip -r larkskill-skills-latest.zip \
             skills/ \
-            agents/ \
-            scripts/ \
             plugin.yaml \
             README.md \
             LICENSE
 
-      - name: Create GitHub release
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
           files: larkskill-skills-latest.zip
           generate_release_notes: true
+          make_latest: true
