@@ -1,62 +1,36 @@
 # task +tasklist-members
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **Prerequisites:** Please read `../lark-shared/SKILL.md` to understand authentication, global parameters, and security rules.
 
 Manage tasklist members (editors/owners).
 
-## Recommended call
+## Recommended Commands
 
-Add a member:
+```bash
+# Add a member
+lark-cli task +tasklist-members --tasklist-id "tl_xxx" --add "ou_aaa"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasklists/{tasklist_guid}/add_members
-- body:
-  ```json
-  {
-    "members": [{ "id": "ou_aaa", "type": "open_id", "role": "editor" }]
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
+# Remove a member
+lark-cli task +tasklist-members --tasklist-id "tl_xxx" --remove "ou_aaa"
 
-Remove a member:
+# Replace all members exactly
+lark-cli task +tasklist-members --tasklist-id "tl_xxx" --set "ou_aaa,ou_bbb"
+```
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasklists/{tasklist_guid}/remove_members
-- body:
-  ```json
-  {
-    "members": [{ "id": "ou_aaa", "type": "open_id", "role": "editor" }]
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
-
-Replace all members exactly — call `remove_members` for all existing members first, then `add_members` for the new set.
-
-## Parameters (path)
+## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `tasklist_guid` | Yes | The GUID of the tasklist |
-
-## Parameters (body)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `members` | Yes | Array of member objects: `{id: "<open_id>", type: "open_id", role: "editor"\|"owner"}` |
-
-## Parameters (query)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `user_id_type` | No | User ID type: `open_id` (default), `union_id`, or `user_id` |
+| `--tasklist-id <id>` | Yes | The GUID of the tasklist, or a full AppLink URL. |
+| `--add <ids>` | No | Comma-separated list of user `open_id`s to add as members. |
+| `--remove <ids>` | No | Comma-separated list of user `open_id`s to remove from members. |
+| `--set <ids>` | No | Comma-separated list of user `open_id`s to exactly set as members (replaces all existing). |
 
 ## Workflow
 
 1. Confirm the tasklist and members to add/remove/set.
-2. Call `add_members` or `remove_members` as needed.
+2. Execute the command.
 3. Report success.
 
 > [!CAUTION]
-> This is a **Write Operation** — you must confirm the user's intent before executing.
+> This is a **Write Operation** -- You must confirm the user's intent before executing.

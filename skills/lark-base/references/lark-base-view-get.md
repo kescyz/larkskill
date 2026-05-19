@@ -1,34 +1,38 @@
-# view-get
+# base +view-get
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Get basic information about a view.
+获取一个视图的基本信息。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `view_id` | Yes | View ID or view name (path param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}
+```bash
+lark-cli base +view-get \
+  --base-token app_xxx \
+  --table-id tbl_xxx \
+  --view-id viw_xxx
 ```
 
-## Key return fields
+## 参数
 
-- Returns the view's base configuration.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
+| `--view-id <id_or_name>` | 是 | 视图 ID 或视图名 |
 
-## References
+## API 入参详情
 
-- [lark-base-view.md](lark-base-view.md) — view index page
-- [lark-base-view-list.md](lark-base-view-list.md) — list views
+**HTTP 方法和路径：**
+
+```
+GET /open-apis/base/v3/bases/:base_token/tables/:table_id/views/:view_id
+```
+
+## 返回重点
+
+- 返回视图的基础配置。
+
+## 参考
+
+- [lark-base-view.md](lark-base-view.md) — view 索引页

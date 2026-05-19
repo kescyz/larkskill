@@ -1,87 +1,74 @@
-# base-copy
+# base +base-copy
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Copy an existing Base. Optionally copy structure only without records.
+复制一个已有 Base；可选只复制结构，不复制内容。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/copy
-- body:
-  ```json
-  {
-    "name": "Copied Base"
-  }
-  ```
+```bash
+lark-cli base +base-copy \
+  --base-token app_xxx \
+  --name "Copied Base"
 
-With optional params:
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/copy
-- body:
-  ```json
-  {
-    "name": "Copied Base",
-    "folder_token": "fld_xxx",
-    "time_zone": "Asia/Shanghai",
-    "without_content": true
-  }
-  ```
-
-## Parameters (body)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Source Base token (path param) |
-| `name` | No | New Base name |
-| `folder_token` | No | Target folder token |
-| `time_zone` | No | Timezone, for example `Asia/Shanghai` |
-| `without_content` | No | If `true`, copy structure only (no records) |
-
-## API request details
-
-```
-POST /open-apis/base/v3/bases/{base_token}/copy
+lark-cli base +base-copy \
+  --base-token app_xxx \
+  --name "Copied Base" \
+  --folder-token fld_xxx \
+  --time-zone Asia/Shanghai \
+  --without-content
 ```
 
-## Response highlights
+## 参数
 
-- Returns `base`.
-- In your reply, proactively return:
-  - `base.url` when available
-  - new Base token (commonly `base_token` or `app_token`)
-  - if `url` missing, at least Base name and token
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | 源 Base Token |
+| `--name <name>` | 否 | 新 Base 名称 |
+| `--folder-token <token>` | 否 | 目标文件夹 token |
+| `--time-zone <tz>` | 否 | 时区，如 `Asia/Shanghai` |
+| `--without-content` | 否 | 只复制结构，不复制内容 |
+
+## API 入参详情
+
+**HTTP 方法和路径：**
+
+```
+POST /open-apis/base/v3/bases/:base_token/copy
+```
+
+## 返回重点
+
+- 返回 `base`。
+- CLI 会额外标记 `copied: true`。
+- 回复结果时，必须主动返回新 Base 的可访问链接：
+  - 优先使用返回结果中的 `base.url`
+  - 同时返回新 Base 的 token
+  - 如果本次返回没有 `url`，至少返回新 Base 的名称和 token
 
 > [!IMPORTANT]
-> If Base is copied with app identity (bot), keep bot identity by default and grant `full_access` (admin) to currently available user identity.
-> Recommended flow:
-> 1. Call `lark_api GET /open-apis/contact/v3/users/me` to get current user `open_id`
-> 2. Use bot identity to call the Base member/permission endpoint with `full_access` for that `open_id`
+> 如果 Base 是**以应用身份（bot）复制**出来的，shortcut 会在复制成功后自动尝试为当前 CLI 用户添加该 Base 的 `full_access`（管理员）权限，并在输出中附带 `permission_grant` 字段。
 >
-> If no local user identity is available or `open_id` cannot be obtained, clearly state authorization was not completed.
+> `permission_grant.status` 语义如下：
+> - `granted`：当前 CLI 用户已获得该 Base 的管理员权限
+> - `skipped`：Base 已复制成功，但没有可授权的当前 CLI 用户，或复制结果缺少可授权 token
+> - `failed`：Base 已复制成功，但自动授权失败；结果中会包含失败原因，用户可稍后重试授权，或继续使用应用身份（bot）处理该 Base
 >
-> In result reply, always include authorization status:
-> - success: user has admin permission
-> - no local user identity: explain auth not completed
-> - failed: Base copied but auth failed, include reason and next step
+> 回复复制结果时，除 `base token` 和可访问链接外，还必须明确告知用户 `permission_grant` 的结果。
 >
-> If authorization is not completed, suggest retry later or continue with bot identity.
-> Do not transfer owner unless user explicitly asks and confirms.
+> **仍然不要擅自执行 owner 转移。** 如果用户需要把 owner 转给自己，必须单独确认。
 
-## Workflow
+## 工作流
 
 > [!CAUTION]
-> This is a write operation. Confirm with the user before execution.
+> 这是**写入操作** — 执行前必须向用户确认。
 
-1. Confirm source Base token
-2. Optional params should not trigger extra follow-up unless requested
-3. Use `without_content: true` when structure-only copy is requested
-4. After success, return Base name, token, and accessible link if present
+1. 先确认源 Base Token。
+2. `--name`、`--folder-token`、`--time-zone` 都是可选项；用户没要求时不要为这些可选参数额外追问。
+3. 只要结构时，显式传 `--without-content`。
+4. 复制成功后，整理并返回：新 Base 名称、token，以及响应中已有的可访问链接。
 
-## References
+## 参考
 
-- [lark-base-workspace.md](lark-base-workspace.md) - base/workspace index
-- [lark-base-base-create.md](lark-base-base-create.md) - create Base
+- [lark-base-workspace.md](lark-base-workspace.md) — base / workspace 索引页
+- [lark-base-base-create.md](lark-base-base-create.md) — 创建全新 Base

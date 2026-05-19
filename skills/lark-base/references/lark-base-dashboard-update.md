@@ -1,60 +1,69 @@
-# dashboard-update
+# base +dashboard-update
 
-> **Prerequisite:** Read [lark-base-dashboard.md](lark-base-dashboard.md) for the overall workflow.
+> **前置条件：** 先阅读 [lark-base-dashboard.md](lark-base-dashboard.md) 了解整体工作流。
 
-Update dashboard name or theme.
+更新仪表盘名称或主题。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}
-- body:
-  ```json
-  { "name": "New Name", "theme_style": "default" }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `dashboard_id` | Yes | Dashboard ID (path param) |
-| `name` | No | New dashboard name (body) |
-| `theme_style` | No | New theme style (body, see enum below) |
-
-### theme_style enum
-
-| Value | Description |
-|-------|-------------|
-| `default` | Default theme |
-| `SimpleBlue` | Simple blue |
-| `DarkGreen` | Dark green |
-| `summerBreeze` | Summer breeze |
-| `simplistic` | Minimal |
-| `energetic` | Energetic |
-| `deepDark` | Dark |
-| `futuristic` | Futuristic |
-
-## API request details
-
-```
-PATCH /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}
+```bash
+lark-cli base +dashboard-update \
+  --base-token VwGhb**************fMnod \
+  --dashboard-id blkxxxxxxx \
+  --name "新名称" \
+  --theme-style default
 ```
 
-## Key return fields
+## 参数
 
-| Field | Description |
-|-------|-------------|
-| `dashboard` | Updated dashboard object |
-| `dashboard.name` | New name (if updated) |
-| `dashboard.theme.theme_style` | New theme (if updated) |
-| `updated` | `true` if update succeeded |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--dashboard-id <id>` | 是 | 仪表盘 ID |
+| `--name <name>` | 否 | 新名称 |
+| `--theme-style <style>` | 否 | 主题风格（见下方枚举） |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-## Pitfalls
+### theme-style 枚举
 
-- This is a write operation; confirm with the user before execution.
+| 值 | 说明 |
+|------|------|
+| `default` | 默认主题 |
+| `SimpleBlue` | 简约蓝 |
+| `DarkGreen` | 深绿 |
+| `summerBreeze` | 夏日微风 |
+| `simplistic` | 简洁 |
+| `energetic` | 活力 |
+| `deepDark` | 深色 |
+| `futuristic` | 未来感 |
 
-## References
+## 返回示例
 
-- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard module guide
+```json
+{
+  "dashboard": {
+    "dashboard_id": "blkxxxxxxxxxxxx",
+    "name": "新名称",
+    "theme": {
+      "theme_style": "default"
+    }
+  },
+  "updated": true
+}
+```
+
+## 返回重点
+
+| 字段 | 说明 |
+|------|------|
+| `dashboard` | 更新后的仪表盘对象 |
+| `dashboard.name` | 新名称（如果更新了）|
+| `dashboard.theme.theme_style` | 新主题（如果更新了）|
+| `updated` | 是否更新成功 |
+
+> [!CAUTION]
+> 这是**写入操作** — 执行前必须向用户确认。
+
+## 参考
+
+- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard 模块指引

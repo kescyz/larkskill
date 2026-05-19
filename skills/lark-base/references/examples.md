@@ -1,140 +1,140 @@
-# Base Usage Scenarios
+# 飞书多维表格使用场景完整示例（base）
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+本文档提供基于 `lark-cli base +...` shortcut 的完整示例。
 
-Complete examples covering common Base operations via MCP tool `lark_api`.
-
----
-
-## Scenario 1: Create a table with fields
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables
-- body:
-  ```json
-  {
-    "name": "Customer Management Table",
-    "fields": [
-      {"name": "Customer name", "type": "text"},
-      {"name": "Person in charge", "type": "user", "property": {"multiple": false}},
-      {"name": "Signature date", "type": "datetime"},
-      {"name": "Status", "type": "single_select", "property": {"options": ["In progress", "Completed"]}}
-    ]
-  }
-  ```
+> **返回**: [SKILL.md](../SKILL.md) | **参考**: [shortcut 字段 JSON 规范](lark-base-shortcut-field-properties.md) · [CellValue 规范](lark-base-cell-value.md)
 
 ---
 
-## Scenario 2: List fields in a table
+## 场景 1：用 unified Shortcut 快速建表
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields
-- params:
-  ```json
-  { "page_size": 100 }
-  ```
+适合已经明确字段结构、希望一次性完成建表的场景。
 
----
-
-## Scenario 3: Create, read, and update a single record
-
-### Create record
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records
-- body:
-  ```json
-  {
-    "fields": {
-      "Customer Name": "ByteDance",
-      "Responsible person": [{"id": "ou_xxx"}],
-      "Status": "In progress"
-    }
-  }
-  ```
-
-### List records
-
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records
-- params:
-  ```json
-  { "page_size": 100 }
-  ```
-
-### Update record
-
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records/{record_id}
-- body:
-  ```json
-  {
-    "fields": {
-      "Status": "Completed"
-    }
-  }
-  ```
-
-### Delete record
-
-Call MCP tool `lark_api`:
-- method: DELETE
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records/{record_id}
+```bash
+lark-cli base +table-create \
+  --base-token bascnXXXXXXXX \
+  --name "客户管理表" \
+  --fields '[
+    {"name":"客户名称","type":"text","description":"主标题字段"},
+    {"name":"负责人","type":"user","multiple":false,"description":"用于标记客户跟进的直接负责人"},
+    {"name":"签约日期","type":"datetime"},
+    {"name":"状态","type":"select","multiple":false,"options":[{"name":"进行中"},{"name":"已完成"}]}
+  ]'
+```
 
 ---
 
-## Scenario 4: Configure a view filter, then read records by view
+## 场景 2：创建数据表并查看字段
 
-The API does not provide standalone search. For filtered querying, set a view filter first, then read records via `view_id`.
+适合需要先建表、再确认字段结构的场景。
 
-### Set view filter conditions
+### 步骤 1：在已有 Base 中创建数据表
 
-Call MCP tool `lark_api`:
-- method: PUT
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/filter
-- body:
-  ```json
-  {
-    "logic": "and",
-    "conditions": [
+```bash
+lark-cli base +table-create \
+  --base-token bascnXXXXXXXX \
+  --name "客户管理表"
+```
+
+### 步骤 2：列出字段
+
+```bash
+lark-cli base +field-list \
+  --base-token bascnXXXXXXXX \
+  --table-id tblXXXXXXXX \
+  --limit 100
+```
+
+> 提示：Base token 统一通过 `--base-token` 传入；表 ID 统一通过 `--table-id` 传入。
+
+---
+
+## 场景 3：创建、读取、更新单条记录
+
+### 新增记录
+
+```bash
+lark-cli base +record-upsert \
+  --base-token bascnXXXXXXXX \
+  --table-id tblXXXXXXXX \
+  --json '{
+    "客户名称":"字节跳动",
+    "负责人":[{"id":"ou_xxx"}],
+    "状态":"进行中"
+  }'
+```
+
+### 列出记录
+
+```bash
+lark-cli base +record-list \
+  --base-token bascnXXXXXXXX \
+  --table-id tblXXXXXXXX \
+  --limit 100
+```
+
+### 更新记录
+
+```bash
+lark-cli base +record-upsert \
+  --base-token bascnXXXXXXXX \
+  --table-id tblXXXXXXXX \
+  --record-id recXXXXXXXX \
+  --json '{
+    "状态":"已完成"
+  }'
+```
+
+### 删除记录
+
+```bash
+lark-cli base +record-delete \
+  --base-token bascnXXXXXXXX \
+  --table-id tblXXXXXXXX \
+  --record-id recXXXXXXXX \
+  --yes
+```
+
+---
+
+## 场景 4：配置视图筛选后按视图读取记录
+
+需要筛选查询时，推荐先写视图筛选，再通过 `view_id` 读取记录。
+
+### 更新视图筛选条件
+
+```bash
+lark-cli base +view-set-filter \
+  --base-token bascnXXXXXXXX \
+  --table-id tblXXXXXXXX \
+  --view-id vewXXXXXXXX \
+  --json '{
+    "logic":"and",
+    "conditions":[
       {
-        "field_name": "Status",
-        "operator": "is",
-        "value": ["In progress"]
+        "field_name":"状态",
+        "operator":"is",
+        "value":["进行中"]
       }
     ]
-  }
-  ```
+  }'
+```
 
-### Read records filtered by view
+### 按视图读取记录
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records
-- params:
-  ```json
-  { "view_id": "vewXXXXXXXX", "page_size": 100 }
-  ```
+```bash
+lark-cli base +record-list \
+  --base-token bascnXXXXXXXX \
+  --table-id tblXXXXXXXX \
+  --view-id vewXXXXXXXX \
+  --limit 100
+```
 
 ---
 
-## Scenario 5: When to use which operation
+## 场景 5：什么时候优先用 Shortcut
 
-| Goal | Operation |
-|------|-----------|
-| One-shot table creation with fields | POST `/tables` with `fields` array |
-| Upsert by business field | PATCH `/records/{record_id}` or POST `/records` |
-| Filtered view | PUT `/views/{view_id}/filter` then GET records with `view_id` |
-| Record history | GET `/tables/{table_id}/records/{record_id}/record_history` |
-
-## References
-
-- [lark-base-table-create.md](lark-base-table-create.md) — Create a table
-- [lark-base-record-upsert.md](lark-base-record-upsert.md) — Create or update records
-- [lark-base-view-set-filter.md](lark-base-view-set-filter.md) — Set view filter
-- [lark-base-record-history-list.md](lark-base-record-history-list.md) — Record history
+- 需要一次性建表并附带字段、视图时，优先 `lark-cli base +table-create`
+- 需要按业务字段名做 upsert 时，优先 `lark-cli base +record-upsert`
+- 需要配置筛选视图时，优先 `lark-cli base +view-set-filter`
+- 需要记录历史时，优先 `lark-cli base +record-history-list`

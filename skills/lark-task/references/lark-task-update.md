@@ -1,60 +1,37 @@
 # task +update
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **Prerequisites:** Please read `../lark-shared/SKILL.md` to understand authentication, global parameters, and security rules.
 
 Update an existing task in Lark.
 
-## Recommended call
+## Recommended Commands
 
-Update task summary:
+```bash
+# Update task summary
+lark-cli task +update --task-id "<task_guid>" --summary "New Summary"
 
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/task/v2/tasks/{task_guid}
-- body:
-  ```json
-  {
-    "task": { "summary": "New Summary" },
-    "update_fields": ["summary"]
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
+# Update multiple tasks' due dates
+lark-cli task +update --task-id "<task_guid>,<another_task_guid>" --due "+2d"
 
-Update due date:
+# Update with JSON data
+lark-cli task +update --task-id "<task_guid>" --data '{"description": "New description"}'
+```
 
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/task/v2/tasks/{task_guid}
-- body:
-  ```json
-  {
-    "task": { "due": { "time": "2026-05-01T17:00:00+07:00", "is_all_day": false } },
-    "update_fields": ["due"]
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
-
-## Parameters (body)
+## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `task` | Yes | Object containing only the fields to update |
-| `task.summary` | No | New summary/title for the task |
-| `task.description` | No | New description for the task |
-| `task.due` | No | New due date object: `{time: "<ISO8601>", is_all_day: false}` |
-| `update_fields` | Yes | Array of field names being updated, e.g. `["summary", "due"]` |
-
-## Parameters (query)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `user_id_type` | No | User ID type: `open_id` (default), `union_id`, or `user_id` |
+| `--task-id <guid>` | Yes | The task GUID to update. Comma-separated task GUIDs are supported for multiple tasks. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
+| `--summary <text>` | No | New summary/title for the task. |
+| `--description <text>` | No | New description for the task. |
+| `--due <time>` | No | New due date (supports relative time). |
+| `--data <json>` | No | JSON payload for fields to update. |
 
 ## Workflow
 
-1. Confirm with the user the task(s) to update and the fields.
-2. Call `lark_api PATCH /open-apis/task/v2/tasks/{task_guid}` with the body above.
+1. Confirm with the user the tasks to update and the fields.
+2. Execute `lark-cli task +update --task-id "..." ...`
 3. Report the successful updates.
 
 > [!CAUTION]
-> This is a **Write Operation** — you must confirm the user's intent before executing.
+> This is a **Write Operation** -- You must confirm the user's intent before executing.

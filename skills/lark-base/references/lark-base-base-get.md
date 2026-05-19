@@ -1,38 +1,39 @@
-# base-get
+# base +base-get
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Read details of a Base.
+读取一个 Base 的详情。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}
+```bash
+lark-cli base +base-get \
+  --base-token app_xxx
 ```
 
-## Response highlights
+## 参数
 
-- Returns `base`, usually including `base_token / name / url`.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
 
-## Pitfalls
+## API 入参详情
 
-- ⚠️ Confirm input is `base_token`, not `workspace_token`.
-- ⚠️ If input comes from `/wiki/...`, do not pass `wiki_token` directly as `base_token`.
-  If you get `param baseToken is invalid` or `base_token invalid`, first call
-  `lark_api GET /open-apis/wiki/v2/spaces/get_node` to get `node.obj_token`, then retry.
+**HTTP 方法和路径：**
 
-## References
+```
+GET /open-apis/base/v3/bases/:base_token
+```
 
-- [lark-base-workspace.md](lark-base-workspace.md) - base index
+## 返回重点
+
+- 返回 `base`，通常包含 `base_token / name / url` 等信息。
+
+## 坑点
+
+- ⚠️ 先确认传入的是 `base_token`，不是 `workspace_token`。
+- ⚠️ 如果最初输入来自 `/wiki/...`，不要直接把 `wiki_token` 当 `--base-token`；若报 `param baseToken is invalid` / `base_token invalid`，先用 `lark-cli wiki spaces get_node` 取 `node.obj_token`，再重试 `+base-get`。
+
+## 参考
+
+- [lark-base-workspace.md](lark-base-workspace.md) — base 索引页

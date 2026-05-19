@@ -1,41 +1,44 @@
-# dashboard-delete
+# base +dashboard-delete
 
-> **Prerequisite:** Read [lark-base-dashboard.md](lark-base-dashboard.md) for the overall workflow.
+> **前置条件：** 先阅读 [lark-base-dashboard.md](lark-base-dashboard.md) 了解整体工作流。
 
-Delete a dashboard (also deletes all blocks within it; irreversible).
+删除仪表盘（会同时删除其下所有组件，不可恢复）。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: DELETE
-- path: /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `dashboard_id` | Yes | Dashboard ID (path param) |
-
-## API request details
-
-```
-DELETE /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}
+```bash
+lark-cli base +dashboard-delete \
+  --base-token VwGhb**************fMnod \
+  --dashboard-id blkxxxxxxx
 ```
 
-## Key return fields
+## 参数
 
-| Field | Description |
-|-------|-------------|
-| `dashboard_id` | Deleted dashboard ID |
-| `deleted` | `true` if deletion succeeded |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--dashboard-id <id>` | 是 | 仪表盘 ID |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-## Pitfalls
+## 返回示例
 
-- This is a **write operation and irreversible** — confirm with the user before execution.
-- Deleting a dashboard also deletes all blocks within it; this cannot be undone.
+```json
+{
+  "dashboard_id": "blkxxxxxxxxxxxx",
+  "deleted": true
+}
+```
 
-## References
+## 返回重点
 
-- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard module guide
-- [lark-base-dashboard-list.md](lark-base-dashboard-list.md) — list dashboards to confirm target
+| 字段 | 说明 |
+|------|------|
+| `dashboard_id` | 被删除的仪表盘 ID |
+| `deleted` | 是否删除成功 |
+
+> [!CAUTION]
+> 这是**写入操作**且**不可逆** — 执行前必须向用户确认。删除仪表盘会同时删除其下所有组件，不可恢复。
+
+## 参考
+
+- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard 模块指引

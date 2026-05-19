@@ -1,51 +1,52 @@
-# workflow data structure reference
+# Workflow 数据结构参考
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+本文档定义 Workflow 的完整数据结构，适用于：
+- **查询场景**：理解 `+workflow-get` 返回的 `steps` 结构
+- **创建/修改场景**：构造 `+workflow-create` / `+workflow-update` 的 `--json` body
+> 💡 **本文档是纯字段参考**。如需**创建/修改**工作流的完整示例，请阅读 [workflow-guide.md](lark-base-workflow-guide.md)。
+---
+## 📖 快速导航
 
-Defines the complete JSON body structure for the `workflow-create` / `workflow-update` MCP calls (V2 protocol).
+根据你的需求跳转到对应章节：
 
-When creating or updating a workflow, pass this structure as the `body` of:
-
-```
-Call MCP tool `lark_api`:
-- method: POST  (create) or PUT  (update)
-- path: /open-apis/base/v1/apps/{app_token}/workflows[/{workflow_id}]
-- body: { "title": "...", "steps": [ ...workflowStep[] ] }
-```
+| 需求 | 章节 |
+|------|------|
+| 了解 Step 基础结构 | [WorkflowStep 基础结构](#workflowstep-基础结构) |
+| 查询 Trigger 类型及 data 字段 | [Trigger data](#trigger-data-详细结构) |
+| 查询 Action 类型及 data 字段 | [Action data](#action-data-详细结构) |
+| 查询 Branch/Loop 结构 | [Branch data](#branch-data-详细结构) / [System data](#system-data-详细结构) |
+| 查询 ValueInfo/Condition 等公共类型 | [公共类型](#公共类型) |
 
 ---
 
-## workflowStep base structure
+## WorkflowStep 基础结构
 
-Every step (Trigger / Action / Branch / System) shares these fields:
+每个步骤（Trigger / Action / Branch / System）共享以下字段：
 
 ```json
 {
   "id": "step_xxx",
   "type": "AddRecordTrigger",
-  "title": "Monitor new orders",
-  "children": {
-    "links": []
-  },
+  "title": "监控新订单",
   "next": "step_yyy",
   "data": {}
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique step ID (user-defined; referenced by `next` and `children.links[].to`) |
-| `type` | string | Yes | Step type — see StepType enums below |
-| `title` | string | No | Step title |
-| `children` | StepChildren | No | Child relationships — branches and loops |
-| `next` | string \| null | No | Linear successor node ID; `null` means end of flow |
-| `data` | object | Yes | Step-specific configuration — varies by `type` |
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | string | 是 | 步骤唯一 ID（用户自定义，被 `next` 和 `children.links[].to` 引用） |
+| `type` | string | 是 | 步骤类型，见下方枚举 |
+| `title` | string | 否 | 步骤标题 |
+| `children` | StepChildren | 否 | 子关系边，承担所有分支/循环 |
+| `next` | string | null | 否 | 线性后继节点 ID；`null` 表示流程结束 |
+| `data` | object | 是 | 步骤详细配置，按 `type` 区分，见后续各节 |
 
-> **General rule:** topology goes in `children`; extended identifiers go in `meta`; input parameters go in `data`.
+> **总原则**：连线写 `children`，扩展标识写 `meta`，输入参数写 `data`。
 
 ---
 
-## StepChildren and ChildLink
+## StepChildren 与 ChildLink
 
 ### StepChildren
 
@@ -55,158 +56,159 @@ Every step (Trigger / Action / Branch / System) shares these fields:
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `links` | ChildLink[] | Child relationship list; empty array `[]` when no children |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `links` | ChildLink[] | 子关系边列表；无子关系时为空数组 `[]` |
 
 ### ChildLink
 
-Each edge describes a directed connection from the current node to a target node:
+每条关系边描述从当前节点到目标节点的有向连线：
 
 ```json
-{ "kind": "if_true", "to": "step_4", "label": "branch_1", "desc": "Amount greater than 1000" }
+{ "kind": "if_true", "to": "step_4", "label": "branch_1", "desc": "金额大于1000" }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `kind` | string | Yes | Relationship type: `if_true` / `if_false` / `case` / `loop_start` / `slot` |
-| `to` | string | Yes | Target node ID |
-| `label` | string | No | Optional tag (e.g. `branch_1`, `tool`, `llm`, `memory`) |
-| `desc` | string | No | Optional semantic description (e.g. "Sales dept", "Positive sentiment") |
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `kind` | string | 是 | 关系类型：`if_true` / `if_false` / `case` / `loop_start` / `slot` |
+| `to` | string | 是 | 目标节点 ID |
+| `label` | string | 否 | 可选标签（如 `branch_1`、`tool`、`llm`、`memory`） |
+| `desc` | string | 否 | 可选语义说明（如"销售部门"、"积极情绪"） |
 
-`kind` usage scenarios:
+`kind` 使用场景：
 
-| kind | Used by node | Description |
-|------|-------------|-------------|
-| `if_true` | IfElseBranch | Jump when condition is true |
-| `if_false` | IfElseBranch | Jump when condition is false |
-| `case` | SwitchBranch / AIClassificationBranch | Multi-way branch; use `branch_1`-style neutral `label`, put semantics in `desc` |
-| `loop_start` | Loop | Loop body entry point |
-| `slot` | AIAgentAction | Mount LLM / tool / Memory child node; `label` is `llm` / `tool` / `memory` |
-
----
-
-## StepType enums
-
-### Trigger types
-
-| type | Description |
-|------|-------------|
-| `AddRecordTrigger` | Triggered when a new record is added |
-| `SetRecordTrigger` | Triggered when a record is modified |
-| `ChangeRecordTrigger` | Triggered when a record is added or modified |
-| `TimerTrigger` | Scheduled trigger |
-| `ReminderTrigger` | Date reminder trigger |
-| `LarkMessageTrigger` | Triggered by receiving a Lark message |
-
-> All Trigger nodes have empty `children.links: []`; use `next` for serial successor.
-
-### Trigger selection guide
-
-| Requirement | Trigger |
-|-------------|---------|
-| Only when a new record is added | `AddRecordTrigger` |
-| Only when a field changes to a specific value (modify only) | `SetRecordTrigger` |
-| Both add and modify trigger | `ChangeRecordTrigger` |
-| Unsure which to use | `ChangeRecordTrigger` |
-
-> `SetRecordTrigger` listens for changes only. `ChangeRecordTrigger` monitors both new additions and modifications.
-
-### Action types
-
-| type | Description |
-|------|-------------|
-| `AddRecordAction` | Add a new record |
-| `SetRecordAction` | Update a record |
-| `FindRecordAction` | Find records |
-| `Delay` | Delay |
-| `LarkMessageAction` | Send a Lark message |
-| `GenerateAiTextAction` | AI-generated text |
-
-> All Action nodes have empty `children.links: []`; use `next` for serial successor.
-
-### Branch types
-
-| type | Description |
-|------|-------------|
-| `IfElseBranch` | Conditional branch; `children.links` contains `if_true` and `if_false` |
-| `SwitchBranch` | Multi-way branch; `children.links` contains multiple `case` edges |
-
-### System types
-
-| type | Description |
-|------|-------------|
-| `Loop` | Loop; `children.links` contains a `loop_start` edge pointing to the loop body entry |
+| kind | 使用节点 | 说明 |
+|------|---------|------|
+| `if_true` | IfElseBranch | 条件为真时跳转 |
+| `if_false` | IfElseBranch | 条件为假时跳转 |
+| `case` | SwitchBranch / AIClassificationBranch | 多路分支，`label` 建议用 `branch_1` 等中性标签，`desc` 写语义 |
+| `loop_start` | Loop | 循环体入口 |
+| `slot` | AIAgentAction | 挂载 LLM / 工具 / 记忆子节点，`label` 为 `llm` / `tool` / `memory` |
 
 ---
 
-## Trigger data structures
+## StepType 枚举
+
+### Trigger 类型
+
+| type | 说明 |
+|------|------|
+| `AddRecordTrigger` | 新增记录时触发 |
+| `SetRecordTrigger` | 记录被修改时触发 |
+| `ChangeRecordTrigger` | 记录满足条件时触发 |
+| `TimerTrigger` | 定时触发 |
+| `ReminderTrigger` | 日期提醒触发 |
+| `LarkMessageTrigger` | 接收飞书消息触发 |
+
+> 所有 Trigger 节点**请勿设置** `children` ，通过 `next` 串联后继。
+
+### 触发器选型指南
+
+| 需求描述 | 触发器 |
+|---------|--------|
+| 新增记录时 | `AddRecordTrigger` |
+| 字段变为特定值时（**仅修改**） | `SetRecordTrigger` |
+| **新增或修改**都触发 | `ChangeRecordTrigger` |
+| 拿不准用哪个 | `ChangeRecordTrigger` |
+
+> ⚠️ `SetRecordTrigger` 仅监听修改，`ChangeRecordTrigger` 同时监听新增 + 修改。
+
+### Action 类型
+
+| type | 说明 |
+|------|------|
+| `AddRecordAction` | 新增记录 |
+| `SetRecordAction` | 更新记录 |
+| `FindRecordAction` | 查找记录 |
+| `Delay` | 延迟 |
+| `LarkMessageAction` | 发送飞书消息 |
+| `GenerateAiTextAction` | AI 生成文本 |
+
+> 所有 Action 节点**请勿设置** `children` ，通过 `next` 串联后继。
+
+### Branch 类型
+
+| type | 说明 |
+|------|------|
+| `IfElseBranch` | 条件分支，`children.links` 含 `if_true` 和 `if_false` |
+| `SwitchBranch` | 多路分支，`children.links` 含多个 `case` |
+
+### System 类型
+
+| type | 说明 |
+|------|------|
+| `Loop` | 循环，`children.links` 含 `loop_start` 指向循环体入口 |
+
+---
+
+## Trigger data 详细结构
+
 
 ### AddRecordTrigger
 
 ```json
 {
-  "table_name": "Order table",
-  "watched_field_name": "status",
+  "table_name": "订单表",
+  "watched_field_name": "状态",
   "trigger_control_list": ["pasteUpdate", "automationBatchUpdate"],
-  "condition_list": []
+  "condition_list": [] /* AndCondition 数组 */ 
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `table_name` | Yes | Monitored table name |
-| `watched_field_name` | Yes | Monitored field name |
-| `trigger_control_list` | No | Trigger control; options: `pasteUpdate` / `automationBatchUpdate` / `syncUpdate` / `appendImport` / `openAPIBatchUpdate` |
-| `condition_list` | No | Filter condition array; each element is an AndCondition; multiple AndConditions are OR-related |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `table_name` | 是 | 监控的数据表名 |
+| `watched_field_name` | 是 | 监控的字段名 |
+| `trigger_control_list` | 否 | 触发控制，可选值：`pasteUpdate` / `automationBatchUpdate` / `syncUpdate` / `appendImport` / `openAPIBatchUpdate` |
+| `condition_list` | 否 | 过滤条件数组，数组中每个元素为 AndCondition 结构，多个 AndCondition 之间为 OR 关系 |
 
 ### ChangeRecordTrigger
 
 ```json
 {
-  "table_name": "Task table",
+  "table_name": "任务表",
   "trigger_control_list": [],
-  "condition_list": null
+  "condition": null
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `table_name` | Yes | Monitored table name |
-| `trigger_control_list` | No | Trigger control; options: `pasteUpdate` / `automationBatchUpdate` / `syncUpdate` / `appendImport` |
-| `condition_list` | No | Filter condition array; each element is an AndCondition; multiple AndConditions are OR-related |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `table_name` | 是 | 监控的数据表名 |
+| `trigger_control_list` | 否 | 触发控制，可选值：`pasteUpdate` / `automationBatchUpdate` / `syncUpdate` / `appendImport` |
+| `condition_list` | 否 | 过滤条件数组，数组中每个元素为 AndCondition 结构，多个 AndCondition 之间为 OR 关系 |
 
 ### SetRecordTrigger
 
 ```json
 {
-  "table_name": "Order table",
+  "table_name": "订单表",
   "record_watch_conjunction": "and",
   "record_watch_info": [ /* FieldCondition[] */ ],
   "field_watch_info": [
-    { "field_name": "status", "operator": "is", "value": [{ "value_type": "text", "value": "shipped" }] }
+    { "field_name": "状态", "operator": "is", "value": [{ "value_type": "text", "value": "已发货" }] }
   ],
   "trigger_control_list": [],
   "condition_list": null
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `table_name` | Yes | Monitored table name |
-| `record_watch_conjunction` | No | Record filter combination: `and` / `or`; default `and` |
-| `record_watch_info` | No | Record-level filters (match pre-modification values); if empty, listens to all |
-| `field_watch_info` | No | Field-level monitoring conditions list; at least one required |
-| `trigger_control_list` | No | Trigger control; options: `pasteUpdate` / `automationBatchUpdate` / `syncUpdate` / `appendImport` |
-| `condition_list` | No | Filter condition array |
+| 字段 | 必填 | 说明 |
+|------|----|------|
+| `table_name` | 是  | 监控的数据表名 |
+| `record_watch_conjunction` | 否  | 记录筛选组合方式：`and` / `or`，默认 `and` |
+| `record_watch_info` | 否  | 记录级过滤条件（修改前值匹配），为空则监听全部 |
+| `field_watch_info` | 是  | 字段级监控条件列表，至少一个 |
+| `trigger_control_list` | 否  | 触发控制，可选值：`pasteUpdate` / `automationBatchUpdate` / `syncUpdate` / `appendImport` |
+| `condition_list` | 否  | 过滤条件数组，数组中每个元素为 AndCondition 结构，多个 AndCondition 之间为 OR 关系 |
 
-`fieldWatchItem`:
+`FieldWatchItem`：
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `field_name` | string | Monitored field name |
-| `operator` | string | Operator (fill in only when field condition is explicitly required) |
-| `value` | ValueInfo[] | Trigger value |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `field_name` | string | 监听字段名称 |
+| `operator` | string | 操作符（仅明确要求字段满足条件时填） |
+| `value` | ValueInfo[] | 触发值 |
 
 ### TimerTrigger
 
@@ -219,22 +221,22 @@ Each edge describes a directed connection from the current node to a target node
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `rule` | Yes | `NO_REPEAT` / `DAILY` / `WEEKLY` / `MONTHLY` / `YEARLY` / `WORKDAY` / `CUSTOM` |
-| `start_time` | No | Start time; format `yyyy-MM-dd HH:mm` |
-| `interval` | No | Custom interval [1,30] (only for `CUSTOM`) |
-| `unit` | No | Custom unit: `SECOND` / `MINUTE` / `HOUR` / `DAY` / `WEEK` / `MONTH` / `YEAR` |
-| `sub_unit` | No | Sub-unit: for `WEEKLY` an array of weekday indices 0-6; for `MONTHLY` an array 1-31 |
-| `end_time` | No | End time |
-| `is_never_end` | No | Whether the trigger never ends |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `rule` | 是 | `NO_REPEAT` / `DAILY` / `WEEKLY` / `MONTHLY` / `YEARLY` / `WORKDAY` / `CUSTOM` |
+| `start_time` | 否 | 开始时间，格式 `yyyy-MM-dd HH:mm` |
+| `interval` | 否 | 自定义间隔 [1,30]（仅 CUSTOM） |
+| `unit` | 否 | 自定义单位：`SECOND` / `MINUTE` / `HOUR` / `DAY` / `WEEK` / `MONTH` / `YEAR` |
+| `sub_unit` | 否 | 子单位（`WEEKLY` 时为星期几数组 0-6，`MONTHLY` 时为几号数组 1-31） |
+| `end_time` | 否 | 结束时间 |
+| `is_never_end` | 否 | 是否永不结束 |
 
 ### ReminderTrigger
 
 ```json
 {
-  "table_name": "Project table",
-  "field_name": "Deadline",
+  "table_name": "项目表",
+  "field_name": "截止日期",
   "offset": 1,
   "unit": "DAY",
   "hour": 9,
@@ -243,26 +245,27 @@ Each edge describes a directed connection from the current node to a target node
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `table_name` | Yes | Table name |
-| `field_name` | Yes | Date field name (must be DateTime / CreatedTime / Formula / Lookup type) |
-| `unit` | Yes | Offset unit: `MINUTE` / `HOUR` / `DAY` / `WEEK` / `MONTH` |
-| `offset` | Yes | Advance/delay offset (positive = advance, negative = delay). Valid ranges: `MINUTE` ∈ {0,5,15,30,-5,-15,-30}; `HOUR` ∈ [-6,-1]∪[1,6]; `DAY` ∈ [-7,7]; `WEEK` ∈ [-7,-1]∪[1,7]; `MONTH` ∈ [-7,-1]∪[1,7] |
-| `hour` | Yes | Trigger hour (0-23); default 9 |
-| `minute` | Yes | Trigger minute (0-59); default 0 |
-| `condition_list` | No | Filter condition array |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `table_name` | 是 | 数据表名 |
+| `field_name` | 是 | 日期字段名（必须为 `datetime` / `created_at` / `formula` / `lookup` 类型） |
+| `unit` | 是 | 偏移单位：`MINUTE` / `HOUR` / `DAY` / `WEEK` / `MONTH` |
+| `offset` | 是 | 提前/延后的偏移量（正数=提前，负数=延后；范围由 `unit` 决定）：`MINUTE` ∈ {0, 5, 15, 30, -5, -15, -30}；`HOUR` ∈ [-6, -1] ∪ [1, 6]；`DAY` ∈ [-7, 7]；`WEEK` ∈ [-7, -1] ∪ [1, 7]；`MONTH` ∈ [-7, -1] ∪ [1, 7] |
+| `hour` | 是 | 触发小时 (0-23)，默认 9 |
+| `minute` | 是 | 触发分钟 (0-59)，默认 0 |
+| `condition_list` | 否 | 过滤条件数组，数组中每个元素为 AndCondition 结构，多个 AndCondition 之间为 OR 关系  | 
+
 
 ### LarkMessageTrigger
 
 ```json
 {
   "receive_scene": "group",
-  "receiver": [{ "value_type": "group", "value": "test group" }],
+  "receiver": [{ "value_type": "group", "value": {"id": "oc_xxxx", "name": "测试群"} }],
   "scope": "all",
   "filter": {
     "conjunction": "and",
-    "content_contains": ["keywords"],
+    "content_contains": ["关键词"],
     "sender_contains": [{ "value_type": "user", "value": {"id": "ou_xxxx", "name": ""} }],
     "is_new_message": true,
     "is_message_contain_attachment": false
@@ -270,85 +273,83 @@ Each edge describes a directed connection from the current node to a target node
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `receive_scene` | Yes | Receive scene: `group` (group chat) / `chat` (private chat) |
-| `receiver` | Yes | Trigger source; supports `user` / `group` / `ref` |
-| `scope` | Yes | Trigger range: `at` (@mention) / `all` (all messages) |
-| `filter` | Yes | MessageFilter conditions |
+| 字段 | 必填 | 说明|
+|------|------|---|
+| `receive_scene` | 是 | 接收场景：`group`（群聊）/ `chat`（单聊）|
+| `receiver` | 是 | 触发来源，支持 `user` / `group` / `ref`。在单聊场景下，该字段指“可以和机器人单聊的用户”；在群聊场景下，该字段指“接收信息的群组”|
+| `scope` | 是 | 触发范围：`at`（@提及）/ `all`（所有消息）。该参数仅在群聊场景有效，单聊场景请勿指定该参数|
+| `filter` | 是 | MessageFilter 消息过滤条件|
 
-`MessageFilter`:
+`MessageFilter`：
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `conjunction` | string | `and` (all conditions) / `or` (any condition) |
-| `content_contains` | string[] | Keyword list |
-| `sender_contains` | ValueInfo[] | Filter senders (effective in group chat + group source) |
-| `is_new_message` | boolean | New topic messages only (group chat only) |
-| `is_message_contain_attachment` | boolean | Trigger only for messages with attachments |
+| 字段 | 类型 | 说明 |
+|------|------|----|
+| `conjunction` | string | `and` 满足所有条件 / `or` 任一条件|
+| `content_contains` | string[] | 关键词列表|
+| `sender_contains` | ValueInfo[] | 筛选发送人（仅群聊+群组来源时生效，单聊场景请勿指定该参数）|
+| `is_new_message` | boolean | 仅新话题消息（仅群聊时有效，单聊场景请勿指定该参数）|
+| `is_message_contain_attachment` | boolean | 是否仅附件消息触发|
 
----
-
-## Action data structures
+## Action data 详细结构
 
 ### AddRecordAction
 
 ```json
 {
-  "table_name": "Order table",
+  "table_name": "订单表",
   "field_values": [
-    { "field_name": "Customer name", "value": [{ "value_type": "text", "value": "Zhang San" }] },
-    { "field_name": "amount", "value": [{ "value_type": "number", "value": 100 }] },
-    { "field_name": "Creator", "value": [{ "value_type": "ref", "value": "$.trigger_1.fieldIdxxx" }] }
+    { "field_name": "客户名称", "value": [{ "value_type": "text", "value": "张三" }] },
+    { "field_name": "金额", "value": [{ "value_type": "number", "value": 100 }] },
+    { "field_name": "创建人", "value": [{ "value_type": "ref", "value": "$.trigger_1.fieldIdxxx" }] }
   ]
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `table_name` | Yes | Target table name |
-| `field_values` | Yes | RecordFieldValue[] |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `table_name` | 是 | 目标数据表名 |
+| `field_values` | 是 | RecordFieldValue[] |
 
 ### SetRecordAction
 
 ```json
 {
-  "table_name": "Order table",
+  "table_name": "订单表",
   "max_set_record_num": 10,
   "field_values": [
-    { "field_name": "status", "value": [{ "value_type": "option", "value": { "id": "opt1", "name": "Completed" } }] }
+    { "field_name": "状态", "value": [{ "value_type": "option", "value": { "id": "opt1", "name": "已完成" } }] }
   ],
   "filter_info": { /* RecordFilterInfo */ },
   "ref_info": { "step_id": "step_trigger" }
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `table_name` | Yes | Target table name |
-| `max_set_record_num` | No | Max records to update; default 100; range 1-15000 |
-| `field_values` | Yes | RecordFieldValue[] |
-| `filter_info` | No* | RecordFilterInfo filter conditions (mutually exclusive with `ref_info`) |
-| `ref_info` | No* | RefInfo — reference records from a previous step (mutually exclusive with `filter_info`) |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `table_name` | 是 | 目标数据表名 |
+| `max_set_record_num` | 否 | 最大更新记录数，默认 100，范围 1-15000 |
+| `field_values` | 是 | RecordFieldValue[] |
+| `filter_info` | 否* | RecordFilterInfo 过滤条件（与 `ref_info` 互斥） |
+| `ref_info` | 否* | RefInfo 引用前置步骤的记录（与 `filter_info` 互斥） |
 
 ### FindRecordAction
 
 ```json
 {
-  "table_name": "Customer table",
-  "field_names": ["Customer Name", "Contact", "Level"],
+  "table_name": "客户表",
+  "field_names": ["客户名称", "联系方式", "等级"],
   "should_proceed_when_no_results": true,
   "filter_info": { /* RecordFilterInfo */ }
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `table_name` | Yes | Target table name |
-| `field_names` | Yes | Field names to retrieve; at least one |
-| `should_proceed_when_no_results` | No | Whether to continue to next step when no results found; default `true` |
-| `filter_info` | No* | RecordFilterInfo (mutually exclusive with `ref_info`) |
-| `ref_info` | No* | RefInfo (mutually exclusive with `filter_info`) |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `table_name` | 是 | 目标数据表名 |
+| `field_names` | 是 | 要检索的字段名列表，至少一个 |
+| `should_proceed_when_no_results` | 否 | 无结果时是否继续后续步骤，默认 `true` |
+| `filter_info` | 否* | RecordFilterInfo（与 `ref_info` 互斥） |
+| `ref_info` | 否* | RefInfo（与 `filter_info` 互斥） |
 
 ### Delay
 
@@ -356,70 +357,69 @@ Each edge describes a directed connection from the current node to a target node
 { "duration": 30 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `duration` | Yes | Delay duration in minutes; range [1, 120] |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `duration` | 是 | 延迟时长（分钟），范围 [1, 120] |
 
 ### LarkMessageAction
 
 ```json
 {
-  "receiver": [{ "value_type": "user", "value": "ou_xxxx" }],
+  "receiver": [{ "value_type": "user", "value": {"id": "ou_xxxx"} }],
   "send_to_everyone": false,
-  "title": [{ "value_type": "text", "value": "New Order Notification" }],
+  "title": [{ "value_type": "text", "value": "新订单通知" }],
   "content": [
-    { "value_type": "text", "value": "Customer" },
-    { "value_type": "ref", "value": "$.trigger_1.fieldIdxxx" },
-    { "value_type": "text", "value": "New order created" }
+    { "value_type": "text", "value": "客户 " },
+    { "value_type": "ref", "value": "$.trigger_1.fldCustomerName" },
+    { "value_type": "text", "value": " 创建了新订单" }
   ],
   "btn_list": [
-    { "text": "View details", "btn_action": "openLink", "link": [{ "value_type": "text", "value": "https://example.com" }] }
+    { "text": "查看详情", "btn_action": "openLink", "link": [{ "value_type": "text", "value": "https://example.com" }] }
   ]
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `receiver` | Yes | ValueInfo[] |
-| `send_to_everyone` | Yes | Whether to send to everyone |
-| `title` | No | TextRefItem[] message title |
-| `content` | Yes | TextRefItem[] message content |
-| `btn_list` | Yes | Button list; empty array when not needed |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `receiver` | 是 | ValueInfo[] |
+| `send_to_everyone` | 是 | 是否发送给所有人 |
+| `title` | 否 | TextRefItem[] 消息标题 |
+| `content` | 是 | TextRefItem[] 消息内容 |
+| `btn_list` | 是 | 按钮列表，不需要时为空数组 |
 
-`ButtonConfig`:
+`ButtonConfig`：
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `text` | string | Button label |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `text` | string | 按钮文字 |
 | `btn_action` | string | `addRecord` / `setRecord` / `openLink` |
-| `link` | ValueInfo[] | Jump link (used with `openLink`) |
-| `table_name` | string | Target table name (used with `addRecord`) |
-| `record_values` | RecordFieldValue[] | Record assignment (used with `addRecord` / `setRecord`) |
+| `link` | ValueInfo[] | 跳转链接（`openLink` 时使用） |
+| `table_name` | string | 操作表名（`addRecord` 时使用） |
+| `record_values` | RecordFieldValue[] | 记录赋值（`addRecord` / `setRecord` 时使用） |
 
 ### GenerateAiTextAction
 
 ```json
 {
   "prompt": [
-    { "value_type": "text", "value": "Please summarize the following:" },
+    { "value_type": "text", "value": "请总结以下内容：" },
     { "value_type": "ref", "value": "$.step_1.fieldxxx" }
   ]
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `prompt` | Yes | TextRefItem[] prompt; supports `text` / `ref` |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `prompt` | 是 | TextRefItem[] 提示词，支持 `text` / `ref` |
 
----
 
-## Branch data structures
+## Branch data 详细结构
 
 ### IfElseBranch
 
-`children.links` contains `if_true` and `if_false` edges. `next` points to the successor node after both branches merge.
+`children.links` 包含 `if_true` 和 `if_false` 两条边，`next` 指向两个分支汇合后的后继节点。
 
-> For complex multi-branch scenarios (3 or more branches), use `SwitchBranch` instead of nested `IfElseBranch`.
+**如果涉及到复杂的多分支场景(分支数目 >= 3时)，你应该采用 SwitchBranch，而不是嵌套的 IfElseBranch**
 
 ```json
 {
@@ -441,19 +441,21 @@ Each edge describes a directed connection from the current node to a target node
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `condition` | Yes | OrGroup judgment condition; structure is `(A and B) or (C and D)` |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `condition` | 是 | OrGroup 判断条件，结构为 `(A and B) or (C and D)` |
 
 ### SwitchBranch
 
-`children.links` contains multiple `case` edges (use `branch_1`, `branch_2` for `label`; put semantics in `desc`).
+`children.links` 包含多个 `case` 边（`label` 建议用 `branch_1`、`branch_2`，语义写在 `desc`）。
 
 ```json
 {
+  "mode": "exclusive",
+  "no_match_action": "classifyToOther",
   "child_branch_list": [
     {
-      "name": "High priority",
+      "name": "高优先级",
       "condition": {
         "conjunction": "or",
         "conditions": [
@@ -474,67 +476,71 @@ Each edge describes a directed connection from the current node to a target node
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `child_branch_list` | Yes | BranchItem[]; 1-10 conditional branches |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `mode` | 否 | 分支模式。`exclusive`：排他模式，仅执行一个满足条件的子分支；`parallel`：并行模式，执行所有满足条件的子分支。默认 `exclusive` |
+| `no_match_action` | 否 | `mode=exclusive` 时使用，无匹配时的处理策略。`classifyToOther`：归类到其他分支；`fail`：报错终止。默认 `classifyToOther` |
+| `fail_mode` | 否 | `mode=parallel` 时使用，部分分支出错时策略。`partialSuccess`：部分成功即继续；`fail`：任一失败即终止。默认 `partialSuccess` |
+| `match_mode` | 否 | `mode=parallel` 时使用，所有分支不满足时策略。`noneMatchSkip`：跳过继续；`noneMatchFail`：报错终止。默认 `noneMatchSkip` |
+| `child_branch_list` | 是 | BranchItem[]，1-10 个条件分支 |
 
-`BranchItem`:
+`BranchItem`：
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Branch name |
-| `condition` | OrGroup | Branch condition |
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 分支名称 |
+| `condition` | OrGroup | 分支条件 |
 
----
 
-## System data structures
+## System data 详细结构
 
 ### Loop
 
-`children.links` contains a `loop_start` edge pointing to the loop body entry. `next` points to the successor node after the loop ends.
+`children.links` 包含 `loop_start` 边指向循环体入口，`next` 指向循环结束后的后继节点。
 
 ```json
 {
   "loop_mode": "continue",
   "max_loop_times": 100,
-  "data": [{ "value_type": "ref", "value": "$.find_record_stepIdxxx.records" }]
+  "data": [{ "value_type": "ref", "value": "$.find_record_stepIdxxx.fieldRecords" }]
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `data` | Yes | ValueInfo[] (only `ref` type); loop data source; only one entry allowed |
-| `loop_mode` | No | On single-item error: `end` (stop) / `continue` (skip and continue) |
-| `max_loop_times` | No | Maximum loop iterations |
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `data` | 是 | ValueInfo[]（仅支持 `ref` 类型），循环数据源，只能填一个 |
+| `loop_mode` | 否 | 单次错误时是否继续：`end`（终止）/ `continue`（继续） |
+| `max_loop_times` | 否 | 最大循环次数 |
 
 ---
 
-## Common types
+
+## 公共类型
 
 ### ValueInfo
 
-Base value type — distinguished by `value_type`:
+所有值的基础类型，通过 `value_type` 区分：
 
-| value_type | value type | Description | Example |
-|------------|-----------|-------------|---------|
-| `text` | string | Plain text | `"Zhang San"` |
-| `number` | number | Number | `100` |
-| `boolean` | boolean | Boolean | `true` |
-| `date` | string | Date string or relative value | `"2025/01/01"`, `"now"`, `"today"`, `"yesterday"`, `"lastWeek"`, `"currentMonth"`, `"lastMonth"`, `"theLastWeek"`, `"theNextWeek"`, `"theLastMonth"`, `"theNextMonth"` |
-| `option` | `{ id, name }` | Select option | `{ "id": "opt1", "name": "Completed" }` |
-| `link` | `{ text, link }` | Hyperlink (text and URL each can be ValueInfo of text/ref type) | `{ "text": [{ "value_type": "text", "value": "View" }], "link": [{ "value_type": "text", "value": "https://example.com" }] }` |
-| `user` | `{ id, name }` | User OpenID and name | `{ "id": "ou_xxxx", "name": "Zhang San" }` |
-| `group` | `{ id, name }` | Group chat ID and name | `{ "id": "oc_xxx", "name": "Test group" }` |
-| `ref` | string | Reference path to a preceding node's output | See ref variable reference section below |
+| value_type | value 类型 | 说明 | 示例 |
+|------------|-----------|------|------|
+| `text` | string | 文本 | `"张三"` |
+| `number` | number | 数字 | `100` |
+| `boolean` | boolean | 布尔值 | `true` |
+| `date` | string | 日期，可以是具体时间字符串，或者相对时间值 | `"2025/01/01"`、`"2025/01/01 11:00"`、`"now"`、`"now 11:00"`、`"today"`、`"today 11:00"`、`"yesterday"`、`"yesterday 11:00"`、`"lastWeek"`、`"currentMonth"`、`"lastMonth"`、`"theLastWeek"`、`"theNextWeek"`、`"theLastMonth"`、`"theNextMonth"` |
+| `option` | `{ id, name }` | 选项 | `{ "id": "opt1", "name": "已完成" }` |
+| `link` | `{ text, link }` | 链接（含文字和 URL）， 文字和 URL 的格式可以是 ValueInfo 中的 text/ref 类型 | `{ "text": [{ "value_type": "text", "value": "查看详情" }], "link": [{ "value_type": "text", "value": "https://example.com" }] }`、`{ "text": [{ "value_type": "text", "value": "查看详情" }], "link": [{ "value_type": "ref", "value": "$.step_1.fldXXX" }] }` |
+| `user` | `{ id, name }` | 用户 OpenID、名字 | `{ "id": "ou_xxxx", "name": "张三" }` |
+| `group` | `{ id, name }` | 群 Chat ID、名字 | `{ "id": "oc_xxx", "name": "测试群" }` |
+| `ref` | `string` | 引用前置节点输出的路径 | 参考 ref 引用变量详解 章节 |
 
-> All user-related `value.id` must use OpenID (`ou_xxxx` format).
-> All group-related `value.id` must use ChatID (`oc_xxxx` format).
+> ⚠️ **所有涉及用户的 value 中的 id 统一使用 OpenID（`ou_xxxx` 格式）**，由 CLI 层来完成转换
+> ⚠️ **所有涉及群的 value 中的 id 统一使用 ChatID（`oc_xxxx` 格式）**，由 CLI 层来完成转换
 
-### ref variable reference
+### ref 引用变量详解
 
-`ref` type is the core data-passing mechanism between workflow nodes. When `value_type` is `ref`, `value` points to an output variable of a preceding node.
+`ref` 类型是工作流中节点间数据传递的核心机制。当 `value_type` 为 `ref` 时，`value` 指向前置节点的某个输出变量。本节详细描述每个节点可供引用的输出变量定义。
 
-#### Reference path format
+#### 引用路径格式
 
 ```
 $.{stepId}
@@ -543,242 +549,245 @@ $.{stepId}.{pathId}.{childPathId}
 $.{stepId}.{pathId}.{childPathId}.{grandChildPathId}
 ```
 
-- `{stepId}`: the preceding node's `id` field
-- `{pathId}`: the output path identifier from that node
-- Multi-level drill-down is supported, e.g. referencing a field property: `$.step_1.fldXXX.name`
+- `{stepId}`：前置节点的 `id`（即 WorkflowStep 中的 `id` 字段）
+- `{pathId}`：节点输出的路径标识符
+- 支持多层下钻，如引用字段的属性：`$.step_1.fldXXX.name`
 
 ---
 
-#### Trigger node output
+#### 触发器节点输出
 
-##### Record triggers (AddRecordTrigger / ChangeRecordTrigger / SetRecordTrigger / ReminderTrigger)
+##### 记录触发器（AddRecordTrigger / ChangeRecordTrigger / SetRecordTrigger / ReminderTrigger）
 
-All four triggers share the same output structure:
+这 4 个触发器的输出结构完全一致：
 
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| `{fieldId}` | Field ID from the configured table; can drill down into field properties | `$.{stepId}.{fieldId}` |
-| `{fieldId}.fieldId` | Field ID property | `$.{stepId}.{fieldId}.fieldId` |
-| `{fieldId}.fieldName` | Field name attribute | `$.{stepId}.{fieldId}.fieldName` |
-| `startTime` | Trigger timestamp | `$.{stepId}.startTime` |
-| `recordId` | Record ID | `$.{stepId}.recordId` |
-| `recordLink` | Record link | `$.{stepId}.recordLink` |
-| `recordCreatedUser` | Record creator | `$.{stepId}.recordCreatedUser` |
-| `recordCreatedTime` | Record creation time | `$.{stepId}.recordCreatedTime` |
-| `recordModifiedUser` | Last modified by | `$.{stepId}.recordModifiedUser` |
-| `recordModifiedTime` | Last modified time | `$.{stepId}.recordModifiedTime` |
+| pathId | 说明 | 引用示例 |
+|--------|------|----------|
+| `{fieldId}` | 字段id，从配置表的所有字段或者指定字段id生成，可下钻字段属性 | `$.{stepId}.{fieldId}` |
+| `{fieldId}.fieldId` | 字段id属性 | `$.{stepId}.{fieldId}.fieldId}` |
+| `{fieldId}.fieldName` | 字段名属性 | `$.{stepId}.{fieldId}.fieldName}` |
+| `startTime` | 触发时间戳 | `$.{stepId}.startTime` |
+| `recordId` | 记录 ID | `$.{stepId}.recordId` |
+| `recordLink` | 记录链接 | `$.{stepId}.recordLink` |
+| `recordCreatedUser` | 记录创建者 | `$.{stepId}.recordCreatedUser` |
+| `recordCreatedTime` | 记录创建时间 | `$.{stepId}.recordCreatedTime` |
+| `recordModifiedUser` | 最后修改者 | `$.{stepId}.recordModifiedUser` |
+| `recordModifiedTime` | 最后修改时间 | `$.{stepId}.recordModifiedTime` |
 
-**Dynamic field output rules:**
-- Reads all fields from the table configured in the trigger
-- Each field generates an output where `pathId` = fieldId
-- For link fields, children of the related table are available (single level only, no recursion)
-- Each field can drill down into specific field properties (see "Field attribute drill-down" below)
+**动态字段输出规则**：
 
-**`recordLink` children:** If the table is configured, all views of that table are listed as children: `{ pathId: viewId, pathName: viewName, pathtype: 'string' }`. Reference example: `$.{stepId}.recordLink.{viewId}`.
+- 读取触发器所配置的数据表的所有字段
+- 每个字段生成一条输出：`pathId` = fieldId
+- 若字段为关联字段，children 为关联表所有字段（单层下钻，不再递归）
+- 每个字段可下钻特定的字段属性（见「字段属性下钻」）
 
-##### TimerTrigger (scheduled trigger)
+**recordLink 的 children**：如果配置了数据表，则为该表所有视图的列表，每个视图 `{ pathId: viewId, pathName: viewName, pathType: 'string' }`。引用示例：`$.{stepId}.recordLink.{viewId}`。
 
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| `scheduleTime` | Scheduled trigger time | `$.{stepId}.scheduleTime` |
+##### TimerTrigger（定时触发器）
 
-##### LarkMessageTrigger (Lark message trigger)
+| pathId | 说明 | 引用示例 |
+|--------|------|----------|
+| `scheduleTime` | 定时触发时间 | `$.{stepId}.scheduleTime` |
 
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| `Sender` | Message sender | `$.{stepId}.Sender` |
-| `AtUser` | Users @mentioned in message | `$.{stepId}.AtUser` |
-| `SenderGroup` | Group where message was sent (group chat only) | `$.{stepId}.SenderGroup` |
-| `MessageSendTime` | Message send time | `$.{stepId}.MessageSendTime` |
-| `MessageContent` | Message text | `$.{stepId}.MessageContent` |
-| `Messagetype` | Message type identifier | `$.{stepId}.Messagetype` |
-| `MessageID` | Message unique identifier | `$.{stepId}.MessageID` |
-| `MessageLink` | Message link (group chat only) | `$.{stepId}.MessageLink` |
-| `ParentID` | Reply message ID | `$.{stepId}.ParentID` |
-| `ThreadID` | Thread message ID | `$.{stepId}.ThreadID` |
-| `Attachments` | Attachments in message | `$.{stepId}.Attachments` |
+##### LarkMessageTrigger（飞书消息触发器）
 
-Constraint: If scene is private chat (`receive_scene = "chat"`), then `SenderGroup` and `MessageLink` are not available.
+| pathId | 说明 | 引用示例 |
+|--------|------|----------|
+| `Sender` | 消息发送者 | `$.{stepId}.Sender` |
+| `AtUser` | 消息中被@的用户 | `$.{stepId}.AtUser` |
+| `SenderGroup` | 消息所在群（仅群聊场景） | `$.{stepId}.SenderGroup` |
+| `MessageSendTime` | 消息发送时间 | `$.{stepId}.MessageSendTime` |
+| `MessageContent` | 消息正文 | `$.{stepId}.MessageContent` |
+| `MessageType` | 消息类型标识 | `$.{stepId}.MessageType` |
+| `MessageID` | 消息唯一标识 | `$.{stepId}.MessageID` |
+| `MessageLink` | 消息链接（仅群聊场景） | `$.{stepId}.MessageLink` |
+| `ParentID` | 回复的消息 ID | `$.{stepId}.ParentID` |
+| `ThreadID` | 所在话题消息 ID | `$.{stepId}.ThreadID` |
+| `Attachments` | 消息中的附件 | `$.{stepId}.Attachments` |
 
----
+条件限制：
 
-#### Action node output
-
-##### FindRecordAction (find records)
-
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| `fieldRecords` | References to all found records (for Loop iteration) | Not directly quotable |
-| `firstfieldsRecord` | First matching record | `$.{stepId}.firstfieldsRecord` |
-| `firstfieldsRecord.{fieldId}` | First record's field value; can drill down | `$.{stepId}.firstfieldsRecord.{fieldId}` |
-| `firstfieldsRecord.recordId` | First record's ID | `$.{stepId}.firstfieldsRecord.recordId` |
-| `fields` | All found records' column values | Not directly quotable |
-| `fields.{fieldId}` | User-selected field values (all records) | `$.{stepId}.fields.{fieldId}` |
-| `fields.{fieldId}.fieldId` | User-selected field ID array | `$.{stepId}.fields.{fieldId}.fieldId` |
-| `fields.{fieldId}.fieldName` | User-selected field name array | `$.{stepId}.fields.{fieldId}.fieldName` |
-| `fields.recordId` | Record ID array | `$.{stepId}.fields.recordId` |
-| `recordNum` | Total number of records found | `$.{stepId}.recordNum` |
-
-##### AddRecordAction (add new record)
-
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| `{fieldId}` | User-configured field value; can drill down | `$.{stepId}.{fieldId}` |
-| `{fieldId}.fieldId` | User-configured field ID | `$.{stepId}.{fieldId}.fieldId` |
-| `{fieldId}.fieldName` | User-configured field name | `$.{stepId}.{fieldId}.fieldName` |
-| `recordId` | New record ID | `$.{stepId}.recordId` |
-| `recordLink` | New record URL | `$.{stepId}.recordLink` |
-
-##### SetRecordAction (update record)
-
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| `{fieldId}` | User-configured field value; can drill down | `$.{stepId}.{fieldId}` |
-| `{fieldId}.fieldId` | User-configured field ID | `$.{stepId}.{fieldId}.fieldId` |
-| `{fieldId}.fieldName` | User-configured field name | `$.{stepId}.{fieldId}.fieldName` |
-| `recordId` | Record ID array (multiple records may be updated) | `$.{stepId}.recordId` |
-
-##### GenerateAiTextAction (AI-generated text)
-
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| (whole output) | AI-generated text content (no drill-down; reference as `$.{stepId}`) | `$.{stepId}` |
-
-##### Action nodes with no output
-
-The following nodes produce no referenceable output:
-
-- **Delay** (delay waiting)
-- **LarkMessageAction** (send Lark message)
+- 若场景为单聊（`receive_scene = "Chat"`），则 `SenderGroup` 和 `MessageLink` 不可用
 
 ---
 
-#### Branch node output
+#### 操作节点输出
 
-None of the branch nodes produce referenceable output:
+##### FindRecordAction（查找记录）
 
-- **IfElseBranch** (conditional branch)
-- **SwitchBranch** (multi-way conditional branch)
+| pathId | 说明 | 引用示例|
+|--------|------|-------|
+| `fieldRecords` | 所有找到的记录的引用（可用于 Loop 遍历） | `$.{stepId}.fieldRecords`|
+| `firstfieldsRecord` | 第一条匹配记录 | `$.{stepId}.firstfieldsRecord`|
+| `firstfieldsRecord.{fieldId}` | 首条记录的字段值，可下钻字段属性 | `$.{stepId}.firstfieldsRecord.{fieldId}`|
+| `firstfieldsRecord.recordId` | 记录 ID 数组 | `$.{stepId}.firstfieldsRecord.recordId`|
+| `fields` | 查找到的所有记录某列值 | 不支持引用|
+| `fields.{fieldId}` | 用户选择的字段 | `$.{stepId}.fields.{fieldId}`|
+| `fields.{fieldId}.fieldId` | 用户选择的字段id数组 | `$.{stepId}.fields.{fieldId}.fieldId`|
+| `fields.{fieldId}.fieldName` | 用户选择的字段名数组 | `$.{stepId}.fields.{fieldId}.fieldName`|
+| `fields.recordId` | 记录 ID 数组 | `$.{stepId}.fields.recordId`|
+| `recordNum` | 找到记录总数 | `$.{stepId}.recordNum`|
+
+##### AddRecordAction（新增记录）
+
+| pathId | 说明 | 引用示例 |
+|--------|------|----------|
+| `{fieldId}` | 用户配置的字段值，可下钻字段属性 | `$.{stepId}.{fieldId}` |
+| `{fieldId}.fieldId` | 用户配置的字段id | `$.{stepId}.{fieldId}.fieldId}` |
+| `{fieldId}.fieldName` | 用户配置的字段名 | `$.{stepId}.{fieldId}.fieldName}` |
+| `recordId` | 新增的记录 ID | `$.{stepId}.recordId` |
+| `recordLink` | 新增的记录 URL | `$.{stepId}.recordLink` |
+
+##### SetRecordAction（更新记录）
+
+| pathId | 说明 | 引用示例 |
+|--------|------|----------|
+| `{fieldId}` | 用户配置的字段值，可下钻字段属性 | `$.{stepId}.{fieldId}` |
+| `{fieldId}.fieldId` | 用户配置的字段id | `$.{stepId}.{fieldId}.fieldId}` |
+| `{fieldId}.fieldName` | 用户配置的字段名 | `$.{stepId}.{fieldId}.fieldName}` |
+| `recordId` | 记录 ID 数组（因可能更新多条记录） | `$.{stepId}.recordId` |
+
+##### GenerateAiTextAction（AI 生成文本）
+
+| pathId | 说明 | 引用示例 |
+|--------|------|----------|
+| （整体出参） | AI 生成的文本内容（不支持下钻，只能引用 `$.{stepId}`） | `$.{stepId}` |
+
+##### 无输出的操作节点
+
+以下节点不产生任何可引用的输出数据：
+
+- **Delay**（延时等待）
+- **LarkMessageAction**（发送飞书消息）
 
 ---
 
-#### System node output
+#### 分支节点输出
 
-##### Loop (loop)
+以下分支节点均不产生任何可引用的输出数据：
 
-| pathId | Description | Reference example |
-|--------|-------------|-------------------|
-| `item` | Current loop element | `$.{stepId}.item` |
-| `index` | Loop index starting from 0 | `$.{stepId}.index` |
-
-**`item` type inference rules** (determined by loop data source):
-
-**Scenario 1: Traverse combined records** — data source is `record` type (e.g. `FindRecordAction.fieldRecords`); `item` type is `record`; can select specific fields:
-
-| Description | Reference example |
-|-------------|-------------------|
-| Currently traversed record | `$.{loopStepId}.item` |
-| Specific field on the record | `$.{loopStepId}.item.{fieldId}` |
-| Index starting from 0 (number) | `$.{loopStepId}.index` |
-
-**Scenario 2: Traverse a multi-value field** — data source is a multi-value field (e.g. attachment field, person field); `item` inherits the field's type and can drill down into field properties:
-
-| Description | Reference example |
-|-------------|-------------------|
-| Currently traversed element (type inherits data source field type) | `$.{loopStepId}.item` |
-| Person name | `$.{loopStepId}.item.name` |
-| Index starting from 0 (number) | `$.{loopStepId}.index` |
+- **IfElseBranch**（条件分支）
+- **SwitchBranch**（多条件分支）
 
 ---
 
-#### Field attribute drill-down
+#### 系统节点输出
 
-All field variables can drill down further to select field properties. All fields support at least `fieldId` and `fieldName`; some support additional attributes:
+##### Loop（循环）
 
-| Field type | Property name | Property pathId | Property type | Description |
-|-----------|--------------|----------------|---------------|-------------|
-| **All fields (base)** | Field ID | `fieldId` | `string` | Field unique identifier |
-| | Field name | `fieldName` | `string` | Field display name |
-| **Person fields** (User / CreatedUser / ModifiedUser) | Name | `name` | `string` | User name |
-| **Date fields** (DateTime / CreatedTime / ModifiedTime) | Timestamp | `timestamp` | `number` | Timestamp value |
-| **Attachment fields** (Attachment) | File name | `fileName` | `string` | Attachment file name |
-| | File type | `filetype` | `string` | MIME type |
-| | File size | `size` | `number` | File bytes |
-| | File token | `fileToken` | `string` | Attachment token |
-| **Hyperlink fields** (URL) | Text | `text` | `string` | Link text portion |
-| | Link | `link` | `string` | Link URL portion |
-| **Auto-number fields** (AutoNumber) | Sequence | `sequence` | `number` | Numeric sequence number |
-| **Link fields** (SingleLink / DuplexLink) | Field drill-down | `{fieldId}` | - | Can drill down into related table's fields |
+| pathId | 说明 | 引用示例 |
+|--------|------|----------|
+| `item` | 当前循环元素 | `$.{stepId}.item` |
+| `index` | 从 0 开始的循环索引 | `$.{stepId}.index` |
 
-> Other field types (text, number, checkbox, single/multi select, phone, location, date, formula, lookup, etc.) only support `fieldId` and `fieldName`.
+**`item` 的类型推断规则**（由循环数据源决定）：
 
-Drill-down reference examples:
+**场景一：遍历组合记录** — 数据源为 `record` 类型时（如 FindRecordAction 的 `fieldRecords`），`item` 类型为 `record`，可向下选择具体字段：
+
+| 说明 | 引用示例 |
+|------|----------|
+| 当前遍历的记录（record） | `$.{loopStepId}.item` |
+| 记录的具体字段 | `$.{loopStepId}.item.{fieldId}` |
+| 从 0 开始的索引（number） | `$.{loopStepId}.index` |
+
+**场景二：遍历字段** — 数据源为某个多值类型字段时，比如附件字段、人员字段，`item` 继承该字段的类型并可继续下钻字段属性：
+
+| 说明 | 引用示例 |
+|------|----------|
+| 当前遍历的元素（类型继承数据源字段类型，例如人员字段） | `$.{loopStepId}.item` |
+| 用户姓名 | `$.{loopStepId}.item.name` |
+| 从 0 开始的索引（number） | `$.{loopStepId}.index` |
+
+---
+
+#### 字段属性下钻
+
+每个字段变量都可以进一步下钻选择字段的属性。所有字段至少支持 `fieldId` 和 `fieldName` 两个基础属性，部分字段还支持额外属性：
+
+| 字段类型 | 属性名称 | 属性 pathId | 属性 pathType | 说明 |
+|----------|---------|-------------|--------------|------|
+| **所有字段（基础）** | 字段 ID | `fieldId` | `string` | 字段的唯一标识 |
+| | 字段名称 | `fieldName` | `string` | 字段的显示名称 |
+| **人员字段**（`user` / `created_by` / `updated_by`） | 姓名 | `name` | `string` | 用户姓名 |
+| **日期字段**（`datetime` / `created_at` / `updated_at`） | 时间戳 | `timestamp` | `number` | 时间戳数值 |
+| **附件字段**（`attachment`） | 文件名 | `fileName` | `string` | 附件文件名 |
+| | 文件类型 | `fileType` | `string` | MIME 类型 |
+| | 文件大小 | `size` | `number` | 文件字节数 |
+| | 文件 Token | `fileToken` | `string` | 附件 token |
+| **超链接文本字段**（`text` 且 `style.type=url`） | 文本 | `text` | `string` | 链接文本部分 |
+| | 链接 | `link` | `string` | 链接 URL 部分 |
+| **自动编号字段**（`auto_number`） | 序号 | `sequence` | `number` | 编号的纯数字序号 |
+| **关联字段**（`link`） | 字段下钻 | `{fieldId}` | - | 可下钻到关联表的字段 |
+
+> 其他字段类型（如 `text`、`number`、`checkbox`、`select`、`location`、`formula`、`lookup` 等）仅支持 `fieldId` 和 `fieldName` 两个基础属性。
+
+下钻引用示例：
 
 ```
-$.{stepId}.{fieldId}              → field value itself
-$.{stepId}.{fieldId}.fieldId      → field ID (string)
-$.{stepId}.{fieldId}.fieldName    → field name (string)
-$.{stepId}.{fieldId}.name         → person name list (array<string>, person fields only)
-$.{stepId}.{fieldId}.unionId      → person unionId list (array<string>, person fields only)
-$.{stepId}.{fieldId}.timestamp    → timestamp (array<number>, date fields only)
-$.{stepId}.{fieldId}.fileName     → list of file names (array<string>, attachment fields only)
-$.{stepId}.{fieldId}.fileToken    → file token list (array<string>, attachment fields only)
+$.{stepId}.{fieldId} → 字段值本身
+$.{stepId}.{fieldId}.fieldId → 字段 ID（string）
+$.{stepId}.{fieldId}.fieldName    → 字段名称（string）
+$.{stepId}.{fieldId}.name → 人员姓名列表（array<string>，仅人员字段）
+$.{stepId}.{fieldId}.unionId → 人员 unionId 列表（array<string>，仅人员字段）
+$.{stepId}.{fieldId}.timestamp    → 时间戳（array<number>，仅日期字段）
+$.{stepId}.{fieldId}.fileName     → 文件名列表（array<string>，仅附件字段）
+$.{stepId}.{fieldId}.fileToken    → 文件 Token 列表（array<string>，仅附件字段）
 ```
 
 ---
 
-#### Node output capability overview
+#### 节点输出能力总览
 
-| Node | Type | Has output | Output characteristics |
-|------|------|-----------|----------------------|
-| AddRecordTrigger | trigger | Yes | Dynamic (table fields + record properties) |
-| ChangeRecordTrigger | trigger | Yes | Dynamic (table fields + record properties) |
-| SetRecordTrigger | trigger | Yes | Dynamic (table fields + record properties) |
-| ReminderTrigger | trigger | Yes | Dynamic (table fields + record properties) |
-| TimerTrigger | trigger | Yes | Static (scheduleTime only) |
-| LarkMessageTrigger | trigger | Yes | Static (message property list) |
-| FindRecordAction | action | Yes | Dynamic (user-selected fields) |
-| AddRecordAction | action | Yes | Dynamic (user-configured fields) |
-| SetRecordAction | action | Yes | Dynamic (user-configured fields) |
-| GenerateAiTextAction | action | Yes | Static (one string) |
-| Delay | action | No | No output |
-| LarkMessageAction | action | No | No output |
-| IfElseBranch | branch | No | No output |
-| SwitchBranch | branch | No | No output |
-| Loop | system | Yes | Dynamic (depends on data source) |
+| 节点 | 类型 | 有输出 | 输出特性 |
+|------|------|--------|---------|
+| AddRecordTrigger | 触发器 | ✅ | 动态（表字段 + 记录属性） |
+| ChangeRecordTrigger | 触发器 | ✅ | 动态（表字段 + 记录属性） |
+| SetRecordTrigger | 触发器 | ✅ | 动态（表字段 + 记录属性） |
+| ReminderTrigger | 触发器 | ✅ | 动态（表字段 + 记录属性） |
+| TimerTrigger | 触发器 | ✅ | 静态（仅 scheduleTime） |
+| LarkMessageTrigger | 触发器 | ✅ | 静态（消息属性列表） |
+| FindRecordAction | 动作 | ✅ | 动态（用户选择的字段） |
+| AddRecordAction | 动作 | ✅ | 动态（用户配置的字段） |
+| SetRecordAction | 动作 | ✅ | 动态（用户配置的字段） |
+| GenerateAiTextAction | 动作 | ✅ | 静态（单 string） |
+| Delay | 动作 | ❌ | 无输出 |
+| LarkMessageAction | 动作 | ❌ | 无输出 |
+| IfElseBranch | 分支 | ❌ | 无输出 |
+| SwitchBranch | 分支 | ❌ | 无输出 |
+| Loop | 系统 | ✅ | 动态（取决于数据源） |
 
 ---
 
 ### TextRefItem
 
-Mixed text and references — used for dynamic content splicing (e.g. message content):
+文本与引用混排，用于消息内容等动态拼接场景：
 
 ```json
 [
-  { "value_type": "text", "value": "Customer" },
+  { "value_type": "text", "value": "客户 " },
   { "value_type": "ref", "value": "$.step_1.fieldxxx" },
-  { "value_type": "text", "value": "New order created" }
+  { "value_type": "text", "value": " 创建了新订单" }
 ]
 ```
 
 ### RecordFieldValue
 
 ```json
-{ "field_name": "Customer name", "value": [{ "value_type": "text", "value": "Zhang San" }] }
+{ "field_name": "客户名称", "value": [{ "value_type": "text", "value": "张三" }] }
 ```
 
-### AndCondition (trigger filter conditions)
+### AndCondition（Trigger 过滤条件）
 
 ```json
 {
   "conjunction": "and",
   "conditions": [
-    { "field_name": "status", "operator": "is", "value": [{ "value_type": "text", "value": "in progress" }] }
+    { "field_name": "状态", "operator": "is", "value": [{ "value_type": "text", "value": "进行中" }] }
   ]
 }
 ```
 
-### OrGroup (branch condition)
+### OrGroup（Branch 分支条件）
 
 ```json
 {
@@ -798,31 +807,29 @@ Mixed text and references — used for dynamic content splicing (e.g. message co
 }
 ```
 
-**operator values:** `is` / `isNot` / `containsAny` / `doesNotContainAny` / `containsAll` / `isEmpty` / `isNotEmpty` / `isGreater` / `isGreaterEqual` / `isLess` / `isLessEqual`
+**operator 可选值：** `is` / `isNot` / `containsAny` / `doesNotContainAny` / /`containsAll`/ `isEmpty` / `isNotEmpty` / `isGreater` / `isGreaterEqual` / `isLess` / `isLessEqual`
 
 ### RecordFilterInfo
-
-> `conjunction` only supports `and`. To match field X equal to A or B, use `containsAny`.
-
+** 由于 conjunction 只支持 and，若需要实现 字段X 等于 A 或 B，你可以使用 containsAny
 ```json
 {
   "conjunction": "and",
   "conditions": [
-    { "field_name": "status", "operator": "is", "value": [{ "value_type": "text", "value": "in progress" }] }
+    { "field_name": "状态", "operator": "is", "value": [{ "value_type": "text", "value": "进行中" }] }
   ]
 }
 ```
 
-### Select / MultiSelect field multi-value matching
+### `select` 字段多值匹配
 
-| Operation | operator | Correct form |
-|-----------|----------|--------------|
-| Equal to single value | `is` | `[{"value_type": "option", "value": {"name": "L2"}}]` |
-| Match multiple values (L2 or L3) | `containsAny` | `[{"value_type": "option", "value": {"name": "L2"}}, {"value_type": "option", "value": {"name": "L3"}}]` |
+| 操作 | operator | 正确写法 |
+|------|---------|---------|
+| 等于单个值 | `is` | `[{"value_type": "option", "value": {"name": "L2"}}]` |
+| 匹配多个值（L2 或 L3） | `containsAny` | `[{"value_type": "option", "value": {"name": "L2"}}, {"value_type": "option", "value": {"name": "L3"}}]` |
 
-> Do not use multiple `is` conditions (they are treated as OR, cannot achieve AND). Use `containsAny` to match multiple values.
+> ⚠️ 不要用多个 `is` 条件（会被当作 OR，无法实现 AND）。推荐使用 `containsAny` 操作符匹配多个值。
 
-> For Select field conditions: `value_type` must be `option`; `value` object only needs `name` (e.g. `{"name": "L2"}`); option ID is not required.
+> ⚠️ **Select 字段条件**：`value_type` 必须为 `option`，`value` 对象可只传 `name`（如 `{"name": "L2"}`），无需提供选项 ID。
 
 ### RefInfo
 
@@ -832,27 +839,26 @@ Mixed text and references — used for dynamic content splicing (e.g. message co
 
 ---
 
-## Full example: conditional branch + send message
+## 完整示例：条件分支 + 发送消息
 
 ```json
 {
-  "title": "Automatic notification of new orders",
+  "title": "新订单自动通知",
   "steps": [
     {
       "id": "step_1",
       "type": "AddRecordTrigger",
-      "title": "Triggered when a new record is added to the Order Table",
-      "children": { "links": [] },
+      "title": "当「订单表」新增记录时触发",
       "next": "step_2",
       "data": {
-        "table_name": "Order table",
-        "watched_field_name": "Order number"
+        "table_name": "订单表",
+        "watched_field_name": "订单编号"
       }
     },
     {
       "id": "step_2",
       "type": "IfElseBranch",
-      "title": "Determine whether order amount is greater than 1000",
+      "title": "判断订单金额是否大于 1000",
       "children": {
         "links": [
           { "kind": "if_true", "to": "step_3" },
@@ -877,17 +883,16 @@ Mixed text and references — used for dynamic content splicing (e.g. message co
     {
       "id": "step_3",
       "type": "LarkMessageAction",
-      "title": "Notify supervisor to approve large orders",
-      "children": { "links": [] },
+      "title": "通知主管审批大额订单",
       "next": null,
       "data": {
         "receiver": [{ "value_type": "ref", "value": "$.step_1.fieldxxx" }],
         "send_to_everyone": false,
-        "title": [{ "value_type": "text", "value": "Large Order Reminder" }],
+        "title": [{ "value_type": "text", "value": "大额订单提醒" }],
         "content": [
-          { "value_type": "text", "value": "The new order amount is:" },
+          { "value_type": "text", "value": "新订单金额为：" },
           { "value_type": "ref", "value": "$.step_1.fieldxxx" },
-          { "value_type": "text", "value": "Yuan, please approve in time." }
+          { "value_type": "text", "value": "元，请及时审批。" }
         ],
         "btn_list": []
       }
@@ -895,26 +900,24 @@ Mixed text and references — used for dynamic content splicing (e.g. message co
     {
       "id": "step_4",
       "type": "SetRecordAction",
-      "title": "Automatically mark small orders as passed",
-      "children": { "links": [] },
+      "title": "自动标记小额订单为已通过",
       "next": null,
       "data": {
-        "table_name": "Order table",
+        "table_name": "订单表",
         "ref_info": { "step_id": "step_1" },
         "field_values": [
-          { "field_name": "Approval status", "value": [{ "value_type": "text", "value": "Passed" }] }
+          { "field_name": "审批状态", "value": [{ "value_type": "text", "value": "已通过" }] }
         ]
       }
     },
     {
       "id": "step_5",
       "type": "GenerateAiTextAction",
-      "title": "AI generates order processing daily report",
-      "children": { "links": [] },
+      "title": "AI 生成订单处理日报",
       "next": null,
       "data": {
         "prompt": [
-          { "value_type": "text", "value": "Please generate a brief processing daily report based on the following order information:" },
+          { "value_type": "text", "value": "请根据以下订单信息生成一份简要的处理日报：" },
           { "value_type": "ref", "value": "$.step_1.fieldxxx" }
         ]
       }
@@ -925,8 +928,8 @@ Mixed text and references — used for dynamic content splicing (e.g. message co
 
 ---
 
-## References
+## 参考
 
-- [lark-base-workflow-create.md](lark-base-workflow-create.md) — workflow-create operation
-- [lark-base-workflow-update.md](lark-base-workflow-update.md) — workflow-update operation
-- [lark-base-workflow-list.md](lark-base-workflow-list.md) — workflow-list operation
+- [lark-base-workflow-create](lark-base-workflow-create.md) — 创建工作流命令
+- [lark-base-workflow-update](lark-base-workflow-update.md) — 更新工作流命令
+- [lark-base-workflow-list](lark-base-workflow-list.md) — 列出工作流命令

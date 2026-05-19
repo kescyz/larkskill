@@ -1,99 +1,108 @@
-# dashboard-block-create
+# base +dashboard-block-create
 
-> **Prerequisite:** Read [lark-base-dashboard.md](lark-base-dashboard.md) for the overall workflow.
-> **Key:** Before creating, read [dashboard-block-data-config.md](dashboard-block-data-config.md) for block types and `data_config` structure.
+> **前置条件：** 先阅读 [lark-base-dashboard.md](lark-base-dashboard.md) 了解整体工作流
+> **关键：** 创建前必须阅读 [dashboard-block-data-config.md](dashboard-block-data-config.md) 了解组件类型和 data_config 结构
 
-Create a block in a dashboard.
+在仪表盘中创建一个组件（Block）。
 
-## Key constraints
+## 关键约束
 
-- **`type` cannot be changed after creation** — choose correctly at creation time.
-- **`data_config` structure varies by `type`** — must read [dashboard-block-data-config.md](dashboard-block-data-config.md).
-- **Block creation must be serial** — no concurrent execution.
+- **`type` 创建后不可修改**，创建时务必选对
+- **`data_config` 结构随 `type` 变化**，不同组件类型字段不同，**⚠️ 必须阅读 [dashboard-block-data-config.md](dashboard-block-data-config.md) 了解如何构造**
+- **组件创建必须串行执行**，不能并发
 
-## Recommended call
+## 推荐命令
 
-KPI card (count records):
+```bash
+# 简单示例：创建一个指标卡（统计记录数）
+lark-cli base +dashboard-block-create \
+  --base-token xxx \
+  --dashboard-id blk_xxx \
+  --name "总记录数" \
+  --type statistics \
+  --data-config '{"table_name":"订单表","count_all":true}'
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}/blocks
-- body:
-  ```json
-  {
-    "name": "Total Records",
+# 文本组件示例（Markdown 富文本）
+lark-cli base +dashboard-block-create \
+  --base-token xxx \
+  --dashboard-id blk_xxx \
+  --name "说明文字" \
+  --type text \
+  --data-config '{"text":"# 标题\n## 副标题\n**加粗** *斜体* ~~删除~~\n1. 列表1\n2. 列表2"}'
+
+# 复杂配置用文件传入
+lark-cli base +dashboard-block-create \
+  --base-token xxx \
+  --dashboard-id blk_xxx \
+  --name "销售额趋势" \
+  --type line \
+  --data-config @config.json
+```
+
+完整流程参考 [lark-base-dashboard.md](lark-base-dashboard.md) 的「场景 1：从 0 到 1 创建仪表盘」
+
+## 参数
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--dashboard-id <id>` | 是 | 仪表盘 ID（从 `+dashboard-list/get` 获取） |
+| `--name <name>` | **是** | 组件名称（允许重名） |
+| `--type <type>` | **是** | 组件类型，见下方枚举值。**不同 type 对应不同的 data_config 结构**，常用：`column`(柱状图)、`line`(折线图)、`pie`(饼图)、`statistics`(指标卡)、`text`(文本) |
+| `--data-config <json>` | 否 | 数据配置 JSON，**结构随 type 变化**。**⚠️ 必须阅读 [dashboard-block-data-config.md](dashboard-block-data-config.md) 了解如何构造**。创建时会做本地校验，更新时由后端校验 |
+| `--user-id-type <type>` | 否 | 用户 ID 类型，filter 涉及人员字段时使用 |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
+
+### type 枚举值
+
+| 值 | 说明 |
+|----|------|
+| `column` | 柱状图 |
+| `bar` | 条形图 |
+| `line` | 折线图 |
+| `pie` | 饼图 |
+| `ring` | 环形图 |
+| `area` | 面积图 |
+| `combo` | 组合图 |
+| `scatter` | 散点图 |
+| `funnel` | 漏斗图 |
+| `wordCloud` | 词云 |
+| `radar` | 雷达图 |
+| `statistics` | 指标卡 |
+| `text` | 文本（支持 Markdown） |
+
+## 返回示例
+
+```json
+{
+  "block": {
+    "block_id": "chtxxxxxxxx",
+    "name": "总记录数",
     "type": "statistics",
-    "data_config": { "table_name": "Orders", "count_all": true }
-  }
-  ```
-
-Line chart with series:
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}/blocks
-- body:
-  ```json
-  {
-    "name": "Sales Trend",
-    "type": "line",
     "data_config": {
-      "table_name": "Orders",
-      "series": [{"field_name": "Amount", "rollup": "SUM"}],
-      "group_by": [{"field_name": "Month", "mode": "integrated"}]
+      "table_name": "电商交易明细",
+      "count_all": true
     }
-  }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `dashboard_id` | Yes | Dashboard ID (path param) |
-| `name` | Yes | Block name (body) |
-| `type` | Yes | Block type (body, see enum below) |
-| `data_config` | No | Data config JSON; structure varies by type (body) |
-| `user_id_type` | No | User ID type when filter references user fields (query param) |
-
-### type enum
-
-| Value | Description |
-|-------|-------------|
-| `column` | Column chart |
-| `bar` | Bar chart |
-| `line` | Line chart |
-| `pie` | Pie chart |
-| `ring` | Donut chart |
-| `area` | Area chart |
-| `combo` | Combo chart |
-| `scatter` | Scatter chart |
-| `funnel` | Funnel chart |
-| `wordCloud` | Word cloud |
-| `radar` | Radar chart |
-| `statistics` | KPI card |
-
-## API request details
-
-```
-POST /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}/blocks
+  },
+  "created": true
+}
 ```
 
-## Key return fields
+## 返回重点
 
-| Field | Description |
-|-------|-------------|
-| `block.block_id` | Block ID — record this for edit/delete operations |
-| `block.name` | Block name |
-| `block.type` | Block type |
-| `block.data_config` | Actual created data config (may include backend-added defaults) |
-| `created` | `true` if creation succeeded |
+| 字段 | 说明 |
+|------|------|
+| `block.block_id` | 组件 ID，后续编辑/删除需要用到，务必记录 |
+| `block.name` | 组件名称 |
+| `block.type` | 组件类型 |
+| `block.data_config` | 实际创建的数据配置（可能包含后端自动添加的默认值）|
+| `created` | 是否创建成功 |
 
-## Pitfalls
+> [!CAUTION]
+> 这是**写入操作** — 执行前必须向用户确认。
 
-- This is a write operation; confirm with the user before execution.
 
-## References
+## 参考
 
-- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard module guide
-- [dashboard-block-data-config.md](dashboard-block-data-config.md) — data_config structure, chart types, filter rules
+- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard 模块指引
+- [dashboard-block-data-config.md](dashboard-block-data-config.md) — data_config 结构、图表类型、filter 规则

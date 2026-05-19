@@ -1,60 +1,55 @@
 # task +get-my-tasks
 
-If the user query only specifies a task name (e.g., "Complete task Lobster No. 1"), use this operation to list and search for the task by its summary.
+If the user query only specifies a task name (e.g., "Complete task Lobster No. 1"), use this command to list and search for the task by its summary.
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
->
-> **⚠️ Note:** This API must be called with a user identity (`as: user`). **Do NOT use bot identity, otherwise the call will fail.**
+> **Prerequisites:** Please read `../lark-shared/SKILL.md` to understand authentication, global parameters, and security rules.
+> 
+> **⚠️ Note:** This API must be called with a user identity. **Do NOT use an app identity, otherwise the call will fail.**
 >
 > **Output rendering note:**
 > 1. If you need to present user fields (assignee, creator, etc.), do not only output the raw `id` (e.g. open_id). Also try to resolve and display the user's real name (e.g. via the contact skill) for readability.
 > 2. When rendering timestamps (e.g. created time, due time), use the local timezone. Format is 2006-01-02 15:04:05
 
 List tasks assigned to the current user, with support for filtering by completion status, creation time, and due date.
-Paginate manually using `page_token` from each response; repeat until `has_more` is false (up to your desired page limit).
+By default, the command will automatically paginate up to 20 times. Use `--page-all` to fetch more (up to 40 pages).
 
-## Recommended call
+## Recommended Commands
 
-Search for a specific task by name:
+```bash
+# Search for a specific task by name
+lark-cli task +get-my-tasks --query "Lobster No. 1"
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/task/v2/tasks
-- params:
-  ```json
-  { "page_size": 50, "user_id_type": "open_id" }
-  ```
-- as: user
+# Get all my tasks (fetches up to 20 pages by default)
+lark-cli task +get-my-tasks
 
-(Then filter results client-side by `summary` matching the query string.)
+# Get my incomplete tasks (fetches up to 20 pages by default)
+lark-cli task +get-my-tasks --complete=false
 
-Get incomplete tasks with pagination:
+# Fetch all my tasks (up to 40 pages)
+lark-cli task +get-my-tasks --page-all
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/task/v2/tasks
-- params:
-  ```json
-  { "page_size": 50, "completed": false, "user_id_type": "open_id" }
-  ```
-- as: user
+# Fetch up to 10 pages
+lark-cli task +get-my-tasks --page-limit 10
 
-## Parameters (query)
+# Resume from a known page token
+lark-cli task +get-my-tasks --page-token "pt_xxx"
+```
+
+## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `page_size` | No | Number of results per page (default 20, max 100) |
-| `page_token` | No | Pagination token from previous response |
-| `completed` | No | Filter by completion: `true` for completed only, `false` for incomplete only. Omit for all |
-| `created_from` | No | Query tasks created after this ms timestamp |
-| `created_to` | No | Query tasks created before this ms timestamp |
-| `due_from` | No | Query tasks with due date after this ms timestamp |
-| `due_to` | No | Query tasks with due date before this ms timestamp |
-| `user_id_type` | No | User ID type for member fields: `open_id` (default) |
+| `--query <string>` | No | Search for tasks by summary. Returns exact matches if any; otherwise returns partial matches. |
+| `--complete=<bool>` | No | Optional. If not provided, it fetches all tasks (both incomplete and completed). Set to `true` to fetch only completed tasks, or `false` for incomplete tasks. |
+| `--created_at <string>` | No | Query tasks created after this time. Supports date: `YYYY-MM-DD`, relative: `-2d`, or ms timestamp. |
+| `--due-start <string>` | No | Query tasks with a due date after this time. Supports date: `YYYY-MM-DD`, relative: `-2d`, or ms timestamp. |
+| `--due-end <string>` | No | Query tasks with a due date before this time. Supports date: `YYYY-MM-DD`, relative: `-2d`, or ms timestamp. |
+| `--page-all` | No | Automatically paginate through all pages (max 40). |
+| `--page-limit <int>` | No | Max page limit (default 20). |
+| `--page-token <string>` | No | Start from the specified page token (useful for resuming a previous query). |
 
 ## Workflow
 
 1. Determine the filters based on the user's request.
-2. Call `lark_api GET /open-apis/task/v2/tasks` with `as: user`. The API returns a page of results.
-3. If `has_more` is true, repeat with `page_token` until all pages are fetched or page limit is reached.
-4. Show the results (task GUID, summary, due time, created date). Include `url` if present.
+2. Execute the command. The CLI will automatically loop up to the specified limit (default 20, or 40 with `--page-all`) to fetch records.
+3. Show the results (ID, summary, due time, and created date).

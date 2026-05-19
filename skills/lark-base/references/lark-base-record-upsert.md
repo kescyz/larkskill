@@ -1,91 +1,64 @@
-# record-upsert
+# base +record-upsert
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Create a record, or update an existing record by passing `record_id`.
+创建记录，或在带 `--record-id` 时更新记录。
 
-## Recommended call
+## 推荐命令
 
-Create a record:
+```bash
+# 创建记录
+lark-cli base +record-upsert --base-token <base_token> --table-id <table_id> \
+  --json '{"项目名称":"Apollo","状态":"进行中"}'
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records
-- body:
-  ```json
-  {
-    "Project Name": "Apollo",
-    "Status": "In Progress"
-  }
-  ```
-
-Update an existing record:
-
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records/{record_id}
-- body:
-  ```json
-  {
-    "Project Name": "Apollo",
-    "Status": "In Progress",
-    "Tag": ["High Quality", "External Dependencies"],
-    "Deadline": "2026-03-24 10:00:00"
-  }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `record_id` | No | Record ID (path param, PATCH only); omit for create, include for update |
-| body | Yes | JSON object of field name/ID → value pairs |
-
-## API request details
-
-```
-POST   /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records          # create
-PATCH  /open-apis/base/v3/bases/{base_token}/tables/{table_id}/records/{record_id}  # update
+# 更新记录
+lark-cli base +record-upsert --base-token <base_token> --table-id <table_id> --record-id <record_id> \
+  --json '{"项目名称":"Apollo","状态":"完成","完成时间":"2026-03-24 10:00:00"}'
 ```
 
-## JSON body specification
+## 参数
 
-- Body must be a **JSON object** (not an array).
-- Keys can be field names or field IDs; use only one identifier per field per request.
-- Value must match the field type; run `field-list` first to confirm types.
-- Recommended value shapes:
-  - Text: `"Title"`
-  - Number: `12.5`
-  - Single select: `"Todo"`
-  - Multi-select: `["A", "B"]`
-  - Checkbox: `true`
-  - User: `[{"id": "ou_xxx"}]`
-  - Linked record: `[{"id": "rec_xxx"}]`
-  - Date: `"YYYY-MM-DD HH:mm:ss"` (e.g. `"2026-03-24 10:00:00"`)
-- To clear a field, pass `null` (only if the field allows clearing).
-- Do not write to read-only fields: formula, lookup, auto-number, creation time, creator, last modified time, last modifier.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
+| `--record-id <id>` | 否 | 传入时走更新，不传时走创建 |
+| `--json <body>` | 是 | 字段写入对象，类型 `Map<FieldNameOrID, CellValue>` |
 
-## Key return fields
+## API
 
-- Create: returns `record` and `created: true`.
-- Update: returns `record` and `updated: true`.
+- 创建：`POST /open-apis/base/v3/bases/:base_token/tables/:table_id/records`
+- 更新：带 `--record-id` 时改走 `PATCH /records/:record_id`
 
-## Workflow
+## `--json` 结构
 
-1. First determine whether to create or update.
-2. If updating, confirm the target `record_id` via `record-get` or `record-list`.
-3. Use `field-list` to confirm field names and types before constructing the body.
+- `--json` 必须是 **JSON object map**，形状是 `Map<FieldNameOrID, CellValue>`。
+- key 是字段名或字段 ID；value 是该字段的 `CellValue`。
+- 一次请求里同一字段只用一种标识，避免重复写入冲突。
+- 写入前先 `+field-list` 确认字段类型和字段名/ID。
+- CellValue 统一看 [lark-base-cell-value.md](lark-base-cell-value.md)。
 
-## Pitfalls
+```json
+{
+  "项目名称": "Apollo",
+  "状态": "进行中",
+  "完成时间": "2026-03-24 10:00:00"
+}
+```
 
-- This is a write operation; confirm with the user before execution.
-- No automatic deduplication: omitting `record_id` always creates a new record.
-- Arrays are not valid at the top level; body must be an object.
+## 返回重点
 
-## References
+- 创建时返回 `record` 和 `created: true`。
+- 更新时返回 `record` 和 `updated: true`。
+- 如果写入了 `formula / lookup / created_at / updated_at / created_by / updated_by` 等只读字段，返回里可能出现 `ignored_fields`，这些字段不会被更新。
 
-- [lark-base-record.md](lark-base-record.md) — record index page
-- [lark-base-shortcut-record-value.md](lark-base-shortcut-record-value.md) — shortcut record value format (recommended)
-- [lark-base-field-list.md](lark-base-field-list.md) — list fields to confirm types
+## 坑点
+
+- 有 `--record-id` 就一定更新；不传就一定创建，不会自动查重或按业务键 upsert。
+- select 写入未知选项时平台可能自动新增选项；如果不是要新增选项，先用 `+field-list` / `+field-search-options` 确认真实选项名。
+- 这是写入操作，执行前必须确认目标表和字段。
+
+## 参考
+
+- [lark-base-record.md](lark-base-record.md) — record 索引页
+- [lark-base-cell-value.md](lark-base-cell-value.md) — CellValue 格式规范

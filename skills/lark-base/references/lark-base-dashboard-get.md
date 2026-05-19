@@ -1,38 +1,59 @@
-# dashboard-get
+# base +dashboard-get
 
-> **Prerequisite:** Read [lark-base-dashboard.md](lark-base-dashboard.md) for the overall workflow.
+> **前置条件：** 先阅读 [lark-base-dashboard.md](lark-base-dashboard.md) 了解整体工作流。
 
-Get dashboard details: name, theme config, and list of all blocks. Common uses: view what blocks a dashboard has; get block IDs for subsequent edit/delete.
+获取仪表盘详情（名称、主题配置、包含的所有组件列表）。常用于：1) 查看仪表盘有哪些组件；2) 获取组件 ID 用于后续编辑/删除。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `dashboard_id` | Yes | Dashboard ID (path param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}/dashboards/{dashboard_id}
+```bash
+lark-cli base +dashboard-get \
+  --base-token VwGhb**************fMnod \
+  --dashboard-id blkxxxxxxx
 ```
 
-## Key return fields
+## 参数
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `dashboard_id` | string | Dashboard ID |
-| `name` | string | Dashboard name |
-| `theme.theme_style` | string | Theme: `default` / `SimpleBlue` / `DarkGreen` / `summerBreeze` / `simplistic` / `energetic` / `deepDark` / `futuristic` |
-| `blocks` | array | Each item: `block_id`, `block_name`, `block_type` (e.g. `column` / `line` / `pie`) |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--dashboard-id <id>` | 是 | 仪表盘 ID |
+| `--format <fmt>` | 否 | 输出格式 |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-## References
+## 返回示例
 
-- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard module guide
-- [lark-base-dashboard-block-get.md](lark-base-dashboard-block-get.md) — get detailed block config
+```json
+{
+  "dashboard_id": "blkxxxxxxxxxxxx",
+  "name": "数据分析仪表盘",
+  "theme": {
+    "theme_style": "default"
+  },
+  "blocks": [
+    {
+      "block_id": "chtxxxxxxxx",
+      "block_name": "总净利润",
+      "block_type": "statistics"
+    },
+    {
+      "block_id": "chtxxxxxxxx",
+      "block_name": "品类占比",
+      "block_type": "pie"
+    }
+  ]
+}
+```
+
+## 返回重点
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `dashboard_id` | string | 仪表盘 ID（如 `blkxxxxxxxxxxxx`）|
+| `name` | string | 仪表盘名称 |
+| `theme.theme_style` | string | 主题风格：`default` / `SimpleBlue` / `DarkGreen` / `summerBreeze` / `simplistic` / `energetic` / `deepDark` / `futuristic` |
+| `blocks` | []object | 组件列表，每项包含 `block_id`（组件ID）、`block_name`（名称）、`block_type`（类型，如 `column`/`line`/`pie`）|
+
+## 参考
+
+- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard 模块指引

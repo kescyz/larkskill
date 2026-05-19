@@ -1,88 +1,87 @@
-# form-create
+# base +form-create
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Create a new form in a Base table.
+在多维表格数据表中创建新表单。
 
-## Notes
+## ⚠️ 注意事项
 
-- **Form selection:** Before creating a form, consider whether this is a new business area. If so, create a new table with `table-create` first.
-- **Naming consistency:** Form names should match the form's purpose. Avoid creating unrelated forms in shared tables.
+- **表格选择**：创建问卷前先考虑：这是新的业务领域吗？如果是，建议先用 `+table-create` 创建新表格
+- **命名一致性**：问卷名称应与表格用途相关，避免在通用表格（如"收集表"）中创建不相关的问卷
 
-## Recommended call
+## 命令
 
-Create form (required parameters only):
+```bash
+# 创建表单（仅必填参数）
+lark-cli base +form-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --name "用户调研问卷"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms
-- body:
-  ```json
-  { "name": "User Research Questionnaire" }
-  ```
+# 创建时附带描述（纯文本）
+lark-cli base +form-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --name "用户调研问卷" \
+  --description "2024年度用户满意度调研"
 
-Create with description:
+# 创建时附带描述（含链接）
+lark-cli base +form-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --name "用户调研问卷" \
+  --description "2024年度调研，[详情请查看](https://example.com)"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms
-- body:
-  ```json
-  {
-    "name": "User Survey Questionnaire",
-    "description": "2024 User Satisfaction Survey"
-  }
-  ```
+# 使用应用身份（bot）
+lark-cli base +form-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --name "用户调研问卷" \
+  --as bot
+```
 
-Create with Markdown link in description:
+## 参数
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms
-- body:
-  ```json
-  {
-    "name": "User Survey Questionnaire",
-    "description": "2024 annual survey, [please view details](https://example.com)"
-  }
-  ```
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token（base_token） |
+| `--table-id <id>` | 是 | 数据表 ID |
+| `--name <name>` | 是 | 表单名称 |
+| `--description <string>` | 否 | 表单描述（纯文本或 Markdown 链接，如 `[文本](https://example.com)`） |
+| `--format` | 否 | 输出格式：json（默认）\| pretty \| table \| ndjson \| csv |
+| `--as` | 否 | 身份：user（默认）\| bot |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-## Parameters
+## 输出格式
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID (path param) |
-| `name` | Yes | Form name (body) |
-| `description` | No | Form description — plain text or Markdown link e.g. `[Text](https://example.com)` (body) |
-
-## Key return fields
-
-| Field | Description |
-|-------|-------------|
-| `id` | Newly created form ID |
-| `name` | Form name |
-| `description` | Form description |
+| 字段 | 说明 |
+|------|------|
+| `id` | 新创建的表单 ID |
+| `name` | 表单名称 |
+| `description` | 表单描述 |
 
 ```json
 {
+  "ok": true,
   "data": {
     "id": "vewX58te9D",
-    "name": "User Research Questionnaire",
-    "description": "2024 User Satisfaction Survey"
+    "name": "用户调研问卷",
+    "description": "2024年度用户满意度调研"
   }
 }
 ```
 
-## Workflow
+## 工作流
 
-> This is a **write operation**; confirm with the user before execution.
+> [!CAUTION]
+> 这是**写入操作** — 执行前必须向用户确认。
 
-1. Confirm `base_token` and `table_id`.
-2. Confirm form name and description.
-3. Execute and report the returned `id` — it can be used to add questions later (`form-questions-create`).
+1. 确认目标 `base_token` 和 `table_id`
+2. 确认表单名称和描述
+3. 执行命令
+4. 报告返回的 `form_id`，后续可用于添加问题（`+form-questions-create`）
 
-## References
+## 参考
 
-- [lark-base-form.md](lark-base-form.md) — Form operation index
-- [lark-base-form-questions-create.md](lark-base-form-questions-create.md) — Add questions to a form
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

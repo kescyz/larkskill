@@ -1,45 +1,52 @@
-# dashboard-list
+# base +dashboard-list
 
-> **Prerequisite:** Read [lark-base-dashboard.md](lark-base-dashboard.md) for the overall workflow.
+> **前置条件：** 先阅读 [lark-base-dashboard.md](lark-base-dashboard.md) 了解整体工作流。
 
-List all dashboards under a Base with pagination.
+分页列出一个 Base 下的所有仪表盘。常用于：1) 查看当前有哪些仪表盘；2) 获取 dashboard_id 用于后续操作（如添加组件、查看详情）。
 
-## Recommended call
+## 关键约束
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/dashboards
-- params:
-  ```json
-  { "page_size": 20 }
-  ```
+- `+dashboard-list` 禁止并发调用；批量列多个 Base 时必须串行。
 
-## Parameters
+## 推荐命令
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `page_size` | No | Page size (query param) |
-| `page_token` | No | Pagination token from previous response (query param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}/dashboards
+```bash
+lark-cli base +dashboard-list \
+  --base-token VwGhb**************fMnod
 ```
 
-## Key return fields
+## 参数
 
-| Field | Description |
-|-------|-------------|
-| `items` | Dashboard list; each item has `dashboard_id` and `name` |
-| `total` | Total count |
-| `has_more` | `true` if more pages exist; use `page_token` to continue |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--page-size <n>` | 否 | 每页数量 |
+| `--page-token <token>` | 否 | 分页标记 |
+| `--format <fmt>` | 否 | 输出格式：json / pretty / table / csv / ndjson |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-## Pitfalls
+## 返回示例
 
-- `dashboard-list` does not support concurrent calls; multiple Bases must be listed serially.
+```json
+{
+  "items": [
+    {"dashboard_id": "blkxxxxxxxxxxxx", "name": "商品总览仪表盘"},
+    {"dashboard_id": "blkxxxxxxxxxxxx", "name": "订单总览仪表盘"},
+    {"dashboard_id": "blkxxxxxxxxxxxx", "name": "销售数据分析仪表盘"}
+  ],
+  "total": 3,
+  "has_more": false
+}
+```
 
-## References
+## 返回重点
 
-- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard module guide
+| 字段 | 说明 |
+|------|------|
+| `items` | 仪表盘列表，每项包含 `dashboard_id`（ID）和 `name`（名称）|
+| `total` | 总数 |
+| `has_more` | 是否有下一页（为 `true` 时需用 `page_token` 继续获取）|
+
+## 参考
+
+- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard 模块指引

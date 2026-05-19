@@ -1,152 +1,118 @@
-# form-questions-create
+# base +form-questions-create
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Add questions in bulk to a Base form/questionnaire. Up to 10 questions per call.
+向多维表格表单/问卷中批量添加问题。
 
-## Recommended call
+## 命令
 
-Add a required text question:
+```bash
+# 添加一个文本必填问题
+lark-cli base +form-questions-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --questions '[{"type":"text","title":"您的姓名是？","required":true}]'
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-- body:
-  ```json
-  {
-    "questions": [
-      {"type": "text", "title": "What is your name?", "required": true}
-    ]
-  }
-  ```
+# 添加多个问题（按顺序排列）
+lark-cli base +form-questions-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --questions '[
+    {"type":"text","title":"您的姓名是？","required":true},
+    {"type":"text","title":"您的联系方式是？","required":false}
+  ]'
 
-Add multiple questions:
+# 添加单选题（带选项）
+lark-cli base +form-questions-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --questions '[{"type":"select","title":"满意度评价","required":true,"multiple":false,"options":[{"name":"非常满意","hue":"Green"},{"name":"满意","hue":"Blue"},{"name":"一般","hue":"Yellow"}]}]'
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-- body:
-  ```json
-  {
-    "questions": [
-      {"type": "text", "title": "What is your name?", "required": true},
-      {"type": "text", "title": "What is your contact information?", "required": false}
-    ]
-  }
-  ```
+# 添加评分题
+lark-cli base +form-questions-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --questions '[{"type":"number","title":"服务评分","style":{"type":"rating","icon":"star","min":1,"max":5}}]'
+  
+# 添加带描述的问题（纯文本）
+lark-cli base +form-questions-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --questions '[{"type":"text","title":"您的姓名","description":"请填写真实姓名"}]'
+# 添加带描述的问题（含链接）
+lark-cli base +form-questions-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --questions '[{"type":"text","title":"反馈建议","description":"更多详情请查看[帮助文档](https://example.com/help)"}]'  
+```
 
-Add a single-choice question with options:
+## 参数
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-- body:
-  ```json
-  {
-    "questions": [
-      {
-        "type": "select",
-        "title": "Satisfaction Evaluation",
-        "required": true,
-        "multiple": false,
-        "options": [
-          {"name": "Very Satisfied", "hue": "Green"},
-          {"name": "Satisfied", "hue": "Blue"},
-          {"name": "General", "hue": "Yellow"}
-        ]
-      }
-    ]
-  }
-  ```
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token（base_token） |
+| `--table-id <id>` | 是 | 数据表 ID |
+| `--form-id <id>` | 是 | 表单 ID |
+| `--questions <json>` | 是 | 问题 JSON 数组，最多 10 个（见下方格式） |
+| `--format` | 否 | 输出格式：json（默认）\| pretty \| table \| ndjson \| csv |
+| `--as` | 否 | 身份：user（默认）\| bot |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-Add a rating question:
+## `--questions` 格式
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-- body:
-  ```json
-  {
-    "questions": [
-      {
-        "type": "number",
-        "title": "Service Rating",
-        "style": {"type": "rating", "icon": "star", "min": 1, "max": 5}
-      }
-    ]
-  }
-  ```
+每个问题对象支持以下字段：
 
-Add a question with a Markdown link description:
+| 字段                    | 必填 | 说明 |
+|-----------------------|------|------|
+| `title`               | **是** | 问题标题（字段名） |
+| `type`                | **是** | 题目类型：`text`、`number`、`select`、`datetime`、`user`、`attachment`、`location` |
+| `description`         | 否 | 问题描述（纯文本或 Markdown 链接，如 `[文本](https://example.com)`） |
+| `required`            | 否 | 是否必填（true/false） |
+| `option_display_mode` | 否 | 选项展示方式（仅 `select` 有效）：`0`=下拉，`1`=纵向（默认），`2`=横向 |
+| `multiple`            | 否 | 是否多选（`select`/`user` 类型有效，bool） |
+| `options`             | 否 | 选项列表（仅 `select` 有效）：`[{"name":"选项1","hue":"Blue"}]`，hue 可选：`Red`/`Orange`/`Yellow`/`Green`/`Blue`/`Purple`/`Gray` |
+| `style`               | 否 | 字段样式配置（见下方说明） |
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-- body:
-  ```json
-  {
-    "questions": [
-      {
-        "type": "text",
-        "title": "Feedback and Suggestions",
-        "description": "For more details, please see [Help Document](https://example.com/help)"
-      }
-    ]
-  }
-  ```
+### `style` 字段说明
 
-## Parameters
+| 类型 | style 结构 | 说明 |
+|------|------|------|
+| `text` | `{"type":"plain"}` | 当前仅支持 `plain` |
+| `number` | `{"type":"plain","precision":2}` | precision 为小数位数 |
+| `number`（评分） | `{"type":"rating","icon":"star","min":1,"max":5}` | icon 可选：`star`/`heart`/`thumbsup`/`fire`/`smile`/`lightning`/`flower`/`number` |
+| `datetime` | `{"format":"yyyy/MM/dd"}` | format 可选：`yyyy/MM/dd`、`yyyy/MM/dd HH:mm`、`MM-dd`、`MM/dd/yyyy`、`dd/MM/yyyy` |
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID (path param) |
-| `form_id` | Yes | Form ID (path param) |
-| `questions` | Yes | Questions JSON array, up to 10 (body) |
+## 输出格式
 
-## `questions` item fields
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `title` | Yes | Question title (field name) |
-| `type` | Yes | Question type: `text`, `number`, `select`, `datetime`, `user`, `attachment`, `location` |
-| `description` | No | Description — plain text or Markdown link e.g. `[Text](https://example.com)` |
-| `required` | No | Whether required (`true`/`false`) |
-| `option_display_mode` | No | Option display mode (only for `select`): `0`=dropdown, `1`=portrait (default), `2`=landscape |
-| `multiple` | No | Allow multiple selection (only for `select`/`user` types) |
-| `options` | No | Option list (only for `select`): `[{"name":"Option 1","hue":"Blue"}]`; hue: `Red`/`Orange`/`Yellow`/`Green`/`Blue`/`Purple`/`Gray` |
-| `style` | No | Field style configuration (see below) |
-
-### `style` field
-
-| Type | Style structure | Description |
-|------|-----------------|-------------|
-| `text` | `{"type":"plain"}` | type: `plain`, `phone`, `url`, `email`, `barcode` |
-| `number` | `{"type":"plain","precision":2}` | `precision` = decimal places |
-| `number` (rating) | `{"type":"rating","icon":"star","min":1,"max":5}` | icon: `star`/`heart`/`thumbsup`/`fire`/`smile`/`lightning`/`flower`/`number` |
-| `datetime` | `{"type":"plain","format":"yyyy/MM/dd"}` | format: `yyyy/MM/dd`, `yyyy/MM/dd HH:mm`, `MM-dd`, `MM/dd/yyyy`, `dd/MM/yyyy` |
-
-## Key return fields
+返回创建成功的问题列表：
 
 ```json
 {
+  "ok": true,
   "data": {
     "items": [
-      {"id": "q_001", "title": "What is your name?", "required": true}
+      {"id": "q_001", "title": "您的姓名是？", "required": true}
     ]
   }
 }
 ```
 
-## Workflow
+## 工作流
 
-> This is a **write operation**; confirm with the user before execution.
+> [!CAUTION]
+> 这是**写入操作** — 执行前必须向用户确认。
 
-1. Use `form-questions-list` to review existing questions first.
-2. Confirm the questions to be added.
-3. Execute and report the newly created question IDs.
+1. 先用 `+form-questions-list` 查看现有问题
+2. 确认要添加的问题内容
+3. 执行命令并报告新建的问题 ID
 
-## References
+## 参考
 
-- [lark-base-form-questions-list.md](lark-base-form-questions-list.md) — List existing questions
-- [lark-base-form-questions-delete.md](lark-base-form-questions-delete.md) — Delete questions
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

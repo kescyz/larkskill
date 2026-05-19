@@ -1,58 +1,19 @@
-# contact — get-user
+# +get-user
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand authentication, global parameters, and safety rules.
+按 ID 取用户基本信息(姓名等)。
 
-Get user info. Supports two modes:
+```bash
+# 取自己
+lark-cli contact +get-user --as user
 
-1. **Self (no user_id)**: get current user's own info — calls `GET /open-apis/authen/v1/user_info`
-2. **Specific user (with user_id)**: get specified user info — calls `GET /open-apis/contact/v3/users/{user_id}` (default `user_id_type=open_id`)
+# bot 按 ID 取他人
+lark-cli contact +get-user --user-id ou_xxx --as bot
 
-## Mode 1: Get current user
-
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/authen/v1/user_info
-- as: user
+# 按 union_id / user_id 取(默认 open_id)
+lark-cli contact +get-user --user-id <id> --user-id-type union_id --as bot
 ```
 
-## Mode 2: Get specific user by open_id
+## 注意事项
 
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/contact/v3/users/{user_id}
-- params: { "user_id_type": "open_id" }
-- as: user
-```
-
-Replace `{user_id}` in the path with the actual `open_id` value.
-
-## Mode 2: Get specific user by user_id type
-
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/contact/v3/users/{user_id}
-- params: { "user_id_type": "user_id" }
-- as: user
-```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `user_id` (path) | No (Mode 2 only) | User ID value to look up |
-| `user_id_type` (query) | No | `open_id` (default) / `union_id` / `user_id` |
-
-## Common Error (41050)
-
-If response indicates insufficient permission (error code `41050`), it is usually caused by **org visibility scope** limitation:
-
-- Ask admin to adjust org visibility scope for current user
-- Or switch to bot identity (`as: "bot"`) when calling Contact API — bot uses `tenant_access_token` which may have broader org visibility
-
-## References
-
-- [lark-contact-search-user](lark-contact-search-user.md) — Search open_id first, then get details
-- [lark-shared](../../lark-shared/SKILL.md) — Authentication and global parameters
+- **user 身份按 ID 取他人请用 `+search-user --user-ids <id>`**,字段比本命令多(部门 / 邮箱 / 是否激活等)。本命令的 user 模式只回很少字段。
+- **`--as bot` 必须传 `--user-id`**:不传会直接报错(只有 user 身份能省略 `--user-id` 取自己)。

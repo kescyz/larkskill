@@ -1,49 +1,49 @@
-# table-update
+# base +table-update
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand auth, global parameters and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Rename a table.
+重命名一张表。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}
-- body:
-  ```json
-  {
-    "name": "key customer list"
-  }
-  ```
-
-## Parameters (body)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `name` | Yes | New table name |
-
-## API request details
-
-```
-PATCH /open-apis/base/v3/bases/{base_token}/tables/{table_id}
+```bash
+lark-cli base +table-update \
+  --base-token app_xxx \
+  --table-id tbl_xxx \
+  --name "重点客户名单"
 ```
 
-## Key return fields
+## 参数
 
-- Returns `table` and `updated: true`.
-- Currently only supports updating name.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
+| `--name <name>` | 是 | 新表名 |
 
-## Workflow
+## API 入参详情
 
-1. Prefer `table-get` first to confirm the target table.
+**HTTP 方法和路径：**
 
-## Pitfalls
+```
+PATCH /open-apis/base/v3/bases/:base_token/tables/:table_id
+```
 
-- ⚠️ This is a write operation and must be confirmed before execution.
+## 返回重点
 
-## References
+- 返回 `table` 和 `updated: true`。
+- 当前只支持更新名称。
 
-- [lark-base-table.md](lark-base-table.md) — table index page
-- [lark-base-table-get.md](lark-base-table-get.md) — get table details
+## 工作流
+
+
+1. 建议先用 `+table-get` 确认目标表。
+
+## 坑点
+
+- ⚠️ 这是写入操作，执行前必须确认。
+
+## 参考
+
+- [lark-base-table.md](lark-base-table.md) — table 索引页
+- [lark-base-table-get.md](lark-base-table-get.md) — 查表详情

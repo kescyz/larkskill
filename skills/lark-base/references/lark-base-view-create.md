@@ -1,72 +1,50 @@
-# view-create
+# base +view-create
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Create one or more views.
+创建一个视图。
 
-## Recommended call
+## 1. 顶层规则
 
-Single view:
+- --json 结构是 `{name, type?}`。
+- `name` 必填；同表内应唯一。
+- `type` 可省略；省略时默认 `grid`。
+- 视图类型取值范围：`grid`、`kanban`、`gallery`、`calendar`、`gantt`。
+- `+view-create` 不负责排序、分组、筛选、时间轴、卡片封面、可见字段顺序；这些配置需要创建后再调用对应命令。
+- 表单视图不走 `+view-create`；使用表单相关命令。
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views
-- body:
-  ```json
-  { "name": "In Progress", "type": "grid" }
-  ```
+## 2. 推荐命令
 
-Multiple views in one request:
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views
-- body:
-  ```json
-  [
-    { "name": "In Progress", "type": "grid" },
-    { "name": "Calendar", "type": "calendar" }
-  ]
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| body | Yes | View JSON object or array of objects (body) |
-
-## API request details
-
-```
-POST /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views
+```bash
+lark-cli base +view-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --json '{"name":"进行中","type":"grid"}'
 ```
 
-## Key return fields
-
-- Always returns a `views` array even when only one view is created.
-
-## Key rules
-
-- `type` only supports: `grid`, `kanban`, `gallery`, `calendar`, `gantt`.
-- `/views` does not accept `type=form`; form creation uses the `/forms` endpoint.
-- `name` is required, length `1–100`, and must be unique within the same table.
-
-## JSON Schema
+## 3. JSON 写法
 
 ```json
-{"type":"object","properties":{"type":{"type":"string","enum":["grid","kanban","gallery","gantt","calendar"],"default":"grid","description":"view type"},"name":{"type":"string","minLength":1,"maxLength":100,"description":"View name"}},"required":["name"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}
+{ "name": "进行中", "type": "grid" }
 ```
 
-## Workflow
+最小写法：
 
-1. When creating multiple views in batch, prefer submitting an array in a single request to reduce API calls.
+```json
+{ "name": "默认视图" }
+```
 
-## Pitfalls
+## 4. 使用建议
 
-- This is a write operation; confirm with the user before execution.
+- 需要设置可见字段顺序时，创建后继续调用 [lark-base-view-set-visible-fields.md](lark-base-view-set-visible-fields.md)。
+- 需要设置筛选、分组、排序、时间轴、卡片封面时，创建后继续调用对应 `+view-set-*` 命令。
 
-## References
+## 5. 易错点
 
-- [lark-base-view.md](lark-base-view.md) — view index page
+- 不要把 `form` 当成 `type` 传进来。
+- 不要指望 `+view-create` 一次完成视图布局与属性配置。
+
+## 6. 参考
+
+- [lark-base-view.md](lark-base-view.md)
+- [lark-base-view-set-visible-fields.md](lark-base-view-set-visible-fields.md)

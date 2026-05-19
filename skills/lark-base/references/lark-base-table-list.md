@@ -1,42 +1,43 @@
-# table-list
+# base +table-list
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand auth, global parameters and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-List tables in a Base with pagination.
+分页列出一个 Base 下的数据表。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables
-- params:
-  ```json
-  { "offset": 0, "limit": 50 }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `offset` | No | Paging offset, default `0` (query param) |
-| `limit` | No | Paging size, default `50`, range `1-100` (query param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}/tables
+```bash
+lark-cli base +table-list \
+  --base-token app_xxx \
+  --offset 0 \
+  --limit 50
 ```
 
-## Key return fields
+## 参数
 
-- Returns `items / offset / limit / count / total`.
-- `items` contain `table_id` and `table_name`.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--offset <n>` | 否 | 分页偏移，默认 `0` |
+| `--limit <n>` | 否 | 分页大小，默认 `50`，范围 `1-100` |
 
-## Pitfalls
+## API 入参详情
 
-- ⚠️ `table-list` does not support concurrency. For multiple Bases, run sequentially.
+**HTTP 方法和路径：**
 
-## References
+```
+GET /open-apis/base/v3/bases/:base_token/tables
+```
 
-- [lark-base-table.md](lark-base-table.md) — table index page
+## 返回重点
+
+- 返回 `items / offset / limit / count / total`。
+- `items` 会被简化为 `table_id` 和 `table_name`。
+
+## 坑点
+
+- ⚠️ `+table-list` 禁止并发调用；批量列多个 Base 时必须串行。
+
+## 参考
+
+- [lark-base-table.md](lark-base-table.md) — table 索引页

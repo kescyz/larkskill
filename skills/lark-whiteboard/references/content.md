@@ -1,40 +1,40 @@
-# Content planning
+# 内容规划
 
-Core principle: **The amount of information matches the level of detail required by the user. ** If the user says "draw a simple architecture diagram", draw the simple one, and if the user says "draw a complete microservice architecture", draw the complex one. Don’t make your own decisions and **overextend**.
+核心原则：**信息量匹配用户需求的详细程度。** 用户说"画一个简单架构图"就画简单的，说"画一个完整的微服务架构"才画复杂的。不要自作主张**过度展开**。
 
-**When the user prompt is short/vague** (such as "Draw a funnel chart", "Draw an architecture diagram"), don't just output the literal content. Reasonable content in this field should be appropriately supplemented
+**用户 prompt 简短/模糊时**（如"画个漏斗图"、"画个架构图"），不要只输出字面内容。应适当补充该领域合理的内容
 
-## Information volume reference
+## 信息量参考
 
-| User needs | Reasonable amount of information |
+| 用户需求 | 合理的信息量 |
 |---------|------------|
-| "Draw a simple XX architecture diagram" | 3 layers, 2-3 nodes per layer, no sidebar |
-| "Draw a XX architecture diagram" (common request) | 3-4 layers, 3-4 nodes per layer |
-| "Draw a complete/detailed XX architecture diagram" | 4-5 layers, 4-6 nodes per layer, sidebar can be added (sidebar can have up to 2-3 items) |
-| Flow chart | 6-10 steps + 1-2 conditional branches |
-| Comparison table | 4-6 dimensions, 1-2 lines of description per grid |
-| Organizational structure | 3-4 layers, 2-4 child nodes under each parent node |
+| "画一个简单的 XX 架构图" | 3 层，每层 2-3 节点，无侧边栏 |
+| "画一个 XX 架构图"（普通请求） | 3-4 层，每层 3-4 节点 |
+| "画一个完整/详细的 XX 架构图" | 4-5 层，每层 4-6 节点，可加侧边栏（侧边栏最多 2-3 项）|
+| 流程图 | 6-10 步骤 + 1-2 个条件分支 |
+| 对比表 | 4-6 个维度，每格 1-2 行说明 |
+| 组织架构 | 3-4 层，每个父节点下 2-4 个子节点 |
 
-**Node text**: Title + short description (such as "User Service\nRegistration Login and Permission Management"), do not write long paragraphs. Description should be 12 words or less.
+**节点文字**：标题 + 简短说明（如"用户服务\n注册登录和权限管理"），不要写长段落。说明 12 字以内为佳。
 
-## Grouping
+## 分组
 
-2-5 nodes per group. More than 5 split into subgroups.
+每组 2-5 个节点。超过 5 个拆成子组。
 
-## Connection prediction
+## 连线预判
 
-| Number of connections | Strategy |
+| 连线数 | 策略 |
 |--------|------|
-| ≤8 | Draw one by one |
-| 9-15 | Representative connections |
-| >15 | Layer-to-layer, or rollback and streamlining |
+| ≤8 | 逐条画 |
+| 9-15 | 代表性连线 |
+| >15 | 层到层，或回退精简 |
 
-## Simplified trigger conditions
+## 精简触发条件
 
-Simplify only when the layout cannot fit:
+布局放不下时才精简：
 
-| Question | Streamlined Way |
+| 问题 | 精简方式 |
 |------|---------|
-| Node text cannot fit | Shorten description text |
-| There are more than 5 nodes in a row | Split into two rows or merge similar ones |
-| Crossover connections | Reduce the number of connections |
+| 节点文字放不下 | 缩短描述文字 |
+| 一行节点超过 5 个 | 拆成两排或合并同类 |
+| 连线交叉 | 减少连线数量 |

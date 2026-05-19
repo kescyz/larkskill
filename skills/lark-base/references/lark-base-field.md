@@ -1,24 +1,23 @@
-# base field operations
+# base field shortcuts
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand auth, global parameters and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Index of field-related MCP `lark_api` calls.
+field 相关命令索引。
 
-## Operation navigation
+## 命令导航
 
-| Reference doc | Operation | Description |
-|---------------|-----------|-------------|
-| [lark-base-field-list.md](lark-base-field-list.md) | `field-list` | Paginated field listing |
-| [lark-base-field-get.md](lark-base-field-get.md) | `field-get` | Get single field configuration |
-| [lark-base-field-create.md](lark-base-field-create.md) | `field-create` | Create a field |
-| [lark-base-field-update.md](lark-base-field-update.md) | `field-update` | Update a field |
-| [lark-base-field-search-options.md](lark-base-field-search-options.md) | `field-search-options` | Search option field candidate values |
-| [lark-base-field-delete.md](lark-base-field-delete.md) | `field-delete` | Delete a field |
+| 文档 | 命令 | 说明 |
+|------|------|------|
+| [lark-base-field-list.md](lark-base-field-list.md) | `+field-list` | 分页列字段 |
+| [lark-base-field-get.md](lark-base-field-get.md) | `+field-get` | 获取单字段配置 |
+| [lark-base-field-create.md](lark-base-field-create.md) | `+field-create` | 创建字段 |
+| [lark-base-field-update.md](lark-base-field-update.md) | `+field-update` | 更新字段 |
+| [lark-base-field-search-options.md](lark-base-field-search-options.md) | `+field-search-options` | 搜索选项字段候选值 |
+| [lark-base-field-delete.md](lark-base-field-delete.md) | `+field-delete` | 删除字段 |
 
-## Notes
+## 说明
 
-- This index page is directory-only. For detailed call signatures, read the corresponding single-operation doc.
-- All list calls must run sequentially. If you need multiple list requests, run them one by one.
-- Read [lark-base-shortcut-field-properties.md](lark-base-shortcut-field-properties.md) before constructing any field create/update JSON body. Field type properties vary significantly by `type`.
-- For formula fields (`type=formula`): read [formula-field-guide.md](formula-field-guide.md) before writing the `expression`.
-- For lookup fields (`type=lookup`): read [lookup-field-guide.md](lookup-field-guide.md) before writing the lookup config. Formula is the default preference; use lookup only when explicitly requested or structurally appropriate.
+- 聚合页只保留目录职责；每个命令的详细说明请进入对应单命令文档。
+- 所有 `+xxx-list` 调用都必须串行执行；若要批量跑多个 list 请求，只能串行执行。
+- 写字段 JSON 前优先阅读 [lark-base-shortcut-field-properties.md](lark-base-shortcut-field-properties.md)。
+- 涉及字段类型转换时，直接阅读 [lark-base-field-update.md](lark-base-field-update.md) 中的“字段类型变更规则”。
