@@ -1,125 +1,169 @@
 ---
 name: lark-shared
 version: 2.0.0
-description: "LarkSkill MCP shared foundation: user/bot identity model, `lark_auth_login` flow, profile switching, scope management, Permission denied handling, safety rules. Use when the user first logs in, hits a permission error, switches identity, or any sibling lark-* skill needs auth context."
+description: "Use when first setting up LarkSkill MCP, running auth login, switching user/bot identity, handling permission denied or scope errors, needing to update lark-cli, or seeing _notice in JSON output."
 metadata:
   requires:
     mcp: "larkskill"
-  mcpTools: ["lark_auth_login", "lark_auth_poll", "lark_auth_status", "lark_auth_logout", "lark_profile_list", "lark_profile_switch", "lark_whoami", "lark_enable_domain"]
+  mcpTools: ["lark_auth_login", "lark_auth_poll", "lark_auth_status", "lark_auth_logout", "lark_whoami", "lark_profile_list", "lark_profile_switch", "lark_enable_domain"]
 ---
 
-# lark-shared
+# LarkSkill MCP Shared Rules
 
-Shared foundation for every LarkSkill MCP domain skill. Read this first before invoking any `lark_api` / `lark_api_search` call from a sibling skill (lark-base, lark-calendar, lark-mail, etc.).
+This skill guides you on how to operate Lark resources via the LarkSkill MCP tool, and what to watch out for.
 
-## Prerequisites
+## Configuration Initialization
 
-- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` -> `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
-- Core MCP tools available: `lark_auth_login`, `lark_auth_poll`, `lark_auth_status`, `lark_auth_logout`, `lark_profile_list`, `lark_profile_switch`, `lark_whoami`, `lark_enable_domain`
+On first use, run `lark_auth_login` to complete the app authorization flow.
 
-## First-time setup
+When you help the user initialize configuration, use `lark_auth_login` to start the authorization flow; once started, read the output, extract the authorization URL from it, and send it to the user.
 
-App configuration is handled by the marketplace install flow — there is no MCP equivalent of `lark-cli config init`. Once `/plugin install larkskill` completes (or the user follows the setup prompt at https://portal.larkskill.app/setup), the MCP server is ready and bot identity is available immediately. User identity still requires an explicit `lark_auth_login` (see below).
+**URL forwarding rule**: When the tool outputs `verification_url`, `verification_uri_complete`, `console_url`, or similar URL fields, you MUST forward the URL exactly as returned to the user and treat it as an immutable opaque string — do NOT URL-encode/decode it, do NOT append `%20`, spaces, or punctuation, do NOT re-assemble the query string, do NOT rewrite it as a Markdown link text. Recommended: output the raw URL in its own code block.
+
+```javascript
+// Start authorization flow
+lark_auth_login({ domain: '<domain>' })
+// or with specific scope
+lark_auth_login({ scope: 'calendar:calendar:readonly' })
+```
 
 ## Authentication
 
-### Identity types
+### Identity Types
 
-Two identity types are exposed by the LarkSkill MCP server:
+Two identity types, toggled via the active profile:
 
-| Identity | How to obtain | Use case |
-|------|---------|---------|
-| user identity | `lark_auth_login` (OAuth flow, then `lark_auth_poll`) | Access the user's own resources (calendar, drive, mail, etc.) |
-| bot (app) identity | Automatic — provided by the connected app's `appId` + `appSecret` | App-level operations, accessing the bot's own resources |
+| Identity | Identifier | How to obtain | Applicable scenarios |
+|------|------|---------|---------|
+| User identity | `as: "user"` | `lark_auth_login` + `lark_auth_poll` | Access user's own resources (calendar, Drive, etc.) |
+| Bot identity | `as: "bot"` | Automatic — only needs appId + appSecret | App-level operations, accessing bot's own resources |
 
-Use `lark_whoami` to inspect the current identity at any time. The tool response includes an `identity` field (`user` or `bot`).
+### Identity Selection Principles
 
-### Identity selection principles
+The `[identity: bot/user]` in the output represents the current identity. Bot and user behave very differently; confirm that the identity matches the target requirement:
 
-Bot and user behave very differently — confirm the identity matches the target need:
+- **Bot cannot see user resources**: Cannot access the user's calendar, Drive documents, mailbox, or other personal resources. For example, bot identity querying events returns the bot's own (empty) calendar.
+- **Bot cannot act on behalf of the user**: Messages are sent under the app name; documents created are owned by the bot.
+- **Bot permissions**: Only requires enabling scopes in the Lark Developer Console — no `lark_auth_login` needed.
+- **User permissions**: Both enabling scopes in the console AND user authorization via `lark_auth_login` + `lark_auth_poll` are required.
 
-- **Bot cannot see user resources**: cannot access the user's calendar, drive docs, mailbox, or other personal resources. For example, querying schedules under bot identity returns the bot's own (empty) calendar.
-- **Bot cannot act on behalf of the user**: messages are sent under the app name, created docs are owned by the bot.
-- **Bot permissions**: only need scope enabled in the Lark Developer Console, no login required.
-- **User permissions**: scope enabled in the console + user authorization via `lark_auth_login`; both layers must be satisfied.
+### Handling Insufficient Permissions
 
-Switch the active profile (when multiple identities are configured) via `lark_profile_switch`. List configured profiles via `lark_profile_list`.
+When you encounter permission-related errors, **take different remediation steps based on the current identity type**.
 
-### Permission denied handling
-
-When encountering permission-related errors, **adopt different solutions based on the current identity type**.
-
-The error response contains key fields:
-- `permission_violations`: lists missing scopes (N-of-1)
-- `console_url`: link to the Lark Developer Console for permission configuration
-- `hint`: suggested fix tool call
+The error response contains key information:
+- `permission_violations`: lists missing scopes (pick N)
+- `console_url`: link to the Lark Developer Console permission configuration
+- `hint`: suggested fix command
 
 #### Bot identity
 
-Provide the `console_url` from the error to the user, guiding them to enable scopes in the console. **DO NOT** call `lark_auth_login` for a bot.
+Provide the `console_url` from the error verbatim to the user, guiding them to enable the scope in the console. **DO NOT** run `lark_auth_login` for bot identity.
 
 #### User identity
 
-Call `lark_auth_login` with the missing scope (or the parent business domain). The tool returns an authorization URL plus a poll token; relay the URL to the user, then poll completion via `lark_auth_poll`.
-
-```
-Call MCP tool `lark_auth_login`:
-- args: { "scope": "<missing_scope>" }       # Authorize by specific scope (recommended, follows least-privilege principle)
-
-Call MCP tool `lark_auth_login`:
-- args: { "domain": "<domain>" }             # Or authorize by business domain
+```javascript
+lark_auth_login({ domain: '<domain>' })           // Authorize by business domain
+lark_auth_login({ scope: '<missing_scope>' })     // Authorize by specific scope (recommended — follows least-privilege principle)
 ```
 
-**Rule**: `lark_auth_login` MUST specify a range (`domain` or `scope`). Multiple logins accumulate scopes (incremental authorization).
+**Rule**: `lark_auth_login` MUST specify a scope (`domain` or `scope`). Multiple logins accumulate scopes (incremental authorization). After calling `lark_auth_login`, call `lark_auth_poll` to complete the device flow.
 
-#### Agent-driven authentication (recommended)
+#### Agent-initiated authentication (recommended)
 
-When you, as an AI agent, need to help the user complete authentication:
+When you as an AI agent need to help the user complete authentication, prefer the split-flow to avoid blocking and waiting for user authorization within the same conversation turn:
 
-1. Call `lark_auth_login` with the desired `scope` — the response includes an authorization URL and a poll token.
-2. Send the authorization URL to the user.
-3. Poll completion with `lark_auth_poll` (using the token from step 1) until status is `completed` or `expired`.
-
-```
-Call MCP tool `lark_auth_login`:
-- args: { "scope": "calendar:calendar:readonly" }
-
-Call MCP tool `lark_auth_poll`:
-- args: { "token": "<token from auth_login response>" }
+```javascript
+// Step 1: Initiate authorization (returns device_code and verification_url immediately)
+lark_auth_login({ scope: 'calendar:calendar:readonly', no_wait: true })
 ```
 
-### Enabling a domain
+After obtaining the `verification_url`, forward it verbatim as the final message for this turn and return control to the user. Do NOT display the URL and then immediately poll in the same turn; in agent harnesses that do not surface intermediate output, the user will never see the URL.
 
-Some domains are gated and must be explicitly enabled before their `lark_api` ops resolve. If a sibling skill returns a "domain not enabled" error, call `lark_enable_domain` with the domain name (for example `base`, `calendar`, `mail`).
+After the user replies that they have completed authorization, execute in a subsequent step:
 
+```javascript
+// Step 2: Complete the device flow
+lark_auth_poll({ device_code: '<device_code>' })
 ```
-Call MCP tool `lark_enable_domain`:
-- args: { "domain": "calendar" }
+
+### Profile Management
+
+Use `lark_profile_list` to see all configured profiles (app identities), and `lark_profile_switch` to switch the active profile:
+
+```javascript
+lark_profile_list({})
+lark_profile_switch({ profile: '<profile_name>' })
 ```
 
-### Logout / status
+Use `lark_whoami` to confirm the current identity and authorization status:
 
-- `lark_auth_status` — inspect current login state and remaining scopes.
-- `lark_auth_logout` — revoke the current user identity (bot identity is unaffected).
+```javascript
+lark_whoami({})
+```
 
-## Update check
+Use `lark_enable_domain` to enable a business domain for the current user profile:
 
-After any `lark_api` / `lark_api_search` call, if a new MCP server or skill version is available, the response will include a `_notice.update` field (with `message`, `command`, etc.).
+```javascript
+lark_enable_domain({ domain: '<domain>' })
+```
 
-**When you see `_notice.update` in the output, after completing the user's current request, proactively offer to help update**:
+## Update Check
+
+After a LarkSkill MCP tool call, if a new version is detected, the JSON output will contain a `_notice.update` field (with `message`, `command`, etc.).
+
+**When you see `_notice.update` in the output, after completing the user's current request, proactively offer to help the user update**:
 
 1. Inform the user of the current version and the latest version number.
-2. Offer the upgrade path (the marketplace plugin and the MCP server update together):
+2. Offer to run the update (updates both CLI and Skills):
+   ```bash
+   lark-cli update
    ```
-   /plugin update larkskill
-   ```
-3. After the update completes, remind the user: **quit and reopen the AI Agent** to load the latest skills.
+3. After the update completes, remind the user: **exit and reopen the AI Agent** to load the latest Skills.
 
-**Rule**: Do not silently ignore update prompts. Even when the current task is unrelated to updates, you should still inform the user after completing the request.
+**Important**: Always use `lark-cli update` to update — it updates both the CLI and AI Skills simultaneously.
 
-## Safety rules
+**Rule**: Do not silently ignore update notices. Even if the current task is unrelated to updating, notify the user after completing their request.
 
-- **DO NOT output secrets** (`appSecret`, `accessToken`, `refresh_token`) to the chat or terminal in plaintext.
-- **Write/delete operations MUST confirm user intent first** (record-delete, table-delete, file-delete, message-delete, advperm-disable, etc.).
-- Prefer read-only operations for discovery; only escalate to write operations once the target is unambiguous.
-- Treat any URL returned by `lark_auth_login` as a one-time authorization link — relay it to the user, do not store or share it elsewhere.
+## Security Rules
+
+- **DO NOT output secrets** (appSecret, accessToken) as plaintext to the terminal.
+- **Confirm user intent before write/delete operations**.
+- Use dry-run mode where available to preview dangerous requests.
+
+## High-Risk Operation Approval Protocol
+
+The LarkSkill MCP enforces a mandatory confirmation gate for high-risk write operations. When you call such tools without explicit confirmation, the tool will return an error of type `confirmation_required` with a structured envelope:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "type": "confirmation_required",
+    "message": "drive delete requires confirmation",
+    "hint": "add yes: true to confirm",
+    "risk": {
+      "level": "high-risk-write",
+      "action": "drive delete"
+    }
+  }
+}
+```
+
+**Do NOT treat this as an ordinary error and give up.** Handle it with the following flow:
+
+1. **Identify**: error type is `confirmation_required`
+2. **Confirm with the user**: display `error.risk.action` and key parameters to the user, clearly stating "this is a high-risk operation", and wait for explicit user consent
+3. **User consents** → add `yes: true` to the args and retry
+4. **User refuses** → terminate the flow; do not arbitrarily rewrite parameters or bypass the gate
+
+**Strictly prohibited**:
+- Silently adding `yes: true` and retrying on seeing `confirmation_required` (this disables the gate)
+- Treating `confirmation_required` as a network error or permission error
+- Adding `yes: true` and retrying without explicit user consent
+
+Plan ahead: to let the user review the details of a dangerous request before it runs, use dry-run mode where available — it does not trigger the gate and prints the complete request details; you can show this preview to the user before executing for real.
+
+### How to identify a high-risk operation
+
+Use `lark_api_search` to look up the tool's schema — if the schema includes `"risk": "high-risk-write"`, the operation requires confirmation.

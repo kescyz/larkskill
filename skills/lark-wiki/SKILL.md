@@ -1,7 +1,7 @@
 ---
 name: lark-wiki
-version: 1.0.0
-description: "Lark Wiki via LarkSkill MCP: manage knowledge spaces, space members, and document nodes. Use when users need to find or create docs in a wiki, browse space structure, manage members, or move/copy nodes."
+version: 2.0.0
+description: "Use this skill when operating Lark Wiki via LarkSkill MCP: manage wiki spaces, space members, and document nodes. Create and query wiki spaces, view and manage space members, manage node hierarchy, and organize documents and shortcuts in the wiki."
 metadata:
   requires:
     mcp: "larkskill"
@@ -10,106 +10,137 @@ metadata:
 
 # wiki (v2)
 
-## Prerequisites
+**CRITICAL — Before starting, MUST read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first. It contains authentication and permission handling.**
 
-- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` -> `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
-- MCP tools available: `lark_api`, `lark_api_search`
-- Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for auth, identity (user vs bot), and permission handling
+> **Member management hard limits:**
+> - If the target is a "department", determine the identity first, then decide whether to proceed.
+> - Bot identity (`tenant_access_token`) cannot add wiki space members using a department ID (`opendepartmentid`).
+> - When "department + bot identity" is encountered, DO NOT call `lark_api` for `wiki members create` to try it; directly explain that this path is not viable.
+> - If the user explicitly requests "run as bot identity" and the target is a department, MUST stop and explain that the bot path cannot complete it — do not silently switch to user identity.
 
-> **Member-management hard limits:**
-> - If the target is a **department**, decide identity first, then decide whether to continue.
-> - The bot identity (`tenant_access_token`) cannot use a department ID (`opendepartmentid`) to add a wiki-space member. This is an official platform limit.
-> - When you hit "department + bot identity", DO NOT call the `wiki members create` endpoint to test the error first; state directly that this path is not viable.
-> - If the user explicitly requires "run as bot" and the target is a department, you MUST stop and explain the bot path cannot complete the request — do not silently switch to user identity.
+## Identity Selection: Prefer User Identity
 
-## Quick decisions
+Wiki spaces and nodes are the user's personal resources. **Prefer user identity for all wiki operations.** Use `lark_profile_switch` to switch profiles; without explicit switching, the default profile applies.
 
-- User gives a wiki URL (`.../wiki/<token>`) and then wants to query/add/remove members: first call `lark_api` GET `/open-apis/wiki/v2/spaces/get_node` with `params: {"token": "<wiki_token>"}` to retrieve `space_id`; then use `space_id` for all member endpoints.
-- User wants to create a new node in a wiki: call `lark_api` POST `/open-apis/wiki/v2/spaces/{space_id}/nodes`. If `space_id` is unknown, resolve it first via `get_node` (from a wiki URL token) or via the spaces `list` endpoint.
-- User says "add a member/admin to the wiki": first resolve the target into one of three categories — user / chat / department — then decide `member_type`. DO NOT call the `wiki members create` endpoint first and reverse-engineer the type from the error.
-- User says "department + bot": this is a known unsupported path. DO NOT keep trying `wiki members create` under bot identity; state directly that you must switch to user identity, or explicitly tell the user the current request cannot complete.
-- User says "user / chat + add member": resolve the corresponding ID first, then call the `wiki members create` endpoint.
+Only use bot identity when the user explicitly requests "application / bot perspective" (still subject to the member management hard limits above).
 
-## Member-add flow
+## Quick Decisions
 
-- Before calling the `wiki members create` endpoint, resolve the natural-language "person / chat / department" into the correct `member_id`. DO NOT guess the format.
-- For user scenarios, `member_type=openid` is the default: use `lark_api_search` against the contact domain (search-user shortcut) with `query: "<name/email/phone>"` to fetch `open_id`.
-- For chat scenarios, use `member_type=openchat`: use `lark_api_search` against the IM domain (chat-search shortcut) with `query: "<chat name keyword>"` to fetch `chat_id`.
-- `userid` / `unionid` are used only when the downstream call explicitly requires them; first obtain `open_id`, then call `lark_api` GET `/open-apis/contact/v3/users/<open_id>` with `params: {"user_id_type": "open_id"}` to read `user_id` / `union_id`.
-- For department scenarios, use `member_type=opendepartmentid`: there is no shortcut, so call `lark_api` POST `/open-apis/contact/v3/departments/search` (under user identity) with `params: {"department_id_type": "open_department_id"}` and `data: {"query": "<department name>"}` to fetch `open_department_id`.
-- Only after the target type AND the identity have both been confirmed viable, call `lark_api` POST `/open-apis/wiki/v2/spaces/{space_id}/members`. For department scenarios, this means it MUST run under user identity.
+- User gives a wiki URL (`.../wiki/<token>`) and needs to query/add/delete members: first call
+  ```
+  lark_api({ tool: 'wiki', op: 'spaces.get_node', args: { token: '<wiki_token>' } })
+  ```
+  to get `space_id`; use `space_id` for all subsequent member API calls.
 
-## Target semantics constraints
+- User wants to **delete** a wiki space (`+delete-space`) but only provided a name or URL: **MUST** first resolve the real `space_id`. Resolution:
+  - URL (`.../wiki/<token>`):
+    ```
+    lark_api({ tool: 'wiki', op: 'spaces.get_node', args: { token: '<wiki_token>' } })
+    ```
+    Read `data.node.space_id`.
+  - Only know the name: paginate through
+    ```
+    lark_api({ tool: 'wiki', op: 'spaces.list', args: { ... } })
+    ```
+    Stop as soon as at least 1 exact `name` match is found. Only do loose matching after exhausting all pages with no exact match.
+  - **Key safety constraint**: regardless of 1 or multiple matches, MUST list candidates (`name` + `space_id` + `description` + `space_type`) to the user and let them explicitly select one `space_id` before executing. Never auto-delete on a single match.
+  - 0 matches: stop and ask the user whether the name is misspelled or caller lacks permissions; do NOT retry with a modified name.
+  - After selection:
+    ```
+    lark_api({ tool: 'wiki', op: '+delete-space', args: { space_id: '<ID>', yes: true } })
+    ```
 
-- "My Document Library" / "My Knowledge Base" / "Personal Wiki" / `my_library` should ALL be treated as the **Wiki personal library**, not the Drive root directory.
-- For these targets, first resolve `my_library` to its real `space_id`, then run the move flow, the node-create flow, or other Wiki write operations.
-- DO NOT degrade to a Drive `move` just because no explicit `space_id` is given.
-- Only when the user explicitly says Drive folder, cloud-drive root, or "My Space" (the Drive root) should you enter the Drive domain.
+- User wants to create a new node in the wiki, prefer:
+  ```
+  lark_api({ tool: 'wiki', op: '+node-create', args: { ... } })
+  ```
 
-## Shortcuts (recommended — prefer these)
+- User says "add member/admin to the wiki": resolve the target into user / group / department first, then determine `member_type`; do not call members.create and infer type from the error.
 
-A Shortcut is a high-level wrapper for a common operation. Prefer the shortcut when one exists, invoked via `lark_api({ tool: 'wiki', op: '<verb>', args: { ... } })`.
+- User says "department + bot": known unsupported path. Prompt that `--as user` must be used, or clearly state the request cannot be completed.
 
-| Shortcut | Description |
-|----------|-------------|
-| [`+move`](references/lark-wiki-move.md) | Move a wiki node, or move a Drive document into Wiki |
+- User says "user / group + add member": resolve the corresponding ID first, then call members.create.
 
-> Note: a `+node-create` shortcut is documented upstream but is not currently exposed via LarkSkill MCP. Use the raw `lark_api` POST `/open-apis/wiki/v2/spaces/{space_id}/nodes` endpoint instead (see the Intent index below).
+## Member Addition Flow
 
-Example:
+- Before calling `wiki members.create`, resolve "person / group / department" to the correct `member_id`.
+- User scenarios default to `member_type=openid`:
+  ```
+  lark_api({ tool: 'contact', op: '+search-user', args: { query: '<name/email/phone>' } })
+  ```
+  Get `open_id`.
+- Group scenarios use `member_type=openchat`:
+  ```
+  lark_api({ tool: 'im', op: '+chat-search', args: { query: '<group name keyword>' } })
+  ```
+  Get `chat_id`.
+- `userid` / `unionid` only when explicitly required downstream; get `open_id` first, then:
+  ```
+  lark_api({ method: 'GET', path: '/open-apis/contact/v3/users/<open_id>', params: { user_id_type: 'open_id' } })
+  ```
+- Department scenarios use `member_type=opendepartmentid`:
+  ```
+  lark_api({ method: 'POST', path: '/open-apis/contact/v3/departments/search', params: { department_id_type: 'open_department_id' }, data: { query: '<department name>' } })
+  ```
+  Must use user identity.
+- Only call `wiki members.create` after target type and identity are both confirmed viable.
 
+## Target Semantic Constraints
+
+- `My Document Library` / `my wiki` / `personal wiki` / `my_library` → treat as **Wiki personal library**, not Drive root directory
+- Resolve `my_library` to the real `space_id` first, then execute wiki write operations
+- Do not degrade to `drive +move` just because an explicit `space_id` is missing
+- Only enter Drive domain if the user explicitly mentions Drive folder, cloud space root, or "My Space"
+
+## Shortcuts
+
+| Shortcut | MCP call |
+|----------|------|
+| Move a wiki node | `lark_api({ tool: 'wiki', op: '+move', args: { node_token: '...', ... } })` |
+| Create a wiki node | `lark_api({ tool: 'wiki', op: '+node-create', args: { space_id: '...', ... } })` |
+| Delete a wiki space | `lark_api({ tool: 'wiki', op: '+delete-space', args: { space_id: '...', yes: true } })` |
+| List all wiki spaces | `lark_api({ tool: 'wiki', op: '+space-list', args: { ... } })` |
+| Create a wiki space | `lark_api({ tool: 'wiki', op: '+space-create', args: { name: '...', ... } })` |
+| List wiki nodes | `lark_api({ tool: 'wiki', op: '+node-list', args: { space_id: '...', ... } })` |
+| Copy a wiki node | `lark_api({ tool: 'wiki', op: '+node-copy', args: { node_token: '...', target_space_id: '...' } })` |
+| Get wiki node details | `lark_api({ tool: 'wiki', op: '+node-get', args: { node_token: '...' } })` |
+| Delete a wiki node | `lark_api({ tool: 'wiki', op: '+node-delete', args: { node_token: '...' } })` |
+
+For full parameter reference, see: [`references/lark-wiki-move.md`](references/lark-wiki-move.md), [`references/lark-wiki-node-create.md`](references/lark-wiki-node-create.md), etc.
+
+## API Resources
+
+For available operations, use:
 ```
-lark_api({ tool: 'wiki', op: 'move', args: { space_id: '<space_id>', node_token: '<node_token>', target_parent_token: '<parent_token>' } })
+lark_api_search({ query: 'wiki <resource>' })
 ```
-
-For operations without a shortcut (`spaces`, `members`, `nodes` resources below), call `lark_api` with the raw HTTP method + path.
-
-## API resources
-
-> **Important:** when using raw API endpoints, you MUST inspect the request schema first (consult the corresponding `references/*.md` doc) — do not guess field formats for `data` / `params`.
 
 ### spaces
-
-- `create` — Create a knowledge space
-- `get` — Get knowledge-space info
-- `get_node` — Get knowledge-space node info
-- `list` — List knowledge spaces
+```
+lark_api({ tool: 'wiki', op: 'spaces.create', args: { ... } })
+lark_api({ tool: 'wiki', op: 'spaces.get', args: { space_id: '...' } })
+lark_api({ tool: 'wiki', op: 'spaces.get_node', args: { token: '...' } })
+lark_api({ tool: 'wiki', op: 'spaces.list', args: { ... } })
+```
 
 ### members
-
-- `create` — Add a knowledge-space member
-- `delete` — Remove a knowledge-space member
-- `list` — List knowledge-space members
+```
+lark_api({ tool: 'wiki', op: 'members.create', args: { space_id: '...', member_type: '...', member_id: '...', member_role: '...' } })
+lark_api({ tool: 'wiki', op: 'members.delete', args: { space_id: '...', member_type: '...', member_id: '...' } })
+lark_api({ tool: 'wiki', op: 'members.list', args: { space_id: '...' } })
+```
 
 ### nodes
+```
+lark_api({ tool: 'wiki', op: 'nodes.copy', args: { space_id: '...', node_token: '...', ... } })
+lark_api({ tool: 'wiki', op: 'nodes.create', args: { space_id: '...', ... } })
+lark_api({ tool: 'wiki', op: 'nodes.list', args: { space_id: '...' } })
+```
 
-- `copy` — Create a copy of a knowledge-space node
-- `create` — Create a knowledge-space node
-- `list` — List child nodes of a knowledge-space node
-
-## Intent -> MCP call index
-
-| Intent | MCP call |
-|--------|----------|
-| Resolve wiki URL token | `lark_api` GET `/open-apis/wiki/v2/spaces/get_node` with `params: {"token": "<wiki_token>"}` |
-| Create knowledge space | `lark_api` POST `/open-apis/wiki/v2/spaces` |
-| Get knowledge-space info | `lark_api` GET `/open-apis/wiki/v2/spaces/{space_id}` |
-| List knowledge spaces | `lark_api` GET `/open-apis/wiki/v2/spaces` |
-| List child nodes | `lark_api` GET `/open-apis/wiki/v2/spaces/{space_id}/nodes` |
-| Create node | `lark_api` POST `/open-apis/wiki/v2/spaces/{space_id}/nodes` |
-| Copy node | `lark_api` POST `/open-apis/wiki/v2/spaces/{space_id}/nodes/{node_token}/copy` |
-| Move node (or import Drive doc into Wiki) | `lark_api({ tool: 'wiki', op: 'move', args: { ... } })` |
-| List members | `lark_api` GET `/open-apis/wiki/v2/spaces/{space_id}/members` |
-| Add member | `lark_api` POST `/open-apis/wiki/v2/spaces/{space_id}/members` |
-| Remove member | `lark_api` DELETE `/open-apis/wiki/v2/spaces/{space_id}/members/{member_id}` |
-| Search user (resolve `open_id`) | `lark_api_search` against contact domain (search-user shortcut) with `query: "<name/email/phone>"` |
-| Search chat (resolve `chat_id`) | `lark_api_search` against IM domain (chat-search shortcut) with `query: "<chat name keyword>"` |
-| Search department (resolve `open_department_id`) | `lark_api` POST `/open-apis/contact/v3/departments/search` with `data: {"query": "<department name>"}` |
-
-## Permission table
+## Permissions
 
 | Method | Required scope |
-|--------|----------------|
+|------|-----------|
 | `spaces.create` | `wiki:space:write_only` |
 | `spaces.get` | `wiki:space:read` |
 | `spaces.get_node` | `wiki:node:read` |
@@ -118,10 +149,6 @@ For operations without a shortcut (`spaces`, `members`, `nodes` resources below)
 | `members.delete` | `wiki:member:update` |
 | `members.list` | `wiki:member:retrieve` |
 | `nodes.copy` | `wiki:node:copy` |
+| `nodes.move` | `wiki:node:move` |
 | `nodes.create` | `wiki:node:create` |
 | `nodes.list` | `wiki:node:retrieve` |
-
-## Reference docs
-
-- [`references/lark-wiki-move.md`](references/lark-wiki-move.md) — `+move` shortcut details
-- [`references/lark-wiki-node-create.md`](references/lark-wiki-node-create.md) — node-create workflow (use raw POST endpoint listed above)

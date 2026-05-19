@@ -1,531 +1,266 @@
 ---
 name: lark-slides
-version: 1.0.0
-description: "Use this skill when creating or editing Lark Slides presentations via LarkSkill MCP. Handles presentation creation, reading slide content, and managing individual slides (create, delete, read, partial replace). Communication uses XML protocol."
+version: 2.0.0
+description: "Use this skill when operating Lark Slides via LarkSkill MCP: create and edit presentations via the XML protocol. Create presentations, read slide content, manage slide pages (create, delete, read, partial replace). Use when the user needs to create or edit slides, read or modify individual pages."
 metadata:
   requires:
     mcp: "larkskill"
-  mcpTools: ["lark_api"]
+  mcpTools: ["lark_api", "lark_api_search"]
 ---
 
 # slides (v1)
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first — it covers authentication and permission handling.
+## Quick Reference
 
-**CRITICAL — Before generating any XML, MUST read [`xml-schema-quick-ref.md`](references/xml-schema-quick-ref.md). DO NOT guess XML structure from memory.**
+| User intent | Recommended action | Key docs / commands |
+|---|---|---|
+| Create a new presentation | Plan `slide_plan.json` first, then choose one-step or two-step creation based on complexity | `planning-layer.md`, `visual-planning.md`, `asset-planning.md`, `lark_api({ tool: 'slides', op: 'create', ... })` |
+| Major rewrite of pages | Read existing XML first, write a new plan, then replace or rebuild relevant pages | `lark_api({ tool: 'slides', op: 'xml_presentations.get', ... })`, `lark_api({ tool: 'slides', op: 'replace-slide', ... })`, `lark-slides-edit-workflows.md` |
+| Edit a single title, text block, image, or partial element | Prefer block-level replace/insert; do not change page order | `lark_api({ tool: 'slides', op: 'replace-slide', ... })`, `lark-slides-replace-slide.md` |
+| Read or analyze an existing presentation | Parse slides/wiki token, read full or single-page XML, save `xml_presentation_id`, `slide_id`, `revision_id` | `lark_api({ tool: 'slides', op: 'xml_presentations.get', ... })` |
+| Upload or use an image | Upload first to get `file_token`; MUST NOT write http(s) external links directly | `lark_api({ tool: 'slides', op: 'media-upload', ... })` |
+| User mentions template, theme, or layout | Search for a template first, then summarize; extract skeleton only if needed | `template_tool.py search → summarize → extract` |
+| Create failure, blank page, 3350001, layout issue | Read current state first, then fix per troubleshooting checklist; do not assume the original op succeeded atomically | `troubleshooting.md`, `validation-checklist.md` |
 
-**CRITICAL — If the user mentions "template", "apply a template", or "reference a theme/style/layout", or the request clearly fits an existing template scenario (e.g. work report, product intro, business plan, training, promotion review), MUST first use [`scripts/template_tool.py`](scripts/template_tool.py) `search` to retrieve template candidates. Default to 2–3 best-match candidates for the user to choose from. After locking in a template, use `summarize` to get theme and layout summary; use `extract` to crop target page-type XML only when a layout skeleton is needed. Do NOT read full template XML directly.**
+**CRITICAL — Before starting, MUST use the Read tool to read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which covers authentication and permission handling.**
+
+**CRITICAL — Before generating any XML, MUST use the Read tool to read [xml-schema-quick-ref.md](references/xml-schema-quick-ref.md). DO NOT guess XML structure from memory.**
+
+**CRITICAL — When creating a new presentation or performing a major rewrite, MUST first generate `.lark-slides/plan/<deck-or-task-id>/slide_plan.json` before generating any XML. Create the corresponding directory first; planning-layer rules and intermediate artifact lifecycle are in [planning-layer.md](references/planning-layer.md). Minor edits to existing pages (e.g. replacing a single title or inserting one block) are exempt.**
+
+**CRITICAL — When creating a new presentation or performing a major rewrite, MUST read [visual-planning.md](references/visual-planning.md) before generating XML. Ensure `layout_type`, `visual_focus`, and `text_density` actually change the page geometry, primary visual, and text density.**
+
+**CRITICAL — When creating a new presentation or performing a major rewrite, planning `asset_need` MUST follow [asset-planning.md](references/asset-planning.md): metadata planning only; MUST include `fallback_if_missing`; MUST NOT require real searches, downloads, or uploads of assets.**
+
+**CRITICAL — After creating or performing a major rewrite, MUST perform explicit validation per [validation-checklist.md](references/validation-checklist.md): read full XML, verify page count and key elements, check for blank/broken pages, obvious overflow, and layout risks. Prioritize static XML syntax and text-overlap checks using [`scripts/xml_text_overlap_lint.py`](scripts/xml_text_overlap_lint.py).**
+
+**CRITICAL — Before creation or during failure troubleshooting, MUST check [troubleshooting.md](references/troubleshooting.md) for XML escaping, structure, shell truncation, image token, 3350001, and layout risks.**
+
+**CRITICAL — If the user mentions "template", "apply a template", "reference a theme/style/layout", or the user's request clearly maps to an existing scenario template (e.g. work report, product intro, business plan, training, promotion report), MUST first use [`scripts/template_tool.py`](scripts/template_tool.py) `search` to find templates; by default, provide 2-3 best-matching template candidates for the user to choose from. Once a template is selected, use `summarize` to get theme and layout summary; only use `extract` to cut the target page-type XML skeleton when needed. DO NOT read the complete template XML directly.**
 
 > [!NOTE]
-> `scripts/template_tool.py` requires Python 3. `references/template-index.json` is a script cache / lightweight routing index, not a document for the agent to read by default. `assets/templates/*.xml` are machine resources — access only via script summary or extract, never full-read.
+> `scripts/template_tool.py` requires Python 3. `references/template-index.json` is the script cache/lightweight routing index — not a document for the agent to read by default. `assets/templates/*.xml` are machine resources; access only via script summary or extraction, never read full content.
 
-**CRITICAL — When generating or rewriting pages from a template, MUST first `summarize` the target page type; use `extract` only when a concrete layout skeleton is needed. After generating local XML, if Python is available, MUST run [`scripts/layout_lint.py`](scripts/layout_lint.py) to check XML well-formedness, overlap/out-of-bounds/text-height risks before creating or appending slides. This is not a full XSD schema validation.**
+**CRITICAL — When using a template to generate or rewrite pages, MUST `summarize` the target page type first; only `extract` when a specific layout skeleton is needed.**
 
-**Editing existing slides:** prefer [`+replace-slide`](references/lark-slides-replace-slide.md) (block-level replace/insert, does not alter page order). For action selection and the full read-modify-write workflow, see [`lark-slides-edit-workflows.md`](references/lark-slides-edit-workflows.md).
+**Editing existing slide pages**: prefer `lark_api({ tool: 'slides', op: 'replace-slide', ... })` (block-level replace/insert, without changing page order). For action selection and the full read-modify-write workflow, see [`lark-slides-edit-workflows.md`](references/lark-slides-edit-workflows.md).
 
-## Identity selection
+## Identity Selection
 
-Lark Slides are typically the user's own content resources. **Default to explicit `user` identity for all slides operations.**
+Lark Slides content typically belongs to the user's own resources. **Default to explicitly using user identity for all slides operations.**
 
-- **`user` identity (recommended):** Create, read, and manage presentations as the currently logged-in user. Complete user authorization first:
+- **User identity (recommended)**: create, read, and manage presentations as the logged-in user. Complete user authorization first via the LarkSkill MCP auth flow:
 
 ```
 lark_auth_login({ domain: 'slides' })
 ```
 
-- **`bot` identity:** Only when the user explicitly requires bot/app-identity operations, or when the bot needs to own/create the resource. When using bot identity, confirm separately that the bot actually has access to the target presentation.
+Then `lark_auth_poll` to wait for authorization, and confirm via `lark_whoami` / `lark_auth_status`.
 
-**Execution rules:**
+- **Bot identity**: only when the user explicitly requests app identity, or when the workflow requires bot-owned resources. When using bot identity, additionally confirm that the bot actually has access to the target presentation. Switch via `lark_profile_switch`.
 
-1. Create, read, add/delete slides, and continue editing an existing PPT from a user-supplied link — default to `user` identity.
-2. If a permission error occurs, first check whether bot identity was mistakenly used; do NOT default-fallback to bot.
-3. Switch to bot identity only when the user explicitly requests "app identity / bot identity", or the workflow is bot-creates-resource-then-collaborates.
+**Execution rules**:
 
-## Quick start
+1. Create, read, add/remove slides, and continue editing an existing presentation from a user-supplied link — default to user identity first.
+2. If a permission error occurs, first check whether bot identity was mistakenly used; do not default to falling back to bot.
+3. Only switch to bot identity when the user explicitly requests "use app/bot identity", or when the current workflow is bot-creating resources followed by collaborative authorization.
 
-Create a PPT with slide content in one call (recommended):
+## Before Execution
 
-```
-lark_api({ tool: 'slides', op: 'create', args: {
-  title: 'Presentation Title',
-  slides: [
-    '<slide xmlns="http://www.larkoffice.com/sml/2.0"><style><fill><fillColor color="rgb(245,245,245)"/></fill></style><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="100"><content textType="title"><p>Page Title</p></content></shape><shape type="text" topLeftX="80" topLeftY="200" width="800" height="200"><content textType="body"><p>Body content</p><ul><li><p>Point one</p></li><li><p>Point two</p></li></ul></content></shape></data></slide>'
-  ]
-} })
-```
+> **Important**: `references/slides_xml_schema_definition.xml` is the sole authoritative XML protocol source for this skill; other `.md` files are summaries of it and the MCP tool schema.
 
-Two-step approach also available (create empty PPT first, then add slides one by one) — see [`+create` reference](references/lark-slides-create.md).
+High-frequency read-only references:
 
-> [!WARNING]
-> `slides` array is suitable for simple batch page creation, but is NOT "safe for anything under 10 pages". If slide XML contains significant non-ASCII text, long passages, complex layouts, nested quotes, or many special characters, shell parameter passing may cause escaping or truncation issues — leading to lost content, blank pages, or layout errors. For complex pages, prefer the two-step approach.
+- [xml-schema-quick-ref.md](references/xml-schema-quick-ref.md)
+- [planning-layer.md](references/planning-layer.md) (new creation / major rewrite)
+- [visual-planning.md](references/visual-planning.md) (new creation / major rewrite)
+- [asset-planning.md](references/asset-planning.md) (new creation / major rewrite)
+- [validation-checklist.md](references/validation-checklist.md) (after creation / major rewrite)
 
-> [!IMPORTANT]
-> `slides +create --slides` is internally "create blank PPT first, then call `xml_presentation.slide.create` per page". This is not atomic: if one page fails mid-way, previously created pages are retained. The skill MUST inform the user of this "partial success" risk upfront, and after failure first record `xml_presentation_id`, read back the current state, then decide whether to continue fixing or appending to the existing PPT.
+Read on demand:
 
-## Before you begin
-
-> **Important:** `references/slides_xml_schema_definition.xml` is the single authoritative XML protocol source for this skill; other `.md` files are only summaries of it and the CLI schema.
-
-### Required reading (before every create)
-
-| Document | Description |
-|----------|-------------|
-| [xml-schema-quick-ref.md](references/xml-schema-quick-ref.md) | **XML elements and attributes quick reference — required reading** |
-
-### Optional reading (consult as needed)
-
-| Scenario | Document |
-|----------|----------|
-| Need detailed XML structure | [xml-format-guide.md](references/xml-format-guide.md) |
-| Need to quickly screen templates / lightweight routing | [`scripts/template_tool.py search`](scripts/template_tool.py) |
-| Need to match PPT template / theme / style | [template-catalog.md](references/template-catalog.md) |
-| Need to summarize a page type or crop XML fragments | [`scripts/template_tool.py`](scripts/template_tool.py) |
-| Need local layout risk check | [`scripts/layout_lint.py`](scripts/layout_lint.py) |
-| Need CLI call examples | [examples.md](references/examples.md) |
-| Need real PPT XML as reference | [slides_demo.xml](references/slides_demo.xml) |
-| Need table / chart and other complex elements | [slides_xml_schema_definition.xml](references/slides_xml_schema_definition.xml) (full schema) |
-| Need to edit an existing PPT page | [lark-slides-edit-workflows.md](references/lark-slides-edit-workflows.md) |
-| Need detailed parameters for a specific command | Corresponding reference doc (see References section below) |
+- Create: [`lark-slides-create.md`](references/lark-slides-create.md)
+- Edit: [`lark-slides-edit-workflows.md`](references/lark-slides-edit-workflows.md), [`lark-slides-replace-slide.md`](references/lark-slides-replace-slide.md)
+- Images: [`lark-slides-media-upload.md`](references/lark-slides-media-upload.md)
+- Templates: [`template-catalog.md`](references/template-catalog.md), [`scripts/template_tool.py`](scripts/template_tool.py)
+- Troubleshooting: [`troubleshooting.md`](references/troubleshooting.md)
+- Full protocol: [`slides_xml_schema_definition.xml`](references/slides_xml_schema_definition.xml)
 
 ## Workflow
 
-> **This is a presentation, not a document.** Each slide is an independent visual frame — keep information density low and leave whitespace.
+> **This is a presentation, not a document.** Each slide is an independent visual frame — keep information density low and leave visual breathing room.
 
-### Creation method selection
+### Design Ideas
+
+Do not produce slides with no design sensibility. Pure white background + title + bullets is only acceptable as a minimal draft — not a final deliverable.
+
+Before writing XML, determine the deck-level visual strategy in `slide_plan.json`:
+
+- **Thematic color scheme**: colors must serve the theme, industry, and audience — do not default to corporate blue. If the same color palette still works when applied to a completely different theme, it is not specific enough.
+- **Hierarchy**: choose 1 primary color carrying approximately 60-70% visual weight, 1-2 supporting colors for structure and sections, and 1 accent color used only for key numbers, conclusions, or action points. Do not give every color equal weight.
+- **Background consistency**: determine the full-deck background strategy first; maintain the same light/dark tone and base color system by default. Only change the background intentionally for section breaks, transitions, or emphasis pages — and unify the change visually via shared primary color, texture, sidebar, or motif. Regardless of light or dark, ensure sufficient contrast for body text, icons, and lines.
+- **Unified motif**: choose one reusable visual motif that runs throughout the deck — e.g. thick side bars, circular icon bases, half-bleed image areas, numbered nodes, card-corner color blocks, or large numbers. Do not switch visual language on every page.
+
+Every page must have at least one visual element: an image, icon, chart, table, process flow, comparison structure, large number, diagram, or abstract shape. Text boxes alone do not count as primary visuals.
+
+Preferred page layouts:
+
+- **Two-column**: text on one side, image on the other; visual area occupies 35-45% of the width.
+- **Icon row**: icon in a color block or circle, with short heading and one-sentence description to the right.
+- **2×2 / 2×3 grid**: suited for capabilities, modules, risks, or action items; maintain equal hierarchy within each cell.
+- **Half-bleed visual**: image or abstract shape occupies left/right half of the screen; text overlays or aligns to the edge.
+- **Large number card**: key metrics with 60-72pt numbers; 10-14pt label below.
+- **Comparison column**: before/after, Plan A/B, problem/solution in left-right columns; align headings and baselines strictly.
+- **Timeline/flowchart**: steps expressed via nodes and arrows; flow direction must be immediately clear.
+
+Typography and spacing guidelines:
+
+- Headings 36-44pt; key conclusions may be larger. Body 14-18pt; notes 10-12pt.
+- Body text left-aligned by default; center-align only for cover pages, closing pages, or large-number scenarios.
+- Page margin at least 40px; 24-40px between content blocks, consistent throughout the deck.
+- Card padding must leave real breathing room — do not let text touch the edge. Account for text box padding when aligning shapes and text.
+
+Common mistakes to avoid:
+
+- Do not reuse the same heading + three bullets layout on every page.
+- Do not use low-contrast text or icons (e.g. light gray text on a light background).
+- Do not let decorative lines pass through text, or let footers, sources, and numbering crowd the main content.
+- Do not represent missing assets as empty image placeholders — use `fallback_if_missing` to generate XML-native visuals.
+- Do not leave template placeholder text, sample company names, sample dates, or template content unrelated to the user's topic.
+
+### Creation Method Selection
 
 | Scenario | Recommended approach |
-|----------|----------------------|
-| Simple XML (1–3 pages, simple structure, minimal non-ASCII / special characters) | `lark_api({ tool: 'slides', op: 'create', args: { slides: [...] } })` one-step create |
-| Complex XML (multiple pages, non-ASCII text, long passages, complex layouts, nested quotes, many special characters) | **Two-step:** first `slides +create` to create blank PPT, then `xml_presentation.slide create` to add pages one by one |
-| Appending or inserting pages to an existing PPT | Use `lark_api({ tool: 'slides', op: 'xml_presentation.slide create', ... })`, with `before_slide_id` if needed |
+|---|---|
+| Simple XML (1-3 pages, simple structure, few special characters) | `lark_api({ tool: 'slides', op: 'create', args: { slides: [...] } })` — create in one step |
+| Complex XML (multiple pages, large text blocks, complex layout, nested quotes, many special characters) | **Two-step creation**: first `lark_api({ tool: 'slides', op: 'create', args: {} })` to create a blank presentation, then add pages one by one via `xml_presentation.slide.create` (see below) |
+| Appending or inserting pages into an existing presentation | `lark_api({ tool: 'slides', op: 'xml_presentation.slide.create', args: { xml_presentation_id: '...', slides: [...] } })` |
+| Reading the content of a specific page | `lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: '...', slide_id: '...' } })` |
+| Deleting a page | `lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { xml_presentation_id: '...', slide_id: '...' } })` |
+| Replacing a single page's content | `lark_api({ tool: 'slides', op: 'xml_presentation.slide.replace', args: { xml_presentation_id: '...', slide_id: '...', xml: '...' } })` |
 
 > [!WARNING]
-> The risk in `--slides '[...]'` lies primarily in shell parameter passing, not page count alone. Even a single page can be problematic if the XML is sufficiently complex — prefer the two-step approach.
+> The risk of one-step creation primarily lies in argument size, not just page count. Even with only 1 page, if the XML is complex enough, consider breaking the content into fewer, denser slides.
 
-### Template and script priority flow
+> [!IMPORTANT]
+> One-step `slides create` with a slides array creates pages sequentially — it is NOT an atomic operation. If it fails mid-way, record the `xml_presentation_id`, read back via `lark_api({ tool: 'slides', op: 'xml_presentations.get', ... })` to confirm current state, then use `lark_api({ tool: 'slides', op: 'replace-slide', ... })` to fix or extend.
+
+### Template and Script Priority Flow
+
+Template details are in [template-catalog.md](references/template-catalog.md). For the main flow: `search` first, then `summarize` after selecting a template; only `extract` when a layout skeleton is needed. Do not read complete template XML or copy placeholder text verbatim.
 
 ```bash
-# 1. Search candidates: pass the user's original request verbatim in --query
 python3 skills/lark-slides/scripts/template_tool.py search --query "<user request verbatim>" --limit 3
-
-# 2. After locking in a template, get page-type summary first
 python3 skills/lark-slides/scripts/template_tool.py summarize --template <template-id> --label <cover|toc|section|content|closing>
-
-# 3. Crop XML only when reusing a layout skeleton
 python3 skills/lark-slides/scripts/template_tool.py extract --template <template-id> --label <page-type> --out /tmp/template-slice.xml
-
-# 4. Run layout risk check after generating the XML to create
-python3 skills/lark-slides/scripts/layout_lint.py --input /tmp/presentation.xml
 ```
-
-Execution rules:
-
-1. Use the user's original description for `search --query`; add `--tone light|dark|colorful` or `--formality formal|casual|creative` only when the user specifies a style.
-2. Show only 2–3 candidates, including template name, applicable scenario, style/tone, and recommendation reason — do not paste the full catalog.
-3. After locking in a template, reuse `<theme>`, colors, page flow, and layout skeleton; rewrite ALL placeholder text with the user's real content.
-4. If `layout_lint.py` reports errors, fix the XML first — do not submit for creation. Warnings are acceptable only when they are verifiable decoration/background false positives.
 
 ```text
-Step 1: Requirements clarification & knowledge loading
-  - Clarify user requirements: topic, audience, page count, style preferences
-  - If the request clearly falls into an existing template scenario, proactively suggest "can generate directly from a ready-made template" and show 2–3 best-match candidates (template name + scenario + style/tone + brief recommendation reason)
-  - Default: do not paste the full template catalog to the user; show only 2–3 candidates unless the user explicitly asks for more
-  - Prioritize scenario-specific templates; fall back to general templates (e.g. light_general.xml / dark_general.xml) only when no obvious scenario template matches
-  - If the user has not specified a style, recommend based on topic (see style judgment table below)
-  - If the user requests "template / theme / style reference", or the topic belongs to a common template scenario:
-    · First run `python3 skills/lark-slides/scripts/template_tool.py search --query "<user request verbatim>" --limit 3` for low-cost template matching
-    · Read template-catalog.md to compose candidate descriptions only when human-readable explanation is needed
-    · After locking in a template, prefer running `template_tool.py summarize` to inspect `<theme>` / page-type summary; use `template_tool.py extract` only when concrete layout is needed
-    · Reuse template theme, colors, page flow, and layout skeleton; rewrite ALL placeholder text with real content
-    · `references/template-index.json` is a script cache/routing index; `assets/templates/*.xml` are machine resources — do not read directly unless user explicitly requests raw template audit
-  - Load XML Schema references:
-    · xml-schema-quick-ref.md — elements and attributes quick reference
-    · xml-format-guide.md — detailed structure and examples
-    · slides_demo.xml — real XML examples
+Step 1: Clarify requirements & read knowledge
+  - Clarify theme, audience, page count, style; handle template needs via "Template and Script Priority Flow"
+  - Read xml-schema-quick-ref.md; for new creation / major rewrite, also read planning-layer.md, visual-planning.md, asset-planning.md
 
-Step 2: Generate outline → user confirmation → create
-  - Before generating outline, confirm whether user adopts the recommended template; for lightweight tasks with one clear best match, you may state "defaulting to <template-id>" in the outline and proceed — but MUST give user a chance to change before actual creation
-  - Generate a structured outline (page title + key points + layout description) and present to user for confirmation
-  - If a template is selected, outline and page layout MUST clearly note "based on which template / which pages"
-  - If user explicitly declines templates, proceed with custom style — do not keep pushing template selection
-  - Determine creation approach first:
-    · Simple XML: can use `lark_api({ tool: 'slides', op: 'create', args: { slides: [...] } })` one-step
-    · Complex XML: prefer `slides +create` to create blank PPT first, then add pages via `xml_presentation.slide.create`
-    · More than 10 pages: default to two-step to avoid overly long single input
-  - For local images:
-    · New PPT with images — write `<img src="@./pic.png" .../>` in slide XML; `+create` auto-uploads and replaces with file_token (see lark-slides-create.md)
-    · Add image pages to existing PPT — first `lark_api({ tool: 'slides', op: 'media-upload', args: { file: './pic.png', presentation_id: '$PID' } })` to get file_token, then use it in slide XML for `xml_presentation.slide.create`
-    · Add image to existing page — two steps: (1) `slides +media-upload` for file_token; (2) `slides +replace-slide` with `block_insert` to insert `<img src="<file_token>" .../>`; do NOT rebuild the whole page
-    · Path MUST be a relative path within CWD (e.g. ./pic.png or ./assets/x.png); absolute paths are rejected by the CLI — `cd` to the asset directory first
-  - Each slide needs complete XML: background, text, shapes, colors
-  - Complex elements (table, chart) require consulting the full XSD
-  - MUST self-check XML before creating:
-    · Verify special characters are escaped per XML rules: bare `& → &amp;` in text nodes and attribute values; `< → &lt;` and `> → &gt;` in text. E.g. `Q&A → Q&amp;A`, URL attribute `a=1&b=2 → a=1&amp;b=2`
-    · Double quotes in attribute values MUST be escaped or use safe outer wrapping to avoid shell and JSON double-truncation
-    · Confirm all tags are closed, and `<slide>` direct children include only `<style>`, `<data>`, `<note>`
-    · If content contains significant non-ASCII text, long passages, complex layouts, or many special characters — default to two-step approach, not `--slides '[...]'`
-    · If XML is already in a local file and Python is available, run `layout_lint.py --input <file>` first; it checks XML well-formedness then layout risks, but is not equivalent to full XSD schema validation; fix errors before creating
-  - When generating pages from a template, reuse the template skeleton then fill in content — do NOT copy long placeholder text from the template
+Step 2: Generate outline → user confirmation → write slide_plan.json
+  - Generate structured outline for user confirmation; if using a template, note which template it is based on
+  - New creation / major rewrite: MUST create the directory and write `.lark-slides/plan/<deck-or-task-id>/slide_plan.json` first
+  - Plan fields, path naming, template boundaries, and `asset_need` structure follow planning-layer.md / asset-planning.md
 
-Step 3: Review & delivery
-  - After creation, MUST read the full XML with xml_presentations.get to verify, confirming:
-    · Is the page count correct?
-    · Does each page's `<data>` contain the expected `<shape>` / `<img>` / other elements?
-    · Is text content complete with no truncation, loss, or blank areas?
-    · Are key layout coordinates and dimensions reasonable with no obvious overlap?
-    · Are colors consistent? Is the font-size hierarchy reasonable?
-  - If Python 3 is available locally, run `python3 skills/lark-slides/scripts/layout_lint.py --input presentation.xml` to check overlap, out-of-bounds, footer collision, and text-height risks; fix errors before delivery
-  - If creation fails:
-    · First retain and record `xml_presentation_id` — do not assume failure means nothing was created
-    · Determine whether partial pages were written, then decide whether to fix and continue appending to the existing PPT
-    · Prioritize diagnosing the failing page: inspect its XML, check for unescaped `&`, wrong quotes, unclosed tags, shell parameter truncation
-  - Localized issues → use `+replace-slide` for block-level correction; full page structure change → `slide.delete` old page + `slide.create` new page
-  - No issues → deliver: inform user of presentation ID and access method
+Step 3: Generate XML per slide_plan.json → create
+  - Consume plan page by page: key_message drives the main conclusion, layout_type drives geometry, visual_focus drives primary visual, text_density drives text amount
+  - For missing real assets, MUST generate XML-native fallback visuals using `fallback_if_missing`; do not leave blank
+  - Creation method follows "Creation Method Selection"; images, complex XML, escaping, and 3350001 troubleshooting follow lark-slides-create.md, media-upload.md, troubleshooting.md
+
+Step 4: Review & deliver
+  - After creation, MUST use lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: '...' } }) to read full XML and perform explicit validation per validation-checklist.md, including XML text-overlap check
+  - Handle failures or partial successes per troubleshooting.md; for partial issues, use lark_api({ tool: 'slides', op: 'replace-slide', ... })
+  - No issues → deliver: inform the user of the presentation ID and access method
 ```
 
-### Post-creation verification
+### Outline Template
 
-Successful creation does not mean correct content. After creating the PPT, **MUST** read the full XML to verify:
-
-```
-lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'YOUR_ID' } })
-```
-
-Key checks:
-
-- [ ] Is the page count as expected?
-- [ ] Does each page's `<data>` contain all expected elements?
-- [ ] Is text content complete — not truncated or damaged by shell escaping?
-- [ ] Were key layout areas (white content area, card area, image+text area) actually created?
-- [ ] Are coordinates and dimensions reasonable — no stacking or out-of-bounds?
-
-When issues are found:
-
-1. Do NOT assume "creation succeeded means rendering is correct"
-2. Read the problematic page's XML first — confirm whether it is a generation issue or parameter damage
-3. Delete the problematic page and re-add; for complex pages, prefer the two-step approach
-
-### Minimum acceptance checklist
-
-After creation, run through this sequence by default — do not skip:
-
-1. Record `xml_presentation_id`
-2. Confirm whether the returned `slides_added` or actual page count matches expectations
-3. Immediately call `xml_presentations.get`
-4. Check title, key pages, key text content
-5. Check for obvious blank pages, missing content, or wrong page order
-6. Then decide whether to deliver the URL and follow-up editing suggestions to the user
-
-Recommended minimum closed loop:
-
-```
-// Create
-lark_api({ tool: 'slides', op: 'create', args: { title: 'Demo', slides: ['...'] } })
-
-// Immediately read back
-lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'YOUR_ID' } })
-```
-
-## XML self-check and troubleshooting
-
-Before actually creating, perform at least these 4 checks:
-
-- [ ] Special characters escaped: `&`, `<`, `>` in body and titles MUST NOT appear bare; bare `&` in attribute values also MUST be written as `&amp;`
-- [ ] Attribute quote safety: XML attributes, shell quotes, and JSON string wrapping do not break each other
-- [ ] Valid structure: `<slide>` children are only `<style>`, `<data>`, `<note>`; all text is inside `<content>`
-- [ ] Correct paths: `<img src="@...">` is only valid in the `+create --slides` pipeline
-
-Common failure signals and resolution order:
-
-1. `invalid param` / a page create fails
-2. First check if the failing page contains unescaped `&` / `<` / `>`: `Q&A → Q&amp;A`, attribute URL `a=1&b=2 → a=1&amp;b=2`
-3. Then check tag closure, attribute quotes, `<content>` structure
-4. If using `--slides '[...]'`, switch directly to the two-step approach when shell truncation is suspected
-5. After creation — success or failure — always record `xml_presentation_id` first and read back to confirm whether partial pages were written
-
-### jq command templates (when appending to an existing PPT)
-
-For new PPTs, use `+create --slides`. The following jq templates apply when appending to an existing presentation — they avoid manual double-quote escaping:
-
-```bash
-# Append to end
-lark-cli slides xml_presentation.slide create \
-  --as user \
-  --params '{"xml_presentation_id":"YOUR_ID"}' \
-  --data "$(jq -n --arg content '<slide xmlns="http://www.larkoffice.com/sml/2.0">
-  <style><fill><fillColor color="BACKGROUND_COLOR"/></fill></style>
-  <data>
-    Place shape, line, table, chart, and other elements here
-  </data>
-</slide>' '{slide:{content:$content}}')"
-
-# Insert before a specific page: before_slide_id MUST be in the --data body, at the same level as slide
-# WARNING: do NOT put before_slide_id in --params — the CLI passes it as an unknown query param and the server ignores it, moving the new page to the end
-lark-cli slides xml_presentation.slide create \
-  --as user \
-  --params '{"xml_presentation_id":"YOUR_ID"}' \
-  --data "$(jq -n --arg content '<slide ...>...</slide>' --arg before 'TARGET_SLIDE_ID' \
-    '{slide:{content:$content}, before_slide_id:$before}')"
-```
-
-### Style quick-reference table
-
-> **Note:** Gradient colors MUST use `rgba()` format with percentage stop points, e.g. `linear-gradient(135deg,rgba(15,23,42,1) 0%,rgba(56,97,140,1) 100%)`. Using `rgb()` or omitting stop points causes the server to fall back to white.
-
-| Scenario / topic | Recommended style | Background | Primary color | Text color |
-|------------------|-------------------|------------|---------------|------------|
-| Tech / AI / product | Dark tech | Deep blue gradient `linear-gradient(135deg,rgba(15,23,42,1) 0%,rgba(56,97,140,1) 100%)` | Blue `rgb(59,130,246)` | White |
-| Business report / quarterly summary | Light business | Light gray `rgb(248,250,252)` | Deep blue `rgb(30,60,114)` | Dark gray `rgb(30,41,59)` |
-| Education / training | Fresh bright | White `rgb(255,255,255)` | Green `rgb(34,197,94)` | Dark gray `rgb(51,65,85)` |
-| Creative / design | Gradient vibrant | Purple-pink gradient `linear-gradient(135deg,rgba(88,28,135,1) 0%,rgba(190,24,93,1) 100%)` | Pink-purple | White |
-| Weekly / daily report | Minimal professional | Light gray `rgb(248,250,252)` + top color gradient bar | Blue `rgb(59,130,246)` | Dark `rgb(15,23,42)` |
-| Not specified by user | Default minimal professional | Same as above | Same as above | Same as above |
-
-### Page layout guidance
-
-| Page type | Layout key points |
-|-----------|-------------------|
-| Cover | Centered large title + subtitle + bottom info; gradient or dark background |
-| Data overview | Metric cards in a row (rect background + large number + small label), chart or list below |
-| Content | Left vertical line decoration + title, split columns or list below |
-| Comparison / table | `table` element or side-by-side cards; header with dark background and white text |
-| Chart | `chart` element (column / line / pie), with text callouts |
-| Closing | Centered thank-you text + decorative line; style echoes the cover |
-
-### Outline template
-
-Use this format when generating an outline for user confirmation:
+Use the following format when generating an outline for user confirmation:
 
 ```text
-[PPT Title] — [Positioning description], for [target audience]
+[Presentation title] — [positioning description], for [target audience]
 
-Template: [no template / <category>/<template>.xml (recommendation reason)]
+Template: [no template used / <category>/<template>.xml (reason for recommendation)]
 
 Page structure (N pages):
-1. Cover: [title copy]
-2. [Page topic]: [Point 1], [Point 2], [Point 3]
+1. Cover: [title text]
+2. [Page topic]: [point 1], [point 2], [point 3]
 3. [Page topic]: [description]
 ...
-N. Closing: [closing copy]
+N. Closing: [closing text]
 
 Style: [color scheme], [layout style]
 ```
 
-### Common slide XML templates
+## Core Concepts
 
-Ready-to-copy templates (cover, content, data card, closing pages): [slide-templates.md](references/slide-templates.md)
-
----
-
-## Core concepts
-
-### URL formats and tokens
+### URL Format and Token
 
 | URL format | Example | Token type | Handling |
-|------------|---------|------------|----------|
-| `/slides/` | `https://example.larkoffice.com/slides/xxxxxxxxxxxxx` | `xml_presentation_id` | Token from the URL path is used directly as `xml_presentation_id` |
-| `/wiki/` | `https://example.larkoffice.com/wiki/wikcnxxxxxxxxx` | `wiki_token` | **Cannot be used directly** — must query to get the real `obj_token` first |
+|---|---|---|---|
+| `/slides/` | `https://example.larkoffice.com/slides/xxxxxxxxxxxxx` | `xml_presentation_id` | Token in URL path is used directly as `xml_presentation_id` |
+| `/wiki/` | `https://example.larkoffice.com/wiki/wikcnxxxxxxxxx` | `wiki_token` | ⚠️ **Cannot be used directly** — must query first to get the real `obj_token` |
 
-> `+replace-slide` and `+media-upload` shortcuts auto-resolve both URL types; when calling raw APIs directly, wiki links must still be parsed manually.
+> `replace-slide` and `media-upload` MCP operations auto-parse both URL types above. When reading full XML via `xml_presentations.get` directly, wiki links must still be resolved manually.
 
-### Wiki link special handling (critical)
+### Wiki Link Special Handling (Important!)
 
-Wiki links (`/wiki/TOKEN`) may resolve to cloud documents, spreadsheets, slides, or other document types. **Do NOT assume the URL token is the `xml_presentation_id`** — always query the actual type and real token first.
-
-#### Handling flow
-
-1. **Query node info via `wiki.spaces.get_node`**
-   ```
-   lark_api({ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: 'wiki_token' } })
-   ```
-
-2. **Extract key fields from the result**
-   - `node.obj_type`: document type; slides corresponds to `slides`
-   - `node.obj_token`: **the real presentation token** (used for subsequent operations)
-   - `node.title`: document title
-
-3. **After confirming `obj_type` is `slides`, use `obj_token` as `xml_presentation_id`**
-
-#### Query example
+Wiki links (`/wiki/TOKEN`) cannot be used directly as `xml_presentation_id`. Before calling `xml_presentations.get` directly, query the wiki node, confirm `node.obj_type == "slides"`, then use `node.obj_token` as the real presentation ID.
 
 ```
-// Query wiki node
-lark_api({ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: 'wikcnxxxxxxxxx' } })
+lark_api({ tool: 'wiki', op: 'spaces.get_node', args: { token: 'wiki_token' } })
 ```
 
-Example response:
-```json
-{
-   "node": {
-      "obj_type": "slides",
-      "obj_token": "xxxxxxxxxxxx",
-      "title": "2026 Annual Product Summary",
-      "node_type": "origin",
-      "space_id": "1234567890"
-   }
-}
-```
+The `replace-slide` and `media-upload` operations auto-resolve `/wiki/` URLs. Manual resolution is only needed when calling `xml_presentations.get` directly.
 
-```
-// Use obj_token to read slide content
-lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'xxxxxxxxxxxx' } })
-```
-
-### Resource relationships
+### Resource Relationships
 
 ```text
 Wiki Space
 └── Wiki Node (obj_type: slides)
     └── obj_token → xml_presentation_id
 
-Slides (Presentation)
+Slides (presentation)
 ├── xml_presentation_id (unique presentation identifier)
 ├── revision_id (version number)
-└── Slide (individual page)
+└── Slide (page)
     └── slide_id (unique page identifier)
 ```
 
-## Shortcuts (use these first)
+## MCP Operations
 
-Shortcuts are high-level wrappers (`lark_api({ tool: 'slides', op: '<verb>', args: {...} })`). Prefer shortcuts when available.
+Use the LarkSkill MCP tool for all slides operations. The catalog provides exactly these 4 slides operations:
 
-| Shortcut | Description |
-|----------|-------------|
-| [`+create`](references/lark-slides-create.md) | Create a PPT (optional `--slides` to add pages in one step, supports `<img src="@./local.png">` placeholder auto-upload); bot mode auto-grants permissions |
-| [`+media-upload`](references/lark-slides-media-upload.md) | Upload a local image to a presentation and return `file_token` (use as `<img src="...">`); max 20 MB |
-| [`+replace-slide`](references/lark-slides-replace-slide.md) | Block-level replace/insert on an existing slide page (`block_replace` / `block_insert`); auto-injects id and `<content/>`; does not alter page order |
+| Operation | MCP call | Description |
+|---|---|---|
+| Create presentation | `lark_api({ tool: 'slides', op: 'create', args: { slides: [...] } })` | Create a presentation; optionally pass a slides array to add all pages in one call; supports `<img src="@./local.png">` placeholder for auto-upload |
+| Upload image | `lark_api({ tool: 'slides', op: 'media-upload', args: { xml_presentation_id: '...', file: '...' } })` | Upload a local image; returns `file_token` (used as `<img src="...">`); max 20 MB |
+| Block-level edit | `lark_api({ tool: 'slides', op: 'replace-slide', args: { ... } })` | Block-level replace/insert on existing slide pages (`block_replace` / `block_insert`); auto-injects id and `<content/>`; does not change page order |
+| Read full presentation | `lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: '...' } })` | Read full presentation XML |
 
-### Shortcut examples
+Use `lark_api_search` to discover the exact args shape for any operation before invoking it — do not guess field structures.
 
-```
-// Create a new presentation with slides
-lark_api({ tool: 'slides', op: 'create', args: { title: 'My Presentation', slides: ['<slide ...>...</slide>'] } })
+## Core Rules
 
-// Upload a local image and get file_token
-lark_api({ tool: 'slides', op: 'media-upload', args: { file: './image.png', presentation_id: 'YOUR_PPT_ID' } })
+1. **Plan before writing XML**: when creating a new presentation or performing a major rewrite, MUST write `.lark-slides/plan/<deck-or-task-id>/slide_plan.json` first. Templates, styles, and outlines may only serve as planning inputs — they cannot bypass the planning layer.
+2. **Creation flow**: use `lark_api({ tool: 'slides', op: 'create', args: { slides: [...] } })` with the full slides array for both simple and complex presentations. For page-level edits to existing presentations, use `replace-slide`.
+3. **`<slide>` direct children are only `<style>`, `<data>`, `<note>`**: text and graphics MUST be placed inside `<data>`.
+4. **Text expressed via `<content>`**: MUST use `<content><p>...</p></content>`; do not write text directly inside a shape.
+5. **Save key IDs**: subsequent operations require `xml_presentation_id`, `slide_id`, `revision_id`.
+6. **Be cautious with deletions**: the MCP catalog does not include a slide-delete op; do not attempt to delete individual slides via MCP.
+7. **Prefer block-level replace for editing existing pages**: to modify a single shape or image, use `replace-slide` (`block_replace` / `block_insert`); do not attempt full page rebuild via native slide ops — they are not in the MCP catalog.
+8. **`<img src>` may only use `file_token` uploaded to Lark Drive; http(s) external link URLs are FORBIDDEN**: the Lark Slides renderer does not proxy external images — external links typically display as broken or invisible. The flow MUST be: save the image locally → upload via `slides media-upload` or the `@./path` placeholder in one-step create → use the returned `file_token` in `<img src>`. If the user provides a web image link, download it to the CWD first, then follow the upload flow. Do NOT paste external URLs directly into `src`. **Maximum image size: 20 MB**.
 
-// Block-level replace on an existing slide
-lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: 'YOUR_PPT_ID', slide_id: 'SLIDE_ID', parts: [{ action: 'block_replace', block_id: 'BLOCK_ID', content: '<shape ...>...</shape>' }] } })
+## Permissions Quick Reference
 
-// Read full presentation XML
-lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'YOUR_PPT_ID' } })
-```
+| Operation | Required scope |
+|---|---|
+| `slides create` | `slides:presentation:create`, `slides:presentation:write_only` (also `docs:document.media:upload` when `@` placeholders are used) |
+| `slides media-upload` | `docs:document.media:upload` (wiki URL resolution also requires `wiki:node:read`) |
+| `slides replace-slide` | `slides:presentation:update` (wiki URL resolution also requires `wiki:node:read`) |
+| `slides xml_presentations.get` | `slides:presentation:read` |
 
-## API Resources
-
-> **Important:** Before using any raw API, inspect the request schema to understand `data` / `params` field structure — do not guess field formats.
-
-### xml_presentations
-
-- `get` — Read full presentation content, returned in XML format
-
-### xml_presentation.slide
-
-- `create` — Create a slide in the specified XML presentation (no shortcut op; use raw HTTP form)
-
-- `delete` — Delete a slide from the specified XML presentation (no shortcut op; use raw HTTP form)
-
-- `get` — Get a single slide's XML content from the specified XML presentation (no shortcut op; use raw HTTP form)
-
-- `replace` — Perform element-level partial replacement on a slide in the specified XML presentation (no shortcut op; use raw HTTP form)
-
-## Core rules
-
-1. **Lock in template/style and produce outline before starting work:** If the request can match a template, give the user 2–3 template candidates first. Once template or custom style is confirmed, generate the outline for user confirmation — avoid rework.
-2. **Creation flow:** Simple short XML (1–3 pages, simple structure, few special characters) can use `lark_api({ tool: 'slides', op: 'create', args: { slides: [...] } })` one-step; complex content, images / non-ASCII long text / nested quotes / many special characters, or more than 10 pages — default to `slides +create` to create blank PPT first, then add pages one by one via `xml_presentation.slide.create`.
-3. **`<slide>` direct children are only `<style>`, `<data>`, `<note>`:** Text and shapes MUST be placed inside `<data>`.
-4. **Text is expressed through `<content>`:** MUST use `<content><p>...</p></content>`; do NOT write text directly inside a shape element.
-5. **Save key IDs:** Subsequent operations require `xml_presentation_id`, `slide_id`, `revision_id`.
-6. **Deletion is irreversible:** Delete operations cannot be undone; at least one slide MUST remain in the presentation.
-7. **Prefer block-level replacement when editing existing pages:** For modifying a single shape/img, use `+replace-slide` (`block_replace` / `block_insert`) — do NOT rebuild the whole page. Only use `slide.delete` + `slide.create` when the entire page structure needs replacing.
-8. **`<img src>` MUST use a `file_token` uploaded to Lark Drive — external HTTP(S) URLs are forbidden:** The Lark Slides renderer does not proxy external images; external `src` values typically show as broken or missing. The flow MUST be: "save image locally → upload via `slides +media-upload` or use `+create --slides` `@./path` placeholder auto-upload → use the returned `file_token` in `<img src>`". If the user provides a web image URL, first `curl`/download it to CWD, then follow the upload flow — do NOT paste the external URL directly into `src`. **Max image size: 20 MB** (the slides upload API does not support chunked upload).
-
-## Permission table
-
-| Method | Required scope |
-|--------|----------------|
-| `slides +create` | `slides:presentation:create`, `slides:presentation:write_only` (also `docs:document.media:upload` when `@` placeholder is used) |
-| `slides +media-upload` | `docs:document.media:upload` (wiki URL resolution also requires `wiki:node:read`) |
-| `slides +replace-slide` | `slides:presentation:update` (wiki URL resolution also requires `wiki:node:read`) |
-| `xml_presentations.get` | `slides:presentation:read` |
-| `xml_presentation.slide.create` | `slides:presentation:update` or `slides:presentation:write_only` |
-| `xml_presentation.slide.delete` | `slides:presentation:update` or `slides:presentation:write_only` |
-| `xml_presentation.slide.get` | `slides:presentation:read` |
-| `xml_presentation.slide.replace` | `slides:presentation:update` |
-
-## Common error quick reference
-
-| Error code | Meaning | Resolution |
-|------------|---------|------------|
-| 400 | XML format error | Check XML syntax; ensure all tags are closed |
-| 400 | Request wrapping error | Check that `--data` passes `xml_presentation.content` or `slide.content` per schema |
-| Creation succeeds but page is blank / content missing / layout broken | Common with `--slides '[...]'` shell escaping or long parameter issues | Switch to two-step: first `slides +create`, then use `jq -n` to wrap `xml_presentation.slide.create` per page; immediately read back XML after creation to verify |
-| 404 | Presentation not found | Check that `xml_presentation_id` is correct |
-| 404 | Slide not found | Check that `slide_id` is correct |
-| 403 | Insufficient permission | Check that you have the required scope |
-| 400 | Cannot delete the only slide | The presentation must retain at least one slide |
-| 1061002 | params error (during media upload) | Use `slides +media-upload`; do not hand-craft raw `medias/upload_all`; the only valid `parent_type` for slides is `slide_file` |
-| 1061004 | forbidden: current identity has no edit access to the presentation | Confirm user/bot has edit access to the target PPT; bot commonly lacks access when PPT was not created by that bot — grant access first or use `+create --as bot` to create new |
-| 3350001 | XML not well-formed, XML structure does not meet server requirements, or `xml_presentation.slide.replace` failed (catch-all) | First check for unescaped `&` / `<` / `>`: `Q&A → Q&amp;A`, attribute URL `a=1&b=2 → a=1&amp;b=2`; run `layout_lint.py --input <file>` to locate line/column and context; also check `block_id` / `<content/>` / coordinates in replace scenarios |
-| 3350002 | `revision_id` greater than current version | Use `-1` for the current version, or re-read `xml_presentations.get` for the latest `revision_id` |
-| validation: unsafe file path | `--file` given an absolute path or parent path | `--file` MUST be a relative path within CWD; `cd` to the asset directory first |
-
-## Pre-creation checklist
-
-Quick checks before generating XML per page:
-
-- [ ] Is each page's background color / gradient set? Is the style consistent with the overall theme?
-- [ ] Title uses large font (28–48), body uses small font (13–16), clear hierarchy?
-- [ ] Consistent colors within element groups? (e.g. all metric cards same color scheme, all body text same color)
-- [ ] Decoration elements (divider lines, color blocks, vertical lines) in harmony with the primary color?
-- [ ] Are text box dimensions sufficient to contain the content? (width × height)
-- [ ] Is the shape `type` correct? (text boxes use `text`, decorations use `rect`)
-- [ ] Are all XML tags correctly closed? Are special characters (`&`, `<`, `>`) escaped?
-
-## Symptom → fix table
-
-| Observed issue | What to fix |
-|----------------|-------------|
-| Text is cut off / not fully visible | Increase the shape's `width` or `height` |
-| Elements overlap | Adjust `topLeftX` / `topLeftY`, increase spacing |
-| Large blank area on page | Reduce element spacing, or add content to fill |
-| Text and background color too similar | Dark background → light text; light background → dark text |
-| Table column widths are unreasonable | Adjust `width` of `col` in `colgroup` |
-| Chart not displaying | Check that both `chartPlotArea` and `chartData` are present; verify `dim1` / `dim2` data counts match |
-| Image appears cropped | `<img>` `width` / `height` is the cropped size; if ratio mismatches the original, auto-cropping occurs — match `width:height` to the original image ratio for full display |
-| Want to change only one element (text / image / shape) on a page | Use `+replace-slide` block-level replace — do NOT rebuild the whole page |
-| Want to add an image to an existing page without touching other elements | (1) `+media-upload` to get `file_token`; (2) `+replace-slide` with `block_insert` to insert `<img src="<file_token>" .../>`; do NOT use the old "full page create + delete" flow |
-| Newly inserted `<img>` overlaps or covers existing elements | Use `slide.get` to read the page; compare existing block `topLeftX/Y/width/height` to find a clear position; if space is tight, include both a `block_replace` to shrink/move the existing block and a `block_insert` for the image in the same `--parts` batch |
-| Gradient background becomes white | Gradient MUST use `rgba()` format + percentage stop points, e.g. `linear-gradient(135deg,rgba(30,60,114,1) 0%,rgba(59,130,246,1) 100%)`; using `rgb()` or omitting stop points causes fallback to white |
-| Gradient direction is wrong | Adjust the `linear-gradient` angle (`90deg` horizontal, `180deg` vertical, `135deg` diagonal) |
-| Overall style is inconsistent | Cover and closing pages use the same background; content pages maintain a consistent color scheme and font-size hierarchy |
-| API returns 400 | Check XML syntax: tag closure, attribute quotes, special character escaping |
-| API returns 3350001 | `block_replace` root element missing `id=<block_id>` or `<shape>` missing `<content/>`; see replace-slide docs |
-| Image not displaying / `<img src>` still shows `@path` | `@` placeholder **is only replaced in `+create --slides`**; when calling `xml_presentation.slide.create` directly, you MUST use `+media-upload` first to get `file_token` and write it into src |
-| Image upload reports 1061002 params error | `parent_type` MUST be `slide_file` (the only accepted value for slides); do not hand-craft — use `slides +media-upload` |
-
-## References
-
-| Document | Description |
-|----------|-------------|
-| [lark-slides-create.md](references/lark-slides-create.md) | **+create shortcut: create PPT (supports `--slides` one-step page addition, `@` placeholder auto-image-upload)** |
-| [lark-slides-media-upload.md](references/lark-slides-media-upload.md) | **+media-upload shortcut: upload local image, return `file_token`** |
-| [lark-slides-replace-slide.md](references/lark-slides-replace-slide.md) | **+replace-slide shortcut: block-level replace/insert, including valid root element quick reference and 3350001 troubleshooting** |
-| [lark-slides-edit-workflows.md](references/lark-slides-edit-workflows.md) | Read-modify-write workflow and action decision tree for editing existing pages |
-| [template-index.json](references/template-index.json) | **Script cache / lightweight routing index: used by `template_tool.py search` — not a default reading entry** |
-| [template-catalog.md](references/template-catalog.md) | **Match ready-made PPT templates by scenario / tone, locate page-type ranges** |
-| [`scripts/template_tool.py`](scripts/template_tool.py) | **Optional Python helper: `search` / `summarize` / `extract`, supports `--layout-tag` and `extract --with-summary`** |
-| [`scripts/layout_lint.py`](scripts/layout_lint.py) | **Local pre-check script: checks XML well-formedness, then detects overlap, out-of-bounds, footer collision, and text-height risk; not a full XSD schema validation** |
-| [xml-schema-quick-ref.md](references/xml-schema-quick-ref.md) | **XML Schema condensed quick reference (required reading)** |
-| [slide-templates.md](references/slide-templates.md) | Ready-to-copy slide XML templates |
-| [xml-format-guide.md](references/xml-format-guide.md) | Detailed XML structure and examples |
-| [examples.md](references/examples.md) | CLI call examples |
-| [slides_demo.xml](references/slides_demo.xml) | Complete XML of a real PPT |
-| [slides_xml_schema_definition.xml](references/slides_xml_schema_definition.xml) | **Complete schema definition** (the sole authoritative protocol source) |
-| [lark-slides-xml-presentations-get.md](references/lark-slides-xml-presentations-get.md) | Read PPT command details |
-| [lark-slides-xml-presentation-slide-create.md](references/lark-slides-xml-presentation-slide-create.md) | Add slide command details |
-| [lark-slides-xml-presentation-slide-delete.md](references/lark-slides-xml-presentation-slide-delete.md) | Delete slide command details |
-| [lark-slides-xml-presentation-slide-get.md](references/lark-slides-xml-presentation-slide-get.md) | Read single slide command details |
-| [lark-slides-xml-presentation-slide-replace.md](references/lark-slides-xml-presentation-slide-replace.md) | Raw slide.replace API command details |
-
-> **Note:** If a `.md` file conflicts with `slides_xml_schema_definition.xml` or `lark-cli schema slides.<resource>.<method>` output, the latter two take precedence.
+> **Note**: if content in the `.md` files conflicts with `slides_xml_schema_definition.xml` or `lark_api_search` output for a slides operation, the latter two take precedence.

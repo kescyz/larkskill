@@ -1,7 +1,7 @@
 ---
 name: lark-drive
 version: 2.0.0
-description: "Use this skill when operating Lark Drive via LarkSkill MCP: upload/download files, create folders, copy/move/delete files, view file metadata, manage document comments, manage document permissions, modify file titles (docx, sheet, bitable, file, folder, wiki), subscribe to user comment-change events; also import local Word/Markdown/Excel/CSV as new Lark online cloud documents (docx, sheet, bitable). Use it for uploading or downloading files, organizing Drive directories, viewing file details, managing comments, managing permissions, modifying file titles, subscribing to events, and turning local files into new docs, sheets, or Base."
+description: "Use this skill when operating Lark Drive via LarkSkill MCP: manage files and folders, upload/download, create folders, copy/move/delete files, manage comments and permissions, and import local files as online documents (docx, sheet, bitable)."
 metadata:
   requires:
     mcp: "larkskill"
@@ -10,310 +10,299 @@ metadata:
 
 # drive
 
-## Prerequisites
+> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first.
+> **Mandatory before execution:** Before invoking any `drive` operation, read the corresponding command reference doc, then call the operation via `lark_api`.
+> **Naming convention:** Drive operations call `lark_api({ tool: 'drive', op: '<op>', args: {...} })`; if a Wiki link must be resolved first, call `lark_api` with the HTTP form `{ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: '<wiki_token>' } }` first.
+> **Import routing rule:** If the user wants to import a local Excel / CSV / `.base` snapshot as Base / Bitable, the first step is `lark_api({ tool: 'drive', op: 'import', args: { type: 'bitable', ... } })`. Do not switch to `lark-base` early; `lark-base` only handles in-table operations after import is complete.
 
-- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` -> `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
-- MCP tools available: `lark_api`, `lark_api_search`
-- Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for auth, global flags, and safety rules
+## Quick Decision
 
-> **Import routing rule:** If the user wants to import a local Excel / CSV as Base / Bitable, the first step MUST be `lark_api({ tool: 'drive', op: 'import', args: { type: 'bitable', ... } })`. Do NOT switch to `lark-base` first; `lark-base` only handles in-table operations after the import completes.
+- To **search for docs / Wikis / spreadsheets / Base / Drive objects**, use `lark_api({ tool: 'drive', op: 'search', args: {...} })`. Natural language phrases like "recently edited by me", "created by me", "opened in the past week", "docx files created by someone" map directly to flat args. The older `docs search` is in maintenance mode; do not add new dependencies on it.
+- To import a local `.xlsx` / `.csv` / `.base` as Base / Bitable, the first step MUST be `lark_api({ tool: 'drive', op: 'import', args: { type: 'bitable', ... } })`.
+- To import a local `.md` / `.docx` / `.doc` / `.txt` / `.html` as an online doc, use `lark_api({ tool: 'drive', op: 'import', args: { type: 'docx', ... } })`.
+- To upload, create, read, partially patch, or overwrite-update a **native `.md` file** in Drive (not import as docx), switch to [`lark-markdown`](../lark-markdown/SKILL.md).
+- To view, download, roll back, or delete **historical versions** of a file, use `lark_api({ tool: 'drive', op: 'version-history', args: {...} })`, `lark_api({ tool: 'drive', op: 'version-get', args: {...} })`, `lark_api({ tool: 'drive', op: 'version-revert', args: {...} })`, or `lark_api({ tool: 'drive', op: 'version-delete', args: {...} })`.
+- To import a local `.xlsx` / `.xls` / `.csv` as a spreadsheet, use `lark_api({ tool: 'drive', op: 'import', args: { type: 'sheet', ... } })`.
+- To create a folder in Drive, use `lark_api({ tool: 'drive', op: 'create-folder', args: {...} })`.
+- To upload a local file to a wiki node or document library, use `lark_api({ tool: 'drive', op: 'upload', args: { wiki_token: '<wiki_token>', ... } })`; do not switch to `wiki` domain commands.
+- `lark-base` only handles Base internal operations (tables, fields, records, views) after import is complete.
 
-## Quick decisions
+## Rename
 
-- User wants to import a local `.xlsx` / `.csv` as Base / Bitable — first step MUST be `lark_api({ tool: 'drive', op: 'import', args: { type: 'bitable', ... } })`.
-- User wants to import a local `.md` / `.docx` / `.doc` / `.txt` / `.html` as an online doc — use `lark_api({ tool: 'drive', op: 'import', args: { type: 'docx', ... } })`.
-- User wants to import a local `.xlsx` / `.xls` / `.csv` as a sheet — use `lark_api({ tool: 'drive', op: 'import', args: { type: 'sheet', ... } })`.
-- User wants to create a new folder in Drive — prefer `lark_api({ tool: 'drive', op: 'create-folder', args: { ... } })`.
-- `lark-base` only handles in-Base operations after import (tables, fields, records, views); do NOT switch to `lark-base` early in the "local file -> Base" step.
+Use the Drive `files patch` operation with `new_title` in args (use `lark_api_search("drive files patch")` for exact shape). Supports docx, sheet, bitable, file, wiki, and folder types.
 
-## Modify title
+## Core Concepts
 
-- Use a native `lark_api` call to patch the file title; the `new_title` field modifies the title; supports `docx`, `sheet`, `bitable`, `file`, `wiki`, `folder` types.
+### Document Types and Tokens
 
-   ```
-   Call MCP tool `lark_api`:
-   - method: PATCH
-   - path: /open-apis/drive/v1/files/{file_token}
-   - data: { "requests": [ { "title": "<new_title>" } ] }
-   ```
+In the Lark open platform, different document types have different URL formats and token handling. Before performing document operations (such as adding comments or downloading files), you must first obtain the correct `file_token`.
 
-   Use `lark_api_search` to inspect `drive.files.patch` schema first if unsure of the exact body shape.
+### Document URL Format and Token Handling
 
-## Core concepts
+| URL Format | Example | Token Type | Handling |
+|------------|---------|------------|----------|
+| `/docx/` | `https://example.larksuite.com/docx/doxcnxxxxxxxxx` | `file_token` | Token in URL path is used directly as `file_token` |
+| `/doc/` | `https://example.larksuite.com/doc/doccnxxxxxxxxx` | `file_token` | Token in URL path is used directly as `file_token` |
+| `/wiki/` | `https://example.larksuite.com/wiki/wikcnxxxxxxxxx` | `wiki_token` | ⚠️ **Cannot be used directly** — must query first to obtain the real `obj_token` |
+| `/sheets/` | `https://example.larksuite.com/sheets/shtcnxxxxxxxxx` | `file_token` | Token in URL path is used directly as `file_token` |
+| `/drive/folder/` | `https://example.larksuite.com/drive/folder/fldcnxxxx` | `folder_token` | Token in URL path is used as the folder token |
 
-### Document types and tokens
+### Wiki Link Special Handling (Critical!)
 
-In the Lark Open Platform, different document types have different URL formats and token handling. Before performing document operations (e.g. add comment, download file), you MUST first obtain the correct `file_token`.
+Wiki links (`/wiki/TOKEN`) may point to different document types. **Do not assume the token in the URL is the `file_token`** — query the actual type and real token first.
 
-### Document URL formats and token handling
+#### Handling Flow
 
-| URL format | Example                                                 | Token type | Handling |
-|------------|---------------------------------------------------------|------------|----------|
-| `/docx/`   | `https://example.larksuite.com/docx/doxcnxxxxxxxxx`     | `file_token` | Use the token in the URL path directly as `file_token` |
-| `/doc/`    | `https://example.larksuite.com/doc/doccnxxxxxxxxx`      | `file_token` | Use the token in the URL path directly as `file_token` |
-| `/wiki/`   | `https://example.larksuite.com/wiki/wikcnxxxxxxxxx`     | `wiki_token` | WARNING: Cannot be used directly; you must first query to obtain the real `obj_token` |
-| `/sheets/` | `https://example.larksuite.com/sheets/shtcnxxxxxxxxx`   | `file_token` | Use the token in the URL path directly as `file_token` |
-| `/drive/folder/` | `https://example.larksuite.com/drive/folder/fldcnxxxx` | `folder_token` | Use the token in the URL path as the folder token |
+**Recommended: use `drive inspect` to auto-unwrap**
 
-### Wiki link special handling (critical!)
-
-A wiki link (`/wiki/TOKEN`) may back onto different document types such as a doc, sheet, or Base. **Do NOT assume the URL token is the file_token**; you must first query the actual type and real token.
-
-#### Processing flow
-
-1. **Query the wiki node info via `lark_api`**
-
-   ```
-   Call MCP tool `lark_api`:
-   - method: GET
-   - path: /open-apis/wiki/v2/spaces/get_node
-   - params: { "token": "<wiki_token>" }
-   ```
-
-2. **Extract key fields from the response**
-   - `node.obj_type`: document type (`docx/doc/sheet/bitable/slides/file/mindnote`)
-   - `node.obj_token`: **real document token** (used for follow-up operations)
-   - `node.title`: document title
-
-3. **Choose follow-up operation per `obj_type`**
-
-   | obj_type | Description | Follow-up |
-   |----------|-------------|-----------|
-   | `docx` | New cloud doc | Native `lark_api` calls under `/open-apis/drive/v1/files/{file_token}/comments`, plus `docx.*` endpoints |
-   | `doc` | Legacy cloud doc | Native `lark_api` calls under `/open-apis/drive/v1/files/{file_token}/comments` |
-   | `sheet` | Sheet | `sheets.*` endpoints |
-   | `bitable` | Base | `bitable.*` endpoints (use `lark-base` skill) |
-   | `slides` | Slides | Native `lark_api` drive endpoints |
-   | `file` | File | Native `lark_api` drive endpoints |
-   | `mindnote` | Mind map | Native `lark_api` drive endpoints |
-
-#### Query example
-
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/wiki/v2/spaces/get_node
-- params: { "token": "<wiki_token>" }
+```javascript
+lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/wiki/wikcnXXX' } })
 ```
 
-Response example:
-```json
-{
-  "node": {
-    "obj_type": "docx",
-    "obj_token": "xxxx",
-    "title": "Title",
-    "node_type": "origin",
-    "space_id": "12345678910"
-  }
-}
+Returns `type` (underlying document type), `token` (real file_token), `title`, `url` for direct use.
+
+**Manual approach:**
+
+```javascript
+lark_api({ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: 'wiki_token' } })
 ```
 
-### Resource relationships
+Extract `node.obj_type` and `node.obj_token` from result, then use the corresponding API.
+
+| obj_type | Description | API to use |
+|----------|-------------|------------|
+| `docx` | New-version doc | `lark_api({ tool: 'drive', op: '...' })` |
+| `doc` | Legacy doc | `lark_api({ tool: 'drive', op: '...' })` |
+| `sheet` | Spreadsheet | `lark_api({ tool: 'sheets', op: '...' })` |
+| `bitable` | Base | `lark_api({ tool: 'base', op: '...' })` |
+| `slides` | Slides | `lark_api({ tool: 'drive', op: '...' })` |
+| `file` | File | `lark_api({ tool: 'drive', op: '...' })` |
+| `mindnote` | Mind map | `lark_api({ tool: 'drive', op: '...' })` |
+
+### Resource Relationships
 
 ```
 Wiki Space
 └── Wiki Node
-    ├── obj_type: docx (new cloud doc)
+    ├── obj_type: docx / doc / sheet / bitable / slides / file / mindnote
     │   └── obj_token (real document token)
-    ├── obj_type: doc (legacy cloud doc)
-    │   └── obj_token (real document token)
-    ├── obj_type: sheet
-    │   └── obj_token (real document token)
-    ├── obj_type: bitable (Base)
-    │   └── obj_token (real document token)
-    └── obj_type: file/slides/mindnote
-        └── obj_token (real document token)
 
 Drive Folder
-└── File / Document
-    └── file_token (used directly)
+└── File
+    └── file_token (use directly)
 ```
 
-### Token requirements for common operations
+### Common Operation Token Requirements
 
-| Operation | Required token | Note |
-|-----------|----------------|------|
-| Read document content | `file_token` / handled automatically via `lark_api({ tool: 'docs', op: 'fetch' })` | The `docs` fetch op accepts a URL directly |
-| Add a local (anchored) comment | `file_token` | When `selection_with_ellipsis` or `block_id` is passed, `lark_api({ tool: 'drive', op: 'add-comment' })` creates a local comment; only supported for `docx`, and wiki URLs that resolve to `docx` |
-| Add a full-document comment | `file_token` | When neither `selection_with_ellipsis` nor `block_id` is passed, `lark_api({ tool: 'drive', op: 'add-comment' })` creates a full-document comment by default; supported for `docx`, legacy `doc` URLs, and wiki URLs that resolve to `doc`/`docx` |
-| Download a file | `file_token` | Extract directly from the file URL |
-| Upload a file | `folder_token` / `wiki_node_token` | Token of the destination location |
-| List document comments | `file_token` | Same as add comment |
+| Operation | Required Token | Notes |
+|-----------|---------------|-------|
+| Read document content | `file_token` / auto-handled via `docs fetch` | `lark_api({ tool: 'docs', op: 'fetch', args: { api_version: 'v2', ... } })` accepts a URL directly |
+| Add inline comment (selection comment) | `file_token` | Passing `block_id` to `drive add-comment` creates an inline comment |
+| Add full-document comment | `file_token` | Without `block_id`, `drive add-comment` creates a full-document comment by default |
+| Download file | `file_token` | Extracted directly from the file URL |
+| Upload file | `folder_token` / `wiki_node_token` | Token for the target location |
+| List document comments | `file_token` | Same as adding comments |
 
-### Comment capability boundaries (critical!)
+### Comment Capability Boundaries (Critical!)
 
-- `lark_api({ tool: 'drive', op: 'add-comment' })` supports two modes.
-- Full-document comment: enabled by default when neither `selection_with_ellipsis` nor `block_id` is passed; you can also pass `full_comment: true` explicitly. Supports `docx`, legacy `doc` URLs, and wiki URLs that resolve to `doc`/`docx`.
-- Local (anchored) comment: enabled when `selection_with_ellipsis` or `block_id` is passed; only supported for `docx`, and wiki URLs that resolve to `docx`.
-- The `content` arg of `add-comment` requires a `reply_elements` JSON array, e.g. `content: '[{"type":"text","text":"body"}]'`.
-- If a wiki URL does not resolve to `doc`/`docx`, do NOT use the `add-comment` op.
-- If you need to call the lower-level Comment V2 protocol directly, use `lark_api_search` to inspect the `drive.file.comments.create_v2` schema, then call the native API:
+- `lark_api({ tool: 'drive', op: 'add-comment', args: {...} })` supports two modes.
+- Full-document comment: enabled by default when `block_id` is not passed; can also be explicit with `full_comment: true`; supports `docx`, legacy `doc` URLs, and wiki URLs that resolve to `doc`/`docx`.
+- Inline comment: enabled when `block_id` is passed; only supports `docx` and wiki URLs that resolve to `docx`. Block IDs can be obtained via `lark_api({ tool: 'docs', op: 'fetch', args: { api_version: 'v2', detail: 'with-ids', ... } })`.
+- The `content` for `drive add-comment` requires a `reply_elements` JSON array, e.g. `[{"type":"text","text":"body text"}]`.
+- `slides` comments require explicit `block_id` in `<slide-block-type>!<xml-id>` format; `selection_with_ellipsis` and `full_comment` are not supported.
+- Comment content MUST NOT contain raw `<` or `>`; escape before submitting: `<` → `&lt;`, `>` → `&gt;`.
+- Using `lark_api({ tool: 'drive', op: 'add-comment', args: {...} })` auto-escapes `type=text` elements; if calling raw `drive file.comments create_v2`, `drive file.comment.replys create`, or `drive file.comment.replys update`, the payload must already contain escaped content.
+- If the wiki resolves to a type other than `doc`/`docx`/`sheet`/`slides`, do not use `add-comment`.
 
-   ```
-   Call MCP tool `lark_api`:
-   - method: POST
-   - path: /open-apis/drive/v1/files/{file_token}/comments
-   - data: { ... }   // omit `anchor` for full-document; pass `anchor.block_id` for local
-   ```
+### Comment Query and Count Conventions (Critical!)
 
-### Comment query and counting semantics (critical!)
+**Mandatory rule**: `drive file.comments list` MUST default to `is_solved: false` — query only unsolved comments. Even when the user says "all comments", unless they explicitly ask to include resolved comments, always default to unsolved only.
 
-- To query document comments, call `lark_api`:
+```javascript
+// Default query: unsolved comments only (recommended)
+lark_api({ tool: 'drive', op: 'file.comments', args: {
+  method: 'list',
+  file_token: 'xxx',
+  file_type: 'docx',
+  is_solved: false
+}})
 
-   ```
-   Call MCP tool `lark_api`:
-   - method: GET
-   - path: /open-apis/drive/v1/files/{file_token}/comments
-   - params: { ... pagination ... }
-   ```
-
-- The `items` returned should be understood as a list of "comment cards" — each `item` corresponds to one comment card visible in the user interface, NOT a flat list of interaction messages.
-- Server-side semantics: when the first comment is created, the first reply inside that card is also created at the same time; therefore the body of a comment is actually carried by `item.reply_list.replies`, where the first reply in user-visible terms is "the comment itself" inside that card.
-- When the user wants to count "number of comments" or "number of comment cards", count the length of `items`. For full counts, sum the `items` lengths across all paginated returns.
-- When the user wants to count "number of replies", from the user perspective you should exclude the first comment in each card; the count is the sum of all `item.reply_list.replies` lengths minus the length of `items`.
-- When the user wants to count "total interactions", count the sum of all `item.reply_list.replies` lengths; this includes the first comment in each card.
-- If any `item.has_more=true`, there are more replies under that comment card not included in the current return; you must keep listing replies via `lark_api` against `/open-apis/drive/v1/files/{file_token}/comments/{comment_id}/replies` to fetch them all before computing full reply count / total interaction count.
-
-### Comment business behavior and guidance (critical!)
-
-#### Comment ordering guidance
-- A document usually has multiple comments, sorted by `create_time`.
-- **Important**: only sort by `create_time` when the user explicitly mentions "latest comment", "last comment", or "earliest comment":
-  - **You MUST first fetch ALL comments (paginate through everything)**; do NOT sort after fetching only one page.
-  - "Latest" / "Last comment": sort by `create_time` descending and take the first.
-  - "Earliest comment": sort by `create_time` ascending and take the first.
-- If the user just says "first comment", use the first item returned by listing `/open-apis/drive/v1/files/{file_token}/comments` directly without extra sorting.
-
-#### Comment reply restrictions
-- **Before adding a reply, check whether any of the following restrictions apply.**
-- **Full-document comments do NOT support replies**: comments with `is_whole=true` (full-document comments) cannot accept replies; in this case, prompt the user "Full-document comments do not support replies".
-- **Resolved comments do NOT support replies**: comments with `is_solved=true` cannot accept replies; in this case, prompt the user "This comment has been resolved and cannot be replied to".
-- **Note**: when the user wants to reply to a comment that cannot be replied to due to the restrictions above, just prompt that it cannot be replied to. **Do NOT automatically find another comment that can be replied to** — that would be off-expectation.
-
-#### Choosing between batch query and list
-- The native batch-query endpoint over `drive.file.comments.batch_query` is for **batch query when you already know comment IDs**; you must pass a concrete comment ID list. Invoke it via `lark_api` against the native API path (use `lark_api_search` to inspect schema first).
-- Listing via `GET /open-apis/drive/v1/files/{file_token}/comments` is for paginated retrieval of the comment list; suitable for counting total comments, walking all comments, or fetching the "latest / last N" comments.
-
-#### Reaction / emoji scenarios
-- For questions related to reactions on comments / replies (emojis, per-emoji counts, who reacted with what, add/remove reaction), **first read [lark-drive-reactions.md](references/lark-drive-reactions.md) to learn how to use them.** Reaction updates go through the native `drive.file.comment.reply.reactions.update_reaction` API path; call via `lark_api` after inspecting the schema with `lark_api_search`.
-
-### Common errors and resolutions
-
-| Error message | Cause | Resolution |
-|---------------|-------|------------|
-| `not exist` | Wrong token used | Check token type. For wiki links, you must first query and obtain `obj_token` |
-| `permission denied` | Lacks the required permission | Guide the user to verify the current identity has the required permission on the document/file; grant permission if needed |
-| `invalid file_type` | `file_type` parameter wrong | Pass the correct `file_type` per `obj_type` (`docx/doc/sheet`) |
-
-### Authorize the current app to access a document
-
-When you need to grant permission on a document to the **current app (bot) itself**, first fetch the app's open_id via the bot info endpoint, then call the permission endpoint:
-
-```
-1. Get the current app's open_id
-   Call MCP tool `lark_api`:
-   - method: GET
-   - path: /open-apis/bot/v3/info
-   - as: bot
-   Take bot.open_id from the response.
-
-2. Grant the current app access to the document
-   Call MCP tool `lark_api`:
-   - method: POST
-   - path: /open-apis/drive/v1/permissions/{doc_token}/members
-   - params: { "type": "<resource_type>" }
-   - data: { "member_type": "openid", "member_id": "<bot_open_id>", "perm": "view", "type": "user" }
+// Include resolved comments (requires explicit user request)
+lark_api({ tool: 'drive', op: 'file.comments', args: {
+  method: 'list',
+  file_token: 'xxx',
+  file_type: 'docx'
+}})
 ```
 
-> **Note**: this approach only applies when authorizing the **current app**. To authorize another user, just use that user's open_id directly; no need to call the bot info endpoint.
+- `drive file.comments list` returns `items` as "comment cards" — each `item` is one card, not a flat interaction list.
+- Body content lives in `item.reply_list.replies`; the first reply is the "comment itself" from the user's perspective.
+- "Comment count" = length of `items` (all pages accumulated).
+- "Reply count" = sum of all `item.reply_list.replies` lengths minus number of `items`.
+- "Total interactions" = sum of all `item.reply_list.replies` lengths.
+- If `item.has_more=true`, call `drive file.comment.replys list` to retrieve remaining replies before computing totals.
 
-`<resource_type>` can be: `doc`, `docx`, `sheet`, `bitable`, `file`, `folder`, `wiki`.
+### Comment Business Rules and Routing (Critical!)
 
-## Shortcuts (prefer these)
+#### Comment Sort Routing
+- Only sort by `create_time` when the user explicitly mentions "latest", "last", or "earliest" comment.
+- MUST retrieve all comments first (paginate fully) before sorting.
+- If the user says "the first comment", use the first item returned without additional sorting.
 
-A Shortcut is a high-level wrapper for common operations. Prefer Shortcuts when one exists. Invoke as `lark_api({ tool: 'drive', op: '<verb>', args: { ... } })`.
+#### Comment Reply Restrictions
+- **Full-document comments (`is_whole=true`) do not support replies** — inform the user.
+- **Resolved comments (`is_solved=true`) do not support replies** — inform the user.
+- When a comment cannot be replied to, only inform the user — **do not automatically find another comment**.
 
-| Shortcut op | Description |
-|-------------|-------------|
-| [`upload`](references/lark-drive-upload.md) | Upload a local file to Drive |
-| [`create-folder`](references/lark-drive-create-folder.md) | Create a Drive folder, optionally under a parent folder, with bot auto-grant support |
-| [`download`](references/lark-drive-download.md) | Download a file from Drive to local |
-| [`create-shortcut`](references/lark-drive-create-shortcut.md) | Create a shortcut to an existing Drive file in another folder |
-| [`add-comment`](references/lark-drive-add-comment.md) | Add a full-document comment, or a local comment to selected docx text (also supports wiki URL resolving to doc/docx) |
-| [`export`](references/lark-drive-export.md) | Export a doc/docx/sheet/bitable to a local file with limited polling |
-| [`export-download`](references/lark-drive-export-download.md) | Download an exported file by file_token |
-| [`import`](references/lark-drive-import.md) | Import a local file to Drive as a cloud document (docx, sheet, bitable) |
-| [`move`](references/lark-drive-move.md) | Move a file or folder to another location in Drive |
-| [`delete`](references/lark-drive-delete.md) | Delete a Drive file or folder with limited polling for folder deletes |
-| [`task_result`](references/lark-drive-task-result.md) | Poll async task result for import, export, move, or delete operations |
+#### Choosing Between Batch Query and List Query
+- `drive file.comments batch_query`: for known comment IDs requiring batch retrieval.
+- `drive file.comments list`: for paginated listing, counting, or "latest N comments" scenarios.
+
+#### Reaction Scenarios
+- For questions about reactions on comments/replies, **read [lark-drive-reactions.md](../../skills/lark-drive/references/lark-drive-reactions.md) first**.
+
+### Common Errors and Solutions
+
+| Error message | Cause | Solution |
+|---------------|-------|----------|
+| `not exist` | Wrong token used | Check token type; wiki links must query first to get `obj_token` |
+| `permission denied` | Insufficient permission | Guide user to check permissions; grant access if needed |
+| `invalid file_type` | Incorrect file_type parameter | Pass correct file_type based on `obj_type` (docx/doc/sheet/slides) |
+
+#### `permission.public.patch` Error Code Guidance
+
+| Error code | Meaning | User guidance |
+|------------|---------|---------------|
+| `91009` | External sharing blocked by tenant policy | Contact tenant admin to adjust org-level external sharing policy |
+| `91010` | Document external sharing not enabled | Enable external sharing in document permission settings first |
+| `91011` | External sharing blocked by document classification | Open the document and initiate classification exemption or downgrade; return the document URL |
+| `91012` | Permission settings blocked by document classification | Open the document and initiate classification exemption or downgrade; return the document URL |
+
+### Grant Current App Access to Document
+
+```javascript
+// 1. Get the current app's open_id
+lark_api({ method: 'GET', path: '/open-apis/bot/v3/info' })
+// Extract bot.open_id from the result
+
+// 2. Grant the current app access to the document
+lark_api({ tool: 'drive', op: 'permission.members', args: {
+  method: 'create',
+  token: '<doc_token>',
+  type: '<resource_type>',
+  member_type: 'openid',
+  member_id: '<bot_open_id>',
+  perm: 'view'
+}})
+```
+
+`<resource_type>` options: `doc`, `docx`, `sheet`, `bitable`, `file`, `folder`, `wiki`, `slides`.
+
+## Operations (use via LarkSkill MCP)
+
+Use `lark_api({ tool: 'drive', op: '<op>', args: {...} })` for all shortcut operations.
+
+| Operation | Description |
+|-----------|-------------|
+| `lark_api({ tool: 'drive', op: 'search', args: {...} })` | Search Lark docs, Wiki, and spreadsheet files with flat filter args (`edited_since`, `mine`, `doc_types`, etc.) — preferred over `docs search` |
+| `lark_api({ tool: 'drive', op: 'upload', args: {...} })` | Upload a local file to a Drive folder or wiki node |
+| `lark_api({ tool: 'drive', op: 'create-folder', args: {...} })` | Create a Drive folder, optionally under a parent folder |
+| `lark_api({ tool: 'drive', op: 'download', args: {...} })` | Download a file from Drive to local |
+| `lark_api({ tool: 'drive', op: 'status', args: {...} })` | Compare a local directory with a Drive folder (SHA-256 exact or `--quick` modified-time diff); reports `new_local` / `new_remote` / `modified` / `unchanged`. `local_dir` must stay inside cwd. |
+| `lark_api({ tool: 'drive', op: 'pull', args: {...} })` | File-level Drive → local mirror. `if_exists` supports `overwrite` / `smart` / `skip`. `delete_local` requires `yes: true`. `local_dir` must stay inside cwd. |
+| `lark_api({ tool: 'drive', op: 'sync', args: {...} })` | Two-way local ↔ Drive sync. Resolves conflicts via `on_conflict`. Non-destructive — no delete on either side by default. |
+| `lark_api({ tool: 'drive', op: 'create-shortcut', args: {...} })` | Create a shortcut to an existing Drive file in another folder |
+| `lark_api({ tool: 'drive', op: 'add-comment', args: {...} })` | Add a comment to doc/docx/sheet/slides; also supports wiki URL resolving |
+| `lark_api({ tool: 'drive', op: 'export', args: {...} })` | Export a doc/docx/sheet/bitable to a local file |
+| `lark_api({ tool: 'drive', op: 'export-download', args: {...} })` | Download an exported file by file_token |
+| `lark_api({ tool: 'drive', op: 'import', args: {...} })` | Import a local file to Drive as a cloud document (docx, sheet, bitable) |
+| `lark_api({ tool: 'drive', op: 'version-history', args: {...} })` | List historical versions of a file |
+| `lark_api({ tool: 'drive', op: 'version-get', args: {...} })` | Download a specific historical version |
+| `lark_api({ tool: 'drive', op: 'version-revert', args: {...} })` | Revert a file to a specific historical version |
+| `lark_api({ tool: 'drive', op: 'version-delete', args: {...} })` | Delete a specific historical version |
+| `lark_api({ tool: 'drive', op: 'move', args: {...} })` | Move a file or folder to another location in Drive |
+| `lark_api({ tool: 'drive', op: 'delete', args: {...} })` | Delete a Drive file or folder |
+| `lark_api({ tool: 'drive', op: 'push', args: {...} })` | File-level local → Drive mirror. `if_exists` supports `skip` / `smart` / `overwrite`. `delete_remote` requires `yes: true`. |
+| `lark_api({ tool: 'drive', op: 'task_result', args: {...} })` | Poll async task result for import, export, move, or delete operations |
+| `lark_api({ tool: 'drive', op: 'inspect', args: {...} })` | Inspect a Lark document URL; auto-unwraps wiki URLs |
+| `lark_api({ tool: 'drive', op: 'apply-permission', args: {...} })` | Apply to the document owner for view/edit access (user-only; 5/day per document) |
 
 ## API Resources
 
-```
-For non-Shortcut endpoints (resource.method form), inspect the schema first via `lark_api_search`,
-then invoke the API via `lark_api` with method + native /open-apis/drive/v1/... path.
-
-Only the Shortcut ops listed above (upload, download, create-folder, create-shortcut, add-comment,
-export, export-download, import, move, delete, task_result) take the high-level
-`lark_api({ tool: 'drive', op: '<verb>', args: { ... } })` shape.
-```
-
-> **Important**: when using a native API, you MUST first run a schema lookup via `lark_api_search` to inspect the `data` / `params` parameter shape; do NOT guess field formats.
+> **Important**: Use `lark_api_search` to look up parameter structure before using raw API calls.
 
 ### files
 
-  - `copy` — Copy file
-  - `create_folder` — Create folder
-  - `list` — List files in a folder
-  - `patch` — Modify file title
+> Use `lark_api_search("drive files <method>")` to get the exact parameter shape before calling.
+
+  - `copy` — Copy a file
+  - `create_folder` — Create a folder
+  - `list` — List contents of a folder
+  - `patch` — Rename a file (pass `new_title` in args)
 
 ### file.comments
 
+```javascript
+lark_api({ tool: 'drive', op: 'file.comments', args: { method: 'batch_query', file_token: '...', ... } })
+lark_api({ tool: 'drive', op: 'file.comments', args: { method: 'create_v2', file_token: '...', ... } })
+lark_api({ tool: 'drive', op: 'file.comments', args: { method: 'list', file_token: '...', is_solved: false, ... } })
+lark_api({ tool: 'drive', op: 'file.comments', args: { method: 'patch', ... } })
+```
+
   - `batch_query` — Batch fetch comments
-  - `create_v2` — Add full-document / local (anchored) comment
-  - `list` — Paginated fetch of document comments
+  - `create_v2` — Add full-document / inline comment
+  - `list` — Paginated retrieval of document comments
   - `patch` — Resolve / restore a comment
 
 ### file.comment.replys
 
-  - `create` — Add reply
-  - `delete` — Delete reply
-  - `list` — Fetch replies
-  - `update` — Update reply
+```javascript
+lark_api({ tool: 'drive', op: 'file.comment.replys', args: { method: 'create', ... } })
+lark_api({ tool: 'drive', op: 'file.comment.replys', args: { method: 'delete', ... } })
+lark_api({ tool: 'drive', op: 'file.comment.replys', args: { method: 'list', ... } })
+lark_api({ tool: 'drive', op: 'file.comment.replys', args: { method: 'update', ... } })
+```
 
 ### permission.members
 
-  - `auth` —
-  - `create` — Grant collaborator permission
-  - `transfer_owner` —
+```javascript
+lark_api({ tool: 'drive', op: 'permission.members', args: { method: 'create', token: '...', type: '...', ... } })
+```
 
 ### metas
 
-  - `batch_query` — Fetch document metadata
+> Use `lark_api_search("drive metas batch_query")` to get the exact parameter shape before calling.
 
 ### user
 
-  - `remove_subscription` — Cancel user/app-level event subscription
-  - `subscription` — Subscribe to user/app-level events (this round opens up comment-add events)
-  - `subscription_status` — Query subscription status of a user/app for a given event
+> Use `lark_api_search("drive user <method>")` to get the exact parameter shape before calling.
+
+  - `subscription` — Subscribe to user/app dimension events
+  - `subscription_status` — Query subscription status
+  - `remove_subscription` — Unsubscribe from events
 
 ### file.statistics
 
-  - `get` — Fetch file statistics
+```javascript
+lark_api({ tool: 'drive', op: 'file.statistics', args: { method: 'get', file_token: '...', ... } })
+```
 
 ### file.view_records
 
-  - `list` — Fetch document viewer records
+```javascript
+lark_api({ tool: 'drive', op: 'file.view_records', args: { method: 'list', file_token: '...', ... } })
+```
 
 ### file.comment.reply.reactions
 
-  - `update_reaction` — Add / remove reaction
+```javascript
+lark_api({ tool: 'drive', op: 'file.comment.reply.reactions', args: { method: 'update_reaction', ... } })
+```
 
-## Permission table
+## Permissions Table
 
 | Method | Required scope |
-|--------|----------------|
+|--------|---------------|
 | `files.copy` | `docs:document:copy` |
 | `files.create_folder` | `space:folder:create` |
 | `files.list` | `space:document:retrieve` |
@@ -329,6 +318,8 @@ export, export-download, import, move, delete, task_result) take the high-level
 | `permission.members.auth` | `docs:permission.member:auth` |
 | `permission.members.create` | `docs:permission.member:create` |
 | `permission.members.transfer_owner` | `docs:permission.member:transfer` |
+| `permission.public.get` | `docs:permission.setting:read` |
+| `permission.public.patch` | `docs:permission.setting:write_only` |
 | `metas.batch_query` | `drive:drive.metadata:readonly` |
 | `user.remove_subscription` | `docs:event:subscribe` |
 | `user.subscription` | `docs:event:subscribe` |
