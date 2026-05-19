@@ -1,7 +1,7 @@
 ---
 name: lark-whiteboard
 version: 2.0.0
-description: "Use this skill when operating Lark Whiteboard via LarkSkill MCP: query and edit whiteboards in Lark Docs, export preview images or raw nodes, and update content via Mermaid, PlantUML, or DSL. Also use it for visualizing architecture, flow, org charts, timelines, causality, or comparisons."
+description: "Use this skill when operating Lark Whiteboard via LarkSkill MCP: query and edit whiteboards, export as images or code, and update content using DSL, PlantUML, or Mermaid. Use for any visual expression of architecture, process, organization, or structured information."
 metadata:
   requires:
     mcp: "larkskill"
@@ -9,112 +9,88 @@ metadata:
 ---
 
 > [!IMPORTANT]
-> **Environment check before execution**:
-> - This skill renders diagrams locally via the standalone `@larksuite/whiteboard-cli` package, then writes the result to Lark via the LarkSkill MCP. Run `whiteboard-cli --version` and confirm version `0.2.x`; if not installed or version mismatched → `npm install -g @larksuite/whiteboard-cli@^0.2.0`.
-> - Confirm the LarkSkill MCP server is connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup).
-> - Before running any `npm install`, **you MUST get user consent**.
+> - Verify `lark_api` is available via the LarkSkill MCP before proceeding — no need to ask the user.
+> - The external `npx -y @larksuite/whiteboard-cli@^0.2.11` binary is a required external prerequisite for rendering and writing whiteboards. Confirm it is available (`npx -y @larksuite/whiteboard-cli@^0.2.11 -v`) before executing write operations.
 
-**CRITICAL — Before starting, you MUST first use the Read tool to read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which contains authentication and permission handling.**
+**CRITICAL — Before starting, MUST read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first. It contains authentication and permission handling.**
+
+> **Note on `lark-whiteboard-cli`**: The original `lark-whiteboard-cli` skill has been merged into this skill. If `lark-whiteboard-cli` still appears in the skill list, ignore it and use this skill (`lark-whiteboard`) exclusively. Prompt the user to run `npx skills remove lark-whiteboard-cli -g` to remove the old skill.
 
 ---
 
-## Quick decisions
+## Quick Decision Table
 
 | User need | Action |
 |---|---|
-| View whiteboard content / export image | [`whiteboard +query` with `output_as: image`](references/lark-whiteboard-query.md) |
-| Get the Mermaid/PlantUML code of a whiteboard | [`whiteboard +query` with `output_as: code`](references/lark-whiteboard-query.md) |
-| Check whether a whiteboard is drawn from code | [`whiteboard +query` with `output_as: code`](references/lark-whiteboard-query.md) |
-| Modify node text/color (simple change) | `whiteboard +query` with `output_as: raw` → manually edit JSON → `whiteboard +update` with `input_format: raw` |
-| User **already provided** Mermaid/PlantUML code, or explicitly specifies that format | Generate/use the code yourself → [`whiteboard +update` with `input_format: mermaid` / `plantuml`](references/lark-whiteboard-update.md) |
-| Draw a complex diagram (architecture/flow/org chart, etc.) | → **[§ Authoring Workflow](#authoring-workflow)** |
+| View whiteboard content / export image | `lark_api({ tool: 'whiteboard', op: '+query', args: { whiteboard_token: '<token>', output_as: 'image' } })` |
+| Get Mermaid/PlantUML code from a whiteboard | `lark_api({ tool: 'whiteboard', op: '+query', args: { whiteboard_token: '<token>', output_as: 'code' } })` |
+| Check whether a whiteboard was drawn from code | `lark_api({ tool: 'whiteboard', op: '+query', args: { whiteboard_token: '<token>', output_as: 'code' } })` |
+| Modify node text/color (simple edits) | Query raw → edit JSON → update raw |
+| User has **already provided** Mermaid/PlantUML code, or explicitly specifies that format | Use the code → `lark_api({ tool: 'whiteboard', op: '+update', args: { whiteboard_token: '<token>', source: '<code>', input_format: 'mermaid' } })` |
+| Draw complex diagrams (architecture/flow/organization, etc.) | → **[§ Creation Workflow](#creation-workflow)** |
 | Modify/redraw an existing complex whiteboard | → **[§ Modification Workflow](#modification-workflow)** |
 
-> **⚠️ Mandatory rule (updating via stdin)**:
-> When data comes from a local file, you **MUST** stream it through `source: '-'` with the matching `input_format`. Pipe the file content into the MCP call.
-> Example: read `chart.mmd` locally, then call:
->
-> ```
-> lark_api({
->   tool: 'whiteboard',
->   op: 'update',
->   args: {
->     whiteboard_token: '<token>',
->     source: '-',
->     input_format: 'mermaid',
->     stdin: '<contents of chart.mmd>',
->     as: 'user'
->   }
-> })
-> ```
+> **⚠️ Mandatory rule (update from local file)**:
+> When data comes from a local file, pass `source: '-'` in the args and pipe the file content via the shell. The `source: '-'` arg tells the MCP tool to read from stdin rather than a literal string value.
+> Shell example: `cat chart.mmd | lark_api({ tool: 'whiteboard', op: '+update', args: { whiteboard_token: '<token>', source: '-', input_format: 'mermaid' } })`
 
 ## Shortcuts
 
-| Shortcut | Description |
+| Shortcut | MCP call |
 |---|---|
-| [`whiteboard +query`](references/lark-whiteboard-query.md) | Query a whiteboard, export as preview image, code, or raw node structure |
-| [`whiteboard +update`](references/lark-whiteboard-update.md) | Update a whiteboard, supports PlantUML, Mermaid, or OpenAPI native format |
+| Query a whiteboard (image/code/raw) | `lark_api({ tool: 'whiteboard', op: '+query', args: { whiteboard_token: '<token>', output_as: 'image' \| 'code' \| 'raw' } })` |
+| Update a whiteboard | `lark_api({ tool: 'whiteboard', op: '+update', args: { whiteboard_token: '<token>', source: '<content>', input_format: 'plantuml' \| 'mermaid' \| 'raw' } })` |
 
-Example query call:
-
-```
-lark_api({
-  tool: 'whiteboard',
-  op: 'query',
-  args: {
-    whiteboard_token: '<token>',
-    output_as: 'image',  // or 'code' / 'raw'
-    as: 'user'
-  }
-})
-```
+For full parameter reference, see: [`references/lark-whiteboard-query.md`](references/lark-whiteboard-query.md), [`references/lark-whiteboard-update.md`](references/lark-whiteboard-update.md)
 
 ---
 
-## Authoring Workflow
+## Creation Workflow
 
-> This workflow is for **independently authoring a single whiteboard**.
-> When you need to bulk-create multiple whiteboards inside a document, lark-doc orchestrates the flow — see `references/lark-doc-whiteboard.md` in the lark-doc skill.
+> This workflow is for **independently creating a whiteboard**.
+> When batch-creating multiple whiteboards within a document, lark-doc handles the orchestration — see `lark-doc` skill's `references/lark-doc-whiteboard.md`.
 
-**Step 1: Obtain board_token**
+**Step 1: Get board_token**
 
-| What the user gave you | How to obtain it |
+| What the user provided | How to obtain it |
 |---|---|
-| Whiteboard token directly (`wbcnXXX`) | Use it directly |
-| Document URL or doc_id, document already contains a whiteboard | `lark_api({ tool: 'docs', op: 'fetch', args: { doc: '<URL>', as: 'user' } })`, extract from the returned `<whiteboard token="xxx"/>` |
-| Document URL or doc_id, need to create a new whiteboard | `lark_api({ tool: 'docs', op: 'update', args: { doc: '<doc_id>', mode: 'append', markdown: '<whiteboard type="blank"></whiteboard>', as: 'user' } })`, take from response `data.board_tokens[0]` (see lark-doc SKILL.md for parameter details) |
+| Directly provided a whiteboard token (`wbcnXXX`) | Use directly |
+| Document URL or doc_id; whiteboard already exists in the document | `lark_api({ tool: 'docs', op: '+fetch', args: { api_version: 'v2', doc: '<URL>' } })` — extract from returned `<whiteboard token="xxx"/>` |
+| Document URL or doc_id; need to create a new whiteboard | `lark_api({ tool: 'docs', op: '+update', args: { api_version: 'v2', doc: '<doc_id>', command: 'append', content: '<whiteboard type="blank"></whiteboard>' } })` — get from response `data.new_blocks[0].block_token` where `block_type == "whiteboard"` |
 
-**Step 2: Render & write**
+**Step 2: Render & Write**
 
-→ Enter the **[§ Render & write to whiteboard](#render--write-to-whiteboard)** section, follow the flow, and return the result to the user when done.
+→ Go to **[§ Render & Write Whiteboard](#render--write-whiteboard)** and complete the flow before returning results to the user.
 
 ---
 
 ## Modification Workflow
 
-**Step 1: Obtain board_token** (same as Authoring Workflow Step 1)
+**Step 1: Get board_token** (same as Creation Workflow Step 1)
 
-**Step 2: Decide modification strategy**
+**Step 2: Determine modification strategy**
 
 ```
-whiteboard +query (output_as: code)
+lark_api({ tool: 'whiteboard', op: '+query', args: { ..., output_as: 'code' } })
   ├─ Returns Mermaid/PlantUML code
-  │   → Edit on top of the original code → whiteboard +update (input_format: mermaid/plantuml)
-  ├─ No code returned (whiteboard drawn via DSL or other means)
-  │   ├─ Only changing text/color → whiteboard +query (output_as: raw) → manually edit JSON → whiteboard +update (input_format: raw)
-  │   └─ Redraw / structural change → whiteboard +query (output_as: image) → review the image, then enter [§ Render & write to whiteboard]
-  └─ User has explicit requirements → user requirements take precedence
+  │   → Modify the code → +update with input_format: 'mermaid'/'plantuml'
+  ├─ No code (whiteboard drawn via DSL or other means)
+  │   ├─ Change text/color only
+  │   │   → +query output_as:'raw' → edit JSON → +update input_format:'raw'
+  │   └─ Redraw/restructure
+  │       → +query output_as:'image' → view image → [§ Render & Write Whiteboard]
+  └─ User has explicit requirements → user requirements take priority
 ```
 
 ---
 
-## Render & write to whiteboard
+## Render & Write Whiteboard
 
-### Render routing
+### Render Routing
 
-**First, self-identify**: by your training origin, which family do you belong to? `Claude` / `Gemini` / `GPT` / `GLM` / `Doubao or Seed` / `Other`. Identity decides the SVG / DSL split (different families have uneven capability between these two expression languages). Do not skip this step.
+**First, identify yourself**: Based on your training origin, which family are you? `Claude` / `Gemini` / `GPT` / `GLM` / `Doubao or Seed` / `Other`. Your identity determines the SVG / DSL routing — do not skip this step.
 
-**Then pick the path by diagram type × identity**, read the corresponding file, and execute its full workflow (including reading the scene guide, generating content, render review, and delivery):
+**Then select the path based on diagram type × identity** and read the corresponding file to execute its complete workflow:
 
 | Diagram type | Identity | Path |
 |---|---|---|
@@ -122,69 +98,59 @@ whiteboard +query (output_as: code)
 | Other diagrams | `Claude` / `Gemini` / `GPT` / `GLM` | [`routes/svg.md`](routes/svg.md) |
 | Other diagrams | `Doubao` / `Seed` / `Other` | [`routes/dsl.md`](routes/dsl.md) |
 
-> **⚠️ SVG path failure fallback**: when on `routes/svg.md`, if any of the following occur → **discard the current SVG and switch to `routes/dsl.md` to redraw from scratch — do NOT patch line-by-line**:
-> - Render command errors out directly (syntax-level crash, not a `--check` warn/error)
-> - After two rewrite rounds the `text-overflow` error from `--check` still cannot be eliminated
-> - Visual inspection of the PNG shows severe layout corruption (large-scale text overflow, elements overlapping and covering critical info, overall layout collapsed)
->
-> Patching SVG source often introduces new bugs; switching to DSL and redrawing from scratch is usually more stable. This is the hard fallback for the SVG free-form path — do NOT intrude into the `routes/svg.md` authoring flow.
+> **⚠️ SVG path fallback**: When taking `routes/svg.md`, if any of the following occurs → **discard the current SVG, switch to `routes/dsl.md` and redraw from scratch — do NOT patch line by line**:
+> - The render command errors directly (syntax-level crash, not `--check` warn/error)
+> - Two rounds of rewriting still cannot eliminate `--check` `text-overflow` errors
+> - The PNG is visually severely distorted (text widely overflowing, elements overlapping key information, layout completely broken)
 
-### Output artifact spec
+### Output Specification
 
-Output directory: `./diagrams/YYYY-MM-DDTHHMMSS/` (local time, no colons, no timezone suffix). If the user specifies a path, follow the user.
+Output directory: `./diagrams/YYYY-MM-DDTHHMMSS/` (local time, no colons or timezone suffix). If the user specifies a path, follow the user.
 
-Fixed file names inside the directory:
+Fixed filenames within the directory:
 
 ```
 diagram.svg           ← SVG source (SVG path)
 diagram.mmd           ← Mermaid source (Mermaid path)
-diagram.json          ← DSL source file (DSL path) / OpenAPI JSON (SVG path exports from diagram.svg)
-diagram.gen.cjs       ← Coordinate-calculation script (DSL script-build mode only)
+diagram.json          ← DSL source file (DSL path) / OpenAPI JSON (SVG path)
+diagram.gen.cjs       ← Coordinate calculation script (DSL script build method only)
 diagram.png           ← Render result
 ```
 
-### Write to whiteboard
+### Write to Whiteboard
 
 > [!CAUTION]
-> **Mandatory dry-run before write**: when writing to a whiteboard that already has content, you MUST first probe with `overwrite: true` and `dry_run: true`.
-> If output contains `XX whiteboard nodes will be deleted` → you MUST confirm with the user before executing.
+> **Mandatory dry-run before writing**: When writing to a whiteboard that already has content, MUST first probe with `--overwrite --dry-run`.
+> If output contains `XX whiteboard nodes will be deleted` → MUST confirm with the user before proceeding.
 
-```
-# Step 1: render the artifact to OpenAPI JSON locally
-npx -y @larksuite/whiteboard-cli@^0.2.0 -i <artifact-file> --to openapi --format json
-# (capture the resulting JSON; pass it as the stdin payload below)
+The write process uses the external `@larksuite/whiteboard-cli` binary (pinned to `^0.2.11`) to convert diagram source to OpenAPI format, then pipes the result to `lark_api`:
 
-# Step 2: dry-run probe via LarkSkill MCP
-lark_api({
-  tool: 'whiteboard',
-  op: 'update',
-  args: {
-    whiteboard_token: '<Token>',
-    source: '-',
-    input_format: 'raw',
-    idempotent_token: '<10+-char unique string>',
-    overwrite: true,
-    dry_run: true,
-    as: 'user',
-    stdin: '<OpenAPI JSON from Step 1>'
-  }
-})
-
-# Step 3: execute after confirmation (drop dry_run)
-lark_api({
-  tool: 'whiteboard',
-  op: 'update',
-  args: {
-    whiteboard_token: '<Token>',
-    source: '-',
-    input_format: 'raw',
-    idempotent_token: '<10+-char unique string>',
-    overwrite: true,
-    as: 'user',
-    stdin: '<OpenAPI JSON from Step 1>'
-  }
-})
+**Step 1 — dry-run probe:**
+```bash
+npx -y @larksuite/whiteboard-cli@^0.2.11 -i <output_file> --to openapi --format json \
+  | lark_api({ tool: 'whiteboard', op: '+update', args: {
+      whiteboard_token: '<Token>',
+      source: '-',
+      input_format: 'raw',
+      idempotent_token: '<10+ char unique string>',
+      overwrite: true,
+      dry_run: true
+    } })
 ```
 
-> `idempotent_token` requires at least 10 characters; recommend concatenating timestamp + identifier (e.g. `1744800000-board-1`) to avoid duplicate writes on retry.
-> If you need to upload as the application identity, replace `as: 'user'` with `as: 'bot'`.
+**Step 2 — Execute after user confirmation:**
+```bash
+npx -y @larksuite/whiteboard-cli@^0.2.11 -i <output_file> --to openapi --format json \
+  | lark_api({ tool: 'whiteboard', op: '+update', args: {
+      whiteboard_token: '<Token>',
+      source: '-',
+      input_format: 'raw',
+      idempotent_token: '<10+ char unique string>',
+      overwrite: true
+    } })
+```
+
+> `idempotent_token` must be at least 10 characters; recommended to concatenate a timestamp + identifier (e.g. `1744800000-board-1`) to avoid duplicate writes on retry.
+> To upload with application identity, use bot profile via `lark_profile_switch` before the call.
+
+> **Note on `@larksuite/whiteboard-cli`**: This is an external prerequisite binary (not an MCP tool). It handles the conversion from diagram source formats (SVG, Mermaid, DSL) to the OpenAPI JSON format that `lark_api whiteboard +update` accepts. It is NOT mapped to `lark_api` — these `npx` invocations are intentional and must be preserved as-is.

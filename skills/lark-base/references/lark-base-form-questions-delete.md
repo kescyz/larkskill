@@ -1,50 +1,51 @@
-# form-questions-delete
+# base +form-questions-delete
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Batch delete questions from a Base form. **Irreversible — confirm explicitly before execution.**
+从多维表格表单中批量删除问题。**不可逆操作**，执行前务必确认。
 
-## Recommended call
+## 命令
 
-Delete a single question:
+```bash
+# 删除一个问题
+lark-cli base +form-questions-delete \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --question-ids '["q_001"]'
 
-Call MCP tool `lark_api`:
-- method: DELETE
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-- body:
-  ```json
-  { "question_ids": ["q_001"] }
-  ```
+# 批量删除多个问题
+lark-cli base +form-questions-delete \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --question-ids '["q_001","q_002","q_003"]'
 
-Delete multiple questions:
-
-Call MCP tool `lark_api`:
-- method: DELETE
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-- body:
-  ```json
-  { "question_ids": ["q_001", "q_002", "q_003"] }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID (path param) |
-| `form_id` | Yes | Form ID (path param) |
-| `question_ids` | Yes | JSON array of question IDs to delete, up to 10 (body) |
-
-## API request details
-
-```
-DELETE /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
+# 预览（不实际执行）
+lark-cli base +form-questions-delete \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --question-ids '["q_001"]' \
+  --dry-run
 ```
 
-## Key return fields
+## 参数
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token（base_token） |
+| `--table-id <id>` | 是 | 数据表 ID |
+| `--form-id <id>` | 是 | 表单 ID |
+| `--question-ids <json>` | 是 | 要删除的问题 ID JSON 数组，最多 10 个，如 `'["q_001","q_002"]'` |
+| `--as` | 否 | 身份：user（默认）\| bot |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
+
+## 输出格式
 
 ```json
 {
+  "ok": true,
   "data": {
     "deleted": true,
     "question_ids": ["q_001", "q_002"]
@@ -52,15 +53,16 @@ DELETE /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/q
 }
 ```
 
-## Workflow
+## 工作流
 
-> This is a **high-risk write operation (deletion)** — explicitly confirm with the user that the operation is irreversible before proceeding.
+> [!CAUTION]
+> 这是**高风险写入操作（删除）** — 执行前必须明确向用户确认，告知此操作不可逆。
 
-1. Use `form-questions-list` to view the question list and confirm the IDs to delete.
-2. Show the user the question titles and IDs to be removed; wait for explicit confirmation.
-3. Execute deletion and report the result.
+1. 先用 `+form-questions-list` 查看问题列表，确认要删除的 `id`
+2. 向用户展示将要删除的问题标题和 ID，等待明确确认
+3. 执行删除并报告结果
 
-## References
+## 参考
 
-- [lark-base-form-questions-list.md](lark-base-form-questions-list.md) — List questions to find IDs
-- [lark-base-form-questions-create.md](lark-base-form-questions-create.md) — Add questions
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

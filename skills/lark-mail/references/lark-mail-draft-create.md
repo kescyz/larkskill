@@ -1,110 +1,123 @@
 # mail +draft-create
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **前置条件：** 先阅读 [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Create a completely new email draft from scratch. Suitable for scenarios where the recipient, subject and body are known.
+从零创建一封全新的邮件草稿。适用于已知收件人、主题和正文的场景。
 
-Do not use this for reply or forward scenarios. Replies and forwards should use their corresponding dedicated shortcuts (these also create drafts by default but don't send them).
+不要用此命令处理回复或转发场景。回复和转发应使用对应的专用 shortcut（它们默认也是创建草稿而不发送）。
 
-If you need to modify an existing draft, do not use this — use `+draft-edit` instead.
+如需修改已有草稿，不要使用此命令，请使用 `lark-cli mail +draft-edit`。
 
-## Security constraints
+## 安全约束
 
-This operation creates a draft — it **doesn't** send the email. Therefore:
+此命令创建草稿——**不会**发送邮件。用户可以在飞书邮件 UI 中打开草稿查看详情，确认后再进入后续操作。因此：
 
-- **When the user requests to "draft" an email, directly create the draft** without pre-displaying content and asking for confirmation.
-- **Omit `to`** if recipients are not specified — the draft will be created without recipients, the user can add them later.
-- **Confirmation is only required if the user request is truly ambiguous**.
-- **Sending** a draft is a separate operation and requires explicit confirmation from the user.
+- **不要把邮件内容以文本形式输出再请求确认。** 当用户要求"起草"/"草拟"邮件时，直接调用 `+draft-create` 在飞书邮箱中创建草稿，并引导用户去飞书邮件里打开草稿。
+- **收件人未指定时省略 `--to`** — 草稿将不带收件人创建，用户之后可自行添加。
+- **仅在用户请求确实有歧义时才需确认**（例如内容有多种可能的理解方式）。
+- **发送**草稿是单独的操作，需要用户明确确认。
+- **产出草稿时要返回打开链接** — 只要当前结果是草稿而不是直接发信，就要给用户展示草稿打开链接。当前应以创建、编辑、发送链路返回的链接信息为准，不要指望 `user_mailbox.drafts get` 返回打开链接。如果当前命令输出里有草稿链接，一并返回；如果没有链接，则静默处理，也不要伪造 URL。
 
-## Recommended call
+## 命令
 
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/mail/v1/user_mailboxes/me/drafts
-- body:
-  {
-    "subject": "weekly report",
-    "to": [{ "mail_address": "alice@example.com" }],
-    "body": "<p>Progress this week:</p><ul><li>Complete Module A</li></ul>",
-    "body_type": "html"
-  }
-- as: user
-```
+```bash
+# 创建 HTML 草稿（推荐）
+lark-cli mail +draft-create --to alice@example.com --subject '周报' \
+  --body '<p>本周进展：</p><ul><li>完成 A 模块</li></ul>'
 
-Draft without recipients (user adds later):
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/mail/v1/user_mailboxes/me/drafts
-- body:
-  {
-    "subject": "weekly report",
-    "body": "<p>Draft content</p>",
-    "body_type": "html"
-  }
-- as: user
+# 不带收件人的 HTML 草稿（用户之后可自行添加）
+lark-cli mail +draft-create --subject '周报' --body '<p>草稿内容</p>'
+
+# 带附件和内嵌图片的 HTML 草稿（推荐：直接用相对路径，自动解析）
+lark-cli mail +draft-create --to alice@example.com --subject '预览图' --body '<p>见附件和图：<img src="./logo.png" /></p>' --attach ./report.pdf
+
+# 纯文本草稿（仅在内容极简时使用）
+lark-cli mail +draft-create --to alice@example.com --subject '简短通知' --body '收到，谢谢'
+
+# Dry Run（仅打印请求，不执行）
+lark-cli mail +draft-create --to alice@example.com --subject '测试' --body 'test' --dry-run
 ```
 
-## API request details
+## 参数
 
-```
-POST /open-apis/mail/v1/user_mailboxes/{user_mailbox_id}/drafts
-```
-
-## Parameters (body)
-
-| Parameter | Required | Description |
+| 参数 | 必填 | 说明 |
 |------|------|------|
-| `subject` | Yes | Draft subject |
-| `body` | Yes | The body of the email. HTML is recommended for rich text layout |
-| `body_type` | No | `html` (recommended) or `plain` |
-| `to` | No | Recipient objects `[{ "mail_address": "...", "name": "..." }]`. When omitted, draft has no recipients |
-| `from` | No | Sender email address. When omitted, primary email of the currently logged in user is used |
-| `cc` | No | CC list, same format as `to` |
-| `bcc` | No | BCC list, same format as `to` |
+| `--to <emails>` | 否 | 完整收件人列表，多个用逗号分隔。支持 `Alice <alice@example.com>` 格式。省略时草稿不带收件人（之后可通过 `+draft-edit` 添加） |
+| `--subject <text>` | 是 | 草稿主题 |
+| `--body <text>` | 是 | 邮件正文。推荐使用 HTML 获得富文本排版；也支持纯文本（自动检测）。使用 `--plain-text` 可强制纯文本模式。支持 `<img src="./local.png" />` 相对路径自动解析为内嵌图片（仅支持相对路径，不支持绝对路径） |
+| `--from <email>` | 否 | 发件人邮箱地址（EML From 头）。使用别名（send_as）发信时，设为别名地址并配合 `--mailbox` 指定所属邮箱。省略时使用邮箱主地址 |
+| `--mailbox <email>` | 否 | 邮箱地址，指定草稿所属的邮箱（默认回退到 `--from`，再回退到 `me`）。当发件人（`--from`）与邮箱不同时使用，如通过别名或 send_as 地址发信。可通过 `accessible_mailboxes` 查询可用邮箱 |
+| `--cc <emails>` | 否 | 完整抄送列表，多个用逗号分隔 |
+| `--bcc <emails>` | 否 | 完整密送列表，多个用逗号分隔。与 `--event-*` 不兼容（见 `+send` 日程邀请约束） |
+| `--plain-text` | 否 | 强制纯文本模式，忽略 HTML 自动检测。不可与 `--inline` 同时使用 |
+| `--attach <paths>` | 否 | 附件文件路径，多个用逗号分隔。相对路径。当附件导致 EML 总大小超过 25 MB 时，超出部分自动上传为超大附件（HTML 邮件插入下载卡片，纯文本邮件追加下载链接），单个文件上限 3 GB |
+| `--inline <json>` | 否 | 高级用法：手动指定内嵌图片 CID 映射。推荐直接在 `--body` 中使用 `<img src="./path" />`（自动解析）。仅在需要精确控制 CID 命名时使用此参数。格式：`'[{"cid":"mycid","file_path":"./logo.png"}]'`，在 body 中用 `<img src="cid:mycid">` 引用。不可与 `--plain-text` 同时使用 |
+| `--signature-id <id>` | 否 | 签名 ID。附加邮箱签名到正文末尾。运行 `mail +signature` 查看可用签名。不可与 `--plain-text` 同时使用 |
+| `--priority <level>` | 否 | 邮件优先级：`high`、`normal`、`low`。省略或 `normal` 时不设置优先级 |
+| `--request-receipt` | 否 | 请求已读回执（RFC 3798 Message Disposition Notification）。在草稿 EML 里写 `Disposition-Notification-To: <sender>` 头，发送时生效。收件人的邮件客户端可能弹出提示、自动发送或忽略——送达不保证 |
+| `--event-summary <text>` | 否 | 日程标题。设置此参数即在邮件中嵌入日程邀请。需同时设置 `--event-start` 和 `--event-end` |
+| `--event-start <time>` | 条件必填 | 日程开始时间（ISO 8601） |
+| `--event-end <time>` | 条件必填 | 日程结束时间（ISO 8601） |
+| `--event-location <text>` | 否 | 日程地点 |
 
-## Response highlights
+> **日程约束**：`--event-*` 与 `--send-time` 不可同时使用；`--to` 和 `--cc` 收件人自动成为日程参与者（ATTENDEE），`--bcc` 收件人不计入参与者。
 
-Returns `draft_id` on success.
+| `--format <mode>` | 否 | 输出格式：`json`（默认）/ `pretty` / `table` / `ndjson` / `csv` |
+| `--dry-run` | 否 | 仅打印请求，不执行 |
 
-## Typical scenario
+## 返回值
 
-### Compose new message → Create draft → Preview → Send
+成功时：
 
-Step 1 — Create a draft:
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/mail/v1/user_mailboxes/me/drafts
-- body:
-  {
-    "subject": "Q1 Report",
-    "to": [{ "mail_address": "alice@example.com" }],
-    "body": "Please check the attached report.",
-    "body_type": "html"
+```json
+{
+  "ok": true,
+  "data": {
+    "draft_id": "草稿ID"
   }
-- as: user
+}
 ```
 
-Step 2 — Preview draft:
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/mail/v1/user_mailboxes/me/drafts/{draft_id}
-- as: user
+可选字段：
+
+- `reference`：草稿打开链接。**仅在当前创建链路实际返回时才会出现**。
+
+如果创建结果里带有 `reference`，应把草稿打开链接与 `draft_id` 一起返回给用户；如果当前没有链接，则静默处理。
+
+## 典型场景
+
+### 撰写新邮件 → 创建草稿 → 预览 → 发送
+
+```bash
+# 1. 创建草稿
+lark-cli mail +draft-create --to alice@example.com --subject 'Q1 报告' --body '请查收附件中的报告。' --attach ./q1-report.pdf --format json
+
+# 2. 发送草稿
+lark-cli mail user_mailbox.drafts send --params '{"user_mailbox_id":"me","draft_id":"<draft_id>"}'
 ```
 
-Step 3 — Send draft (only after explicit user confirmation):
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/mail/v1/user_mailboxes/me/drafts/{draft_id}/send
-- as: user
+### 创建带内嵌图片的 HTML 草稿
+
+> **推荐方式：** 直接在 `--body` HTML 中使用 `<img src="./logo.png" />`（相对路径），系统会自动创建内嵌 MIME 部分并替换为 `cid:` 引用。仅支持相对路径（如 `./logo.png`），不支持绝对路径（如 `/tmp/logo.png`）。
+
+```bash
+# 推荐：直接使用相对路径，自动解析为内嵌图片
+lark-cli mail +draft-create \
+  --to alice@example.com \
+  --subject '通讯稿' \
+  --body '<h1>你好</h1><img src="./banner.png" />'
+
+# 高级用法：手动指定 CID（CID 为唯一标识符，可用随机十六进制字符串）
+lark-cli mail +draft-create \
+  --to alice@example.com \
+  --subject '通讯稿' \
+  --body '<h1>你好</h1><img src="cid:c7d8e9f0a1b2c3d4e5f6">' \
+  --inline '[{"cid":"c7d8e9f0a1b2c3d4e5f6","file_path":"./banner.png"}]'
 ```
 
-## Related references
+## 相关命令
 
-- [`+draft-edit`](lark-mail-draft-edit.md) — edit an existing draft
-- [`+reply`](lark-mail-reply.md) / [`+reply-all`](lark-mail-reply-all.md) / [`+forward`](lark-mail-forward.md) — create reply/forward draft
+- `lark-cli mail +draft-edit` — 编辑已有草稿
+- `lark-cli mail user_mailbox.drafts send` — 发送已有草稿
+- `lark-cli mail user_mailbox.drafts get` — 获取草稿内容
+- `lark-cli mail +reply` / `+reply-all` / `+forward` — 创建回复/转发草稿（默认），或加 `--confirm-send` 发送

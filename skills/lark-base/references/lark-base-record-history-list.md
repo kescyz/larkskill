@@ -1,85 +1,86 @@
-# record-history-list
+# base +record-history-list
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Query the change history of a specific record.
+查询指定记录的变更历史。当前可执行命令为 `+record-history-list`，无 `+history-list` 别名。
 
-## Recommended call
+## 推荐命令
 
-Latest page:
+```bash
+# 查询最新一页历史
+lark-cli base +record-history-list \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --record-id <record_id>
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/record_history
-- params:
-  ```json
-  { "table_id": "tbl_xxx", "record_id": "rec_xxx" }
-  ```
-
-With pagination:
-
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/record_history
-- params:
-  ```json
-  { "table_id": "tbl_xxx", "record_id": "rec_xxx", "page_size": 30, "max_version": 123456 }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID (query param) |
-| `record_id` | Yes | Record ID (query param) |
-| `page_size` | No | Items per page, default `30`, max `50` (query param) |
-| `max_version` | No | Pagination cursor; use `next_max_version` from previous response (query param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}/record_history
+# 指定分页大小，带游标翻页
+lark-cli base +record-history-list \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --record-id <record_id> \
+  --page-size 30 \
+  --max-version 123456
 ```
 
-## Key return fields
+## 参数
 
-- Returns history entries in descending version order (newest first).
-- Each entry includes: `rev` (version), `operator`, `create_time` (Unix seconds), `activity_type`, `field_changes`.
-- `field_changes` includes: field ID, field name, field type, `before` value, `after` value.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID |
+| `--record-id <id>` | 是 | 记录 ID |
+| `--page-size <n>` | 否 | 每页条数，默认 `30`，最大 `50` |
+| `--max-version <n>` | 否 | 翻页游标，取上一页返回的 `next_max_version` 值 |
 
-### activity_type values
+## API 入参详情
 
-| Value | Meaning |
-|-------|---------|
-| `create` | Record created |
-| `update` | Record edited |
-| `delete` | Record deleted |
+**HTTP 方法和路径：**
 
-### Field types not tracked in history
+```
+GET /open-apis/base/v3/bases/:base_token/record_history
+```
 
-Changes to these field types do **not** appear in `field_changes`:
-- Calculated fields: formula, lookup
-- System fields: auto-number, creation time, creator, last modified time, last modifier
+- Query 参数：`table_id`、`record_id`、`page_size`、`max_version`。
 
-## Pagination workflow
+## 返回重点
 
-1. First request: omit `max_version` to get the latest page.
-2. Check `has_more` in the response.
-3. If `has_more = true`, use the returned `next_max_version` as the `max_version` for the next request.
-4. Stop when `has_more = false`.
+- 返回记录历史条目列表（按版本号降序，最新在前），而不是记录当前值。
+- 每条历史包含：版本号(`rev`)、操作人(`operator`)、操作时间(`create_time`，**秒级** Unix 时间戳)、操作类型(`activity_type`)、字段变更列表(`field_changes`)。
+- 字段变更包含：字段 ID、字段名、字段类型、变更前值(`before`)、变更后值(`after`)。
+- 适合定位谁改了这条记录、什么时候改的、改了哪些字段。
 
-## Workflow
+### activity_type 取值
 
-1. Confirm that `table_id` and `record_id` belong to the same table.
-2. Fetch the latest page first, then paginate using the workflow above.
+| 值 | 含义 |
+|------|------|
+| `create` | 记录创建 |
+| `update` | 记录编辑 |
+| `delete` | 记录删除 |
 
-## Pitfalls
+### 不出现在历史中的字段类型
 
-- `record-history-list` does not support concurrent calls; batch execution must be serial.
-- Only single-record history is supported; full-table history scan is not available.
+以下字段类型的变更**不会**出现在 `field_changes` 中：
+- **计算字段**：公式(formula)、查找引用(lookup)
+- **系统字段**：自动编号、创建时间、创建人、修改时间、修改人
 
-## References
+## 翻页工作流
 
-- [lark-base-history.md](lark-base-history.md) — history index page
-- [lark-base-record.md](lark-base-record.md) — record index page
+1. **首次请求**：不传 `--max-version`，获取最新一页。
+2. **判断是否有下一页**：检查返回的 `has_more` 字段。
+3. **翻页**：若 `has_more = true`，取返回的 `next_max_version` 值，传入下一次请求的 `--max-version`。
+4. **终止**：当 `has_more = false` 时停止。
+
+## 工作流
+
+1. 先确认 `table-id` 和 `record-id` 都来自同一张表。
+2. 先查最新一页，再按翻页工作流向前翻页。
+
+## 坑点
+
+- ⚠️ `+record-history-list` 属于 `+xxx-list`，禁止并发调用；批量执行时只能串行。
+- ⚠️ 当前不支持整表历史扫描，只支持单条记录历史。
+
+## 参考
+
+- [lark-base-history.md](lark-base-history.md) — history 索引页
+- [lark-base-record.md](lark-base-record.md) — record 索引页

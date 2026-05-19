@@ -1,7 +1,7 @@
 ---
 name: lark-approval
 version: 2.0.0
-description: "Feishu Approval API via LarkSkill MCP: approval instance and approval task management. Use when users need to query, cancel, or CC approval instances, or approve/reject/transfer/query approval tasks."
+description: "Use this skill when operating Lark Approval via LarkSkill MCP: approval instance and task management."
 metadata:
   requires:
     mcp: "larkskill"
@@ -10,134 +10,48 @@ metadata:
 
 # approval (v4)
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+**CRITICAL — Before starting, MUST use the Read tool to read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which covers authentication and permission handling.**
 
-## instances
+## API Resources
 
-### instances.get — Get approval instance details
-
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/approval/v4/instances/{instance_id}
-- as: user
-```
-
-### instances.cancel — Withdraw an approval instance
-
-> Confirm user intent before executing. This is a write operation.
+Use the LarkSkill MCP tool to call approval operations:
 
 ```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/approval/v4/instances/cancel
-- body:
-  {
-    "approval_code": "<approval_code>",
-    "instance_code": "<instance_code>",
-    "user_id": "<operator_open_id>"
-  }
-- as: user
+lark_api({ tool: 'approval', op: 'instances.get', args: { ... } })
+lark_api_search({ query: 'approval instances', domain: 'approval' })  // discover available ops
 ```
 
-### instances.cc — CC an approval instance
+> **Important**: always use `lark_api_search` to discover the exact args shape for an operation before invoking it — do not guess field formats.
 
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/approval/v4/instances/cc
-- body:
-  {
-    "approval_code": "<approval_code>",
-    "instance_code": "<instance_code>",
-    "user_id": "<operator_open_id>",
-    "cc_user_ids": ["<target_open_id>"]
-  }
-- as: user
-```
+### instances
 
-## tasks
+  - `instances.get` — Get details of a single approval instance
+  - `instances.cancel` — Cancel an approval instance
+  - `instances.cc` — CC an approval instance
+  - `instances.initiated` — Query the list of approval instances initiated by a user
 
-### tasks.approve — Approve an approval task
+### tasks
 
-> Confirm user intent before executing. This is a write operation.
+  - `tasks.remind` — Send a reminder to an approver
+  - `tasks.approve` — Approve an approval task
+  - `tasks.reject` — Reject an approval task
+  - `tasks.transfer` — Transfer an approval task
+  - `tasks.query` — Query the task list for a user
+  - `tasks.add_sign` — Add a countersignature to an approval task
+  - `tasks.rollback` — Roll back an approval task
 
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/approval/v4/tasks/approve
-- body:
-  {
-    "approval_code": "<approval_code>",
-    "instance_code": "<instance_code>",
-    "user_id": "<operator_open_id>",
-    "task_id": "<task_id>"
-  }
-- as: user
-```
+## Permissions
 
-### tasks.reject — Reject an approval task
-
-> Confirm user intent before executing. This is a write operation.
-
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/approval/v4/tasks/reject
-- body:
-  {
-    "approval_code": "<approval_code>",
-    "instance_code": "<instance_code>",
-    "user_id": "<operator_open_id>",
-    "task_id": "<task_id>",
-    "reason": "<rejection reason>"
-  }
-- as: user
-```
-
-### tasks.transfer — Transfer an approval task
-
-> Confirm user intent before executing. This is a write operation.
-
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/approval/v4/tasks/transfer
-- body:
-  {
-    "approval_code": "<approval_code>",
-    "instance_code": "<instance_code>",
-    "user_id": "<operator_open_id>",
-    "task_id": "<task_id>",
-    "transfer_user_id": "<target_open_id>"
-  }
-- as: user
-```
-
-### tasks.query — Query a user's approval task list
-
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/approval/v4/tasks/query
-- params:
-  {
-    "user_id": "<open_id>",
-    "topic": "1"
-  }
-- as: user
-```
-
-`topic` values: `1` = pending, `2` = approved, `3` = rejected, `4` = transferred, `5` = completed.
-
-## Permission Table
-
-| Operation | Required Scope |
-|-----------|---------------|
+| Method | Required scope |
+|---|---|
 | `instances.get` | `approval:instance:read` |
 | `instances.cancel` | `approval:instance:write` |
 | `instances.cc` | `approval:instance:write` |
+| `instances.initiated` | `approval:instance:read` |
+| `tasks.remind` | `approval:instance:write` |
 | `tasks.approve` | `approval:task:write` |
 | `tasks.reject` | `approval:task:write` |
 | `tasks.transfer` | `approval:task:write` |
 | `tasks.query` | `approval:task:read` |
+| `tasks.add_sign` | `approval:task:write` |
+| `tasks.rollback` | `approval:task:write` |

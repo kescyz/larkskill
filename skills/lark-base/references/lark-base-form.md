@@ -1,24 +1,24 @@
-# form
+# base form shortcuts
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Form operation index for Base tables.
+form 相关命令索引。
 
-## Operation navigation
+## 命令导航
 
-| Document | Operation | Description |
-|----------|-----------|-------------|
-| [lark-base-form-list.md](lark-base-form-list.md) | list | List forms in table |
-| [lark-base-form-get.md](lark-base-form-get.md) | get | Get form details |
-| [lark-base-form-create.md](lark-base-form-create.md) | create | Create form |
-| [lark-base-form-update.md](lark-base-form-update.md) | update | Update form name/description |
-| [lark-base-form-delete.md](lark-base-form-delete.md) | delete | Delete form |
+| 文档 | 命令 | 说明 |
+|------|------|------|
+| [lark-base-form-list.md](lark-base-form-list.md) | `+form-list` | 分页列出表单 |
+| [lark-base-form-get.md](lark-base-form-get.md) | `+form-get` | 获取表单详情 |
+| [lark-base-form-create.md](lark-base-form-create.md) | `+form-create` | 创建表单 |
+| [lark-base-form-update.md](lark-base-form-update.md) | `+form-update` | 更新表单 |
+| [lark-base-form-delete.md](lark-base-form-delete.md) | `+form-delete` | 删除表单 |
 
-## Related
+## 相关
 
-- [lark-base-form-questions.md](lark-base-form-questions.md) — Form question (form field) management
+- [lark-base-form-questions.md](lark-base-form-questions.md) — 表单问题（表单字段）管理
 
-## Notes
+## 说明
 
-- This index retains directory responsibilities only; see individual files for operation details.
-- All list calls must be executed serially — do not run multiple list requests in parallel.
+- 聚合页只保留目录职责；每个命令的详细说明请进入对应单命令文档。
+- 所有 `+xxx-list` 调用都必须串行执行；若要批量跑多个 list 请求，只能串行执行。

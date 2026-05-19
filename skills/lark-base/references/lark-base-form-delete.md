@@ -1,38 +1,41 @@
-# form-delete
+# base +form-delete
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Delete a specified form from a Base table. **Irreversible — confirm explicitly before execution.**
+删除多维表格数据表中的指定表单。**不可逆操作**，执行前务必确认。
 
-## Recommended call
+## 命令
 
-Call MCP tool `lark_api`:
-- method: DELETE
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}
+```bash
+# 删除表单
+lark-cli base +form-delete \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id>
 
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID (path param) |
-| `form_id` | Yes | Form ID to delete (path param) |
-
-## API request details
-
-```
-DELETE /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}
+# 预览（不实际执行）
+lark-cli base +form-delete \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --dry-run
 ```
 
-## Key return fields
+## 参数
 
-| Field | Description |
-|-------|-------------|
-| `deleted` | `true` on success |
-| `form_id` | ID of the deleted form |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token（base_token） |
+| `--table-id <id>` | 是 | 数据表 ID |
+| `--form-id <id>` | 是 | 要删除的表单 ID |
+| `--as` | 否 | 身份：user（默认）\| bot |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
+
+## 输出格式
 
 ```json
 {
+  "ok": true,
   "data": {
     "deleted": true,
     "form_id": "vewX58te9D"
@@ -40,21 +43,22 @@ DELETE /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}
 }
 ```
 
-## Workflow
+## 工作流
 
-> This is a **high-risk write operation (deletion)** — explicitly confirm with the user that the operation is irreversible before proceeding.
+> [!CAUTION]
+> 这是**高风险写入操作（删除）** — 执行前必须明确向用户确认，告知此操作不可逆。
 
-1. Use `form-list` or `form-get` to confirm the target form exists.
-2. Show the user the form name and ID to be deleted; wait for explicit confirmation.
-3. Execute delete.
-4. Report the result.
+1. 先用 `+form-list` 或 `+form-get` 确认目标表单存在
+2. 向用户展示将要删除的表单名称和 ID，等待明确确认
+3. 执行删除
+4. 报告删除结果
 
-## Pitfalls
+## 提示
 
-- Before deleting, use `form-questions-list` to review form content to avoid accidental deletion.
-- `form_id` can be obtained via `form-list`.
+- 删除前建议先用 `+form-questions-list` 了解表单内容，避免误删
+- `form_id` 可通过 `+form-list` 查询
 
-## References
+## 参考
 
-- [lark-base-form-list.md](lark-base-form-list.md) — List forms to find `form_id`
-- [lark-base-form-questions-list.md](lark-base-form-questions-list.md) — Preview questions before deletion
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

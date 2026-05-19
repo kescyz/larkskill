@@ -1,65 +1,57 @@
 # task +create
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **Prerequisites:** Please read `../lark-shared/SKILL.md` to understand authentication, global parameters, and security rules.
 
 Create a new task in Lark.
 
-## Recommended call
+## Recommended Commands
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasks
-- body:
-  ```json
-  {
-    "summary": "Quarterly Sales Review",
-    "description": "Review the sales performance for the last quarter.",
-    "members": [{ "id": "ou_xxx", "type": "open_id", "role": "assignee" }],
-    "due": { "time": "2026-03-25T00:00:00+08:00", "is_all_day": false },
-    "tasklist_guid": "tl_xxx"
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
+```bash
+# Create a task with all details
+lark-cli task +create \
+  --summary "Quarterly Sales Review" \
+  --description "Review the sales performance for the last quarter." \
+  --assignee "ou_xxx" \
+  --due "2026-03-25" \
+  --tasklist-id "https://applink.larkoffice.com/client/todo/task_list?guid=a4b00000-000-000-000-00000000036c"
 
-Simple task (summary only):
+# Create a task assigned to an app
+lark-cli task +create \
+  --summary "Nightly Sync" \
+  --assignee "cli_xxx"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasks
-- body:
-  ```json
-  { "summary": "Buy milk" }
-  ```
-- params: `{ "user_id_type": "open_id" }`
+# Create a simple task
+lark-cli task +create \
+  --summary "Buy milk"
 
-## Parameters (body)
+# Preview the API call without executing
+lark-cli task +create --summary "Test Task" --dry-run
+```
+
+## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `summary` | Yes | The title or summary of the task |
-| `description` | No | Detailed description of the task |
-| `members` | No | Array of members; each item: `{id, type, role}`. Use `role: "assignee"` to assign |
-| `due` | No | Due date object: `{time: "<ISO8601>", is_all_day: false}`. For all-day: `{timestamp: "<ms>", is_all_day: true}` |
-| `tasklist_guid` | No | Tasklist GUID to add task to on creation |
-| `client_token` | No | Client token for idempotent create requests |
-
-## Parameters (query)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `user_id_type` | No | User ID type for member fields: `open_id` (default), `union_id`, or `user_id` |
+| `--summary <text>` | Yes | The title or summary of the task |
+| `--description <text>` | No | Detailed description of the task |
+| `--assignee <id>` | No | Assignee ID. Use user `open_id` like `ou_xxx` for people, or app ID like `cli_xxx` for apps. |
+| `--follower <id>` | No | Follower ID. Use user `open_id` like `ou_xxx` for people, or app ID like `cli_xxx` for apps. |
+| `--due <time>` | No | Due date. Supports ISO 8601, `YYYY-MM-DD`, relative time (e.g., `+2d`), or ms timestamp. `YYYY-MM-DD` and relative time will automatically set it as an all-day task. |
+| `--tasklist-id <id>` | No | The GUID of the tasklist, or a full AppLink URL (the CLI will automatically extract the `guid` parameter from the URL). |
+| `--idempotency-key <key>` | No | Client token to ensure idempotency of the request. |
+| `--dry-run` | No | Preview the API call (JSON payload) without actually creating the task. |
 
 ## Workflow
 
-1. Confirm summary, due date, assignee, and tasklist with user.
-   - **Crucial assignee rule:** If user explicitly or implicitly asks "create a task for me", you must assign it to current logged-in user. Resolve current user's `open_id` via `lark_api GET /open-apis/contact/v3/users/me`, then include it in `members` with `role: "assignee"`.
-2. Call `lark_api POST /open-apis/task/v2/tasks`.
-3. Return result including task `guid` and `summary`. Include `url` if present in the response.
+1. Confirm with the user: task summary, due date, assignee, and tasklist if necessary.
+   - **Crucial Rule for Assignee**: If the user explicitly or implicitly says "create a task for me" (给我创建一个任务), or "help me create a task" (帮我新建/创建一个任务), you MUST assign the task to the current logged-in user. You can get the current user's `open_id` by executing `lark-cli auth status` (it already outputs JSON by default, so do not add `--json`) or `lark-cli contact +get-user` first, extracting the `userOpenId` or `open_id`, and then passing it to the `--assignee` parameter.
+2. Execute `lark-cli task +create --summary "..." ...`
+3. Report the result: task ID and summary.
 
 > [!CAUTION]
-> This is a **Write Operation**. You must confirm user intent before execution.
+> This is a **Write Operation** -- You must confirm the user's intent before executing.
 
 ## References
 
-- [lark-task](../SKILL.md) - All task commands
-- [lark-shared](../../lark-shared/SKILL.md) - Authentication and global parameters
+- [lark-task](../SKILL.md) -- All task commands
+- [lark-shared](../../lark-shared/SKILL.md) -- Authentication and global parameters

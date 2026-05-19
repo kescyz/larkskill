@@ -1,80 +1,80 @@
-# advperm-enable
+# base +advperm-enable
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Enable advanced permissions for a Base. After enabling, custom roles and related advanced permission features are available.
+启用指定 Base 的高级权限。启用后可使用自定义角色等高级权限功能。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: PUT
-- path: /open-apis/base/v3/bases/{base_token}/advperm/enable
-- params:
-  ```json
-  { "enable": true }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token, a 27-character alphanumeric string (path param) |
-| `enable` | Yes | Query param, fixed to `true` to enable advanced permissions |
-
-## API request details
-
-```
-PUT /open-apis/base/v3/bases/{base_token}/advperm/enable?enable=true
+```bash
+# 启用高级权限
+lark-cli base +advperm-enable \
+  --base-token VwGh**************Mnod
 ```
 
-**Path params:**
+## 参数
 
-| Param | Required | Description |
-|-------|----------|-------------|
-| `base_token` | Yes | Unique Base identifier, a 27-character alphanumeric string |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token，27 位字母数字字符串 |
 
-**Query params:**
+## API 入参详情
 
-| Param | Required | Type | Description |
-|-------|----------|------|-------------|
-| `enable` | Yes | bool | Fixed to `true`, meaning enable advanced permissions |
+**HTTP 方法和路径：**
 
-## API response details
+```
+PUT /open-apis/base/v3/bases/:base_token/advperm/enable?enable=true
+```
 
-**Response:**
+**Path 参数：**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `code` | int32 | Error code, `0` means success |
-| `message` | string | Error message |
-| `data` | string | Empty on success |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `base_token` | 是 | Base 的唯一标识，27 位字母数字字符串 |
 
-## Return value
+**Query 参数：**
 
-On success, API returns:
+| 参数 | 必填 | 类型 | 说明 |
+|------|------|------|------|
+| `enable` | 是 | bool | 固定为 `true`，表示启用高级权限 |
+
+## API 出参详情
+
+**Response：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `code` | int32 | 错误码，0 表示成功 |
+| `message` | string | 错误信息 |
+| `data` | string | 成功时为空 |
+
+## 返回值
+
+命令成功后输出 JSON：
 
 ```json
 {
-  "code": 0,
-  "data": "",
-  "message": "success"
+  "ok": true,
+  "data": {
+    "success": true
+  }
 }
 ```
 
-## Workflow
+## 工作流
 
-1. Confirm `base_token` with user
-2. Call the API
-3. Verify `code: 0`
+1. 向用户确认 `--base-token`
+2. 执行命令
+3. 确认返回 `code: 0` 表示启用成功
 
-## Pitfalls
+## 坑点
 
-- ⚠️ Acting user must be a Base admin, otherwise permission errors are returned.
-- ⚠️ Endpoint version is `base/v3`; use the canonical path above.
-- ⚠️ `data` is a JSON string, not an object, so parse twice when needed.
-- ⚠️ `role-create / role-update / role-delete` require advanced permissions to be enabled first.
+- ⚠️ **操作用户必须为 Base 管理员**：非管理员调用会返回权限错误
+- ⚠️ **API 路径版本**：本接口使用 `base/v3`，路径必须从原始文档提取，不要用 WebSearch 补全
+- ⚠️ **data 字段是 JSON 字符串**：响应中 `data` 是 string 类型（非 object），需要双重解析
+- ⚠️ **启用后才能管理角色**：`+role-create / +role-update / +role-delete` 等角色操作需要先启用高级权限
 
-## References
+## 参考
 
-- [lark-base](../SKILL.md) - all Base commands
-- [lark-shared](../../lark-shared/SKILL.md) - auth and global flags
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

@@ -1,68 +1,73 @@
-# dashboard-create
+# base +dashboard-create
 
-> **Prerequisite:** Read [lark-base-dashboard.md](lark-base-dashboard.md) for the overall workflow.
+> **前置条件：** 先阅读 [lark-base-dashboard.md](lark-base-dashboard.md) 了解整体工作流。
 
-Create an empty dashboard. Record the returned `dashboard_id` — it is needed for all subsequent operations.
+创建空白仪表盘。创建成功后务必记录返回的 `dashboard_id`，后续添加组件和管理仪表盘都需要用到。
 
-## Recommended call
+## 关键约束
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/dashboards
-- body:
-  ```json
-  { "name": "Sales Report" }
-  ```
+- **dashboard_id** 在 create 返回中取得，后续 get/update/delete 使用。
 
-With theme:
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/dashboards
-- body:
-  ```json
-  { "name": "Sales Report", "theme_style": "default" }
-  ```
+```bash
+# 创建仪表盘
+lark-cli base +dashboard-create \
+  --base-token VwGhb**************fMnod \
+  --name "销售报表"
 
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `name` | Yes | Dashboard name (body) |
-| `theme_style` | No | Theme style (body, see enum below) |
-
-### theme_style enum
-
-| Value | Description |
-|-------|-------------|
-| `default` | Default theme |
-| `SimpleBlue` | Simple blue |
-| `DarkGreen` | Dark green |
-| `summerBreeze` | Summer breeze |
-| `simplistic` | Minimal |
-| `energetic` | Energetic |
-| `deepDark` | Dark |
-| `futuristic` | Futuristic |
-
-## API request details
-
-```
-POST /open-apis/base/v3/bases/{base_token}/dashboards
+# 创建仪表盘（指定主题）
+lark-cli base +dashboard-create \
+  --base-token VwGhb**************fMnod \
+  --name "销售报表" \
+  --theme-style default
 ```
 
-## Key return fields
+## 参数
 
-| Field | Description |
-|-------|-------------|
-| `dashboard_id` | Dashboard ID (e.g. `blkxxxxxxxxxxxx`); record this for subsequent operations |
-| `name` | Dashboard name |
-| `theme.theme_style` | Theme style |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--name <name>` | 是 | 仪表盘名称 |
+| `--theme-style <style>` | 否 | 主题风格（见下方枚举） |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-## Pitfalls
+### theme-style 枚举
 
-- This is a write operation; confirm with the user before execution.
+| 值 | 说明 |
+|------|------|
+| `default` | 默认主题 |
+| `SimpleBlue` | 简约蓝 |
+| `DarkGreen` | 深绿 |
+| `summerBreeze` | 夏日微风 |
+| `simplistic` | 简洁 |
+| `energetic` | 活力 |
+| `deepDark` | 深色 |
+| `futuristic` | 未来感 |
 
-## References
+## 返回示例
 
-- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard module guide
+```json
+{
+  "dashboard_id": "blkxxxxxxxxxxxx",
+  "name": "数据分析仪表盘",
+  "theme": {
+    "theme_style": "default"
+  }
+}
+```
+
+## 返回重点
+
+| 字段 | 说明 |
+|------|------|
+| `dashboard_id` | 仪表盘 ID（如 `blkxxxxxxxxxxxx`），后续操作都需要用到，务必记录 |
+| `name` | 仪表盘名称 |
+| `theme.theme_style` | 主题风格 |
+
+> [!CAUTION]
+> 这是**写入操作** — 执行前必须向用户确认。
+
+## 参考
+
+- [lark-base-dashboard.md](lark-base-dashboard.md) — dashboard 模块指引

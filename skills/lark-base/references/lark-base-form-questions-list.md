@@ -1,54 +1,70 @@
-# form-questions-list
+# base +form-questions-list
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-List all questions in a Base form/questionnaire. Read-only — no data is modified.
+列出多维表格表单/问卷中的所有问题。只读操作，不修改任何数据。
 
-## Recommended call
+## 命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
+```bash
+# 列出表单所有问题
+lark-cli base +form-questions-list \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id>
 
-## Parameters
+# 以表格形式展示
+lark-cli base +form-questions-list \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --format table
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID (path param) |
-| `form_id` | Yes | Form ID (path param) |
-
-## API request details
-
+# 使用应用身份（bot）
+lark-cli base +form-questions-list \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --as bot
 ```
-GET /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}/questions
-```
 
-## Key return fields
+## 参数
 
-Each question contains:
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token（base_token） |
+| `--table-id <id>` | 是 | 数据表 ID |
+| `--form-id <id>` | 是 | 表单 ID |
+| `--format` | 否 | 输出格式：json（默认）\| pretty \| table \| ndjson \| csv |
+| `--as` | 否 | 身份：user（默认）\| bot |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-| Field | Description |
-|-------|-------------|
-| `id` | Question ID (same as `field_id` in the table) |
-| `title` | Question title |
-| `description` | Question description |
-| `required` | Whether the question is required |
+## 输出格式
+
+每条问题包含以下字段：
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 问题 ID（即数据表的 field_id） |
+| `title` | 问题标题 |
+| `description` | 问题描述 |
+| `required` | 是否必填 |
 
 ```json
 {
+  "ok": true,
   "data": {
     "questions": [
       {
         "id": "q_001",
-        "title": "What is your name?",
-        "description": "Please fill in your real name",
+        "title": "您的姓名是？",
+        "description": "请填写真实姓名",
         "required": true
       },
       {
         "id": "q_002",
-        "title": "What is your contact information?",
-        "description": "Mobile phone number or email address",
+        "title": "您的联系方式是？",
+        "description": "手机号或邮箱",
         "required": false
       }
     ],
@@ -57,13 +73,12 @@ Each question contains:
 }
 ```
 
-## Pitfalls
+## 提示
 
-- Question `id` is the same as `field_id` in the table.
-- The returned question list is sorted by display order.
+- 问题 `id` 与数据表的 `field_id` 相同
+- 返回的问题列表已按顺序排列
 
-## References
+## 参考
 
-- [lark-base-form-questions-create.md](lark-base-form-questions-create.md) — Add questions
-- [lark-base-form-questions-delete.md](lark-base-form-questions-delete.md) — Delete questions
-- [lark-base-form-questions-update.md](lark-base-form-questions-update.md) — Update a question
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

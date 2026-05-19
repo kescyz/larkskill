@@ -1,250 +1,267 @@
-# color matching system
+# 配色系统
 
-## How to color (the most important thing)
+## 怎么上色（最重要）
 
-Coloring steps:
+上色步骤：
 
-1. **Find out how many groups there are in the diagram** (level, branch, category, stage...)
-2. **Choose a different color for each group** (choose 2-4 colors from the color palette)
-3. Fill the **Group Container** with a light color — tell the reader "this area is a whole"
-4. **Nodes within the group** are filled with white + the dark borderColor of the group — telling readers "these belong to this group"
+1. **找出图中有几个分组**（层级、分支、类别、阶段...）
+2. **为每个分组选一种不同颜色**（从色板中选 2-4 种颜色）
+3. **分组容器**用浅色填充 — 告诉读者"这块是一个整体"
+4. **分组内节点**用白色填充 + 该分组的深色 borderColor — 告诉读者"这些属于这个分组"
 
-Specific mapping (classic color palette):
+具体映射（经典色板）：
 
-| Grouping | Layer container fillColor | Layer container borderColor | Internal node borderColor |
+| 分组 | 层容器 fillColor | 层容器 borderColor | 内部节点 borderColor |
 |------|----------------|-------------------|---------------------|
-| Group 1 | #F0F4FC (Light Blue) | #5178C6 | #5178C6 |
-| Group 2 | #EAE2FE (Light Purple) | #8569CB | #8569CB |
-| Group 3 | #DFF5E5 (Light Green) | #509863 | #509863 |
-| Group 4 | #FEF1CE (light yellow) | #D4B45B | #D4B45B |
-| Group 5 | #FEE3E2 (light red) | #D25D5A | #D25D5A |
-| Internal node | #FFFFFF | Follow the group it belongs to | — |
+| 第 1 组 | #F0F4FC（浅蓝） | #5178C6 | #5178C6 |
+| 第 2 组 | #EAE2FE（浅紫） | #8569CB | #8569CB |
+| 第 3 组 | #DFF5E5（浅绿） | #509863 | #509863 |
+| 第 4 组 | #FEF1CE（浅黄） | #D4B45B | #D4B45B |
+| 第 5 组 | #FEE3E2（浅红） | #D25D5A | #D25D5A |
+| 内部节点 | #FFFFFF | 跟随所属分组 | — |
 
-**How ​​to color various charts**:
-- The architecture diagram has 3 layers → each layer has one color, the layer background is filled with light color, and the nodes within the layer are white + dark border
-- The comparison table has 3 columns → each column header has a color, and the data cells in this column have the same color border
-- The organizational structure has 4 departments → each department has a color, and the sub-departments are white + the same color border
-- Flowchart → One color for start and end nodes, one color for judgment nodes, and white for step nodes
+**各类图表怎么上色**：
+- 架构图有 3 层 → 每层一种颜色，层背景浅色填充，层内节点白色+深色边框
+- 对比表有 3 列 → 每列表头一种颜色，该列数据单元格用同色边框
+- 组织架构有 4 个部门 → 每个部门一种颜色，子部门白色+同色边框
+- 流程图 → 起止节点一种颜色，判断节点一种颜色，步骤节点白色
 
 > [!IMPORTANT]
-> **User color matching is given priority. ** When the user specifies the color value/style, the user shall prevail. When the user only gives 1-2 color values, the complete color palette is derived: main color → light base → dark border → gray tone connecting color.
-> When the user **does not specify** the color matching, he must select the color from the color palette table above, and do not use self-created color values ​​that are not in the table (such as `#E8F3FF`, `#1664FF`, `#14C9C9`, etc. are not in the color palette).
+> **用户配色优先。** 用户指定了色值/风格时以用户为准。用户只给 1-2 个色值时，推导完整色板：主色→浅底→深边框→灰调连线色。
+> 用户**未指定**配色时，必须从上方色板表中选取颜色，不要使用表中没有的自创色值（如 `#E8F3FF`、`#1664FF`、`#14C9C9` 等都不在色板中）。
 
 ---
 
-## Structure rules
+## 结构规则
 
-### Grouping — Different layers/groups must use different colors
+### 分组 — 不同层/分组必须用不同颜色
 
-Choose 2-4 colors, each representing a group. Nodes in the same group are visually identical (the fillColor and borderColor are the same).
+选 2-4 种颜色，每种代表一个分组。同组节点视觉完全一致（fillColor、borderColor 相同）。
 
-### Layered - heavy on the outside and light on the inside
+### 分层 — 外重内轻
 
-- Outer layer (large partition): light filled background
-- Inner layer (specific node): white fill + group color border
+- 外层（大分区）：浅色填充背景
+- 内层（具体节点）：白色填充 + 分组色边框
 
-### Clear
+### 清晰
 
-- All nodes have borders (borderWidth=2)
-- The gap is not sticky (gap >= 8, when there is a connection >= 40)
-- Text is clearly readable on the background (fontSize >= 14). The contrast between text and background color should be sufficient (refer to WCAG 2.1: at least 4.5:1 for main text and at least 3:1 for titles)
-- Don’t rely on color alone to differentiate information—use borders, shapes, or text labels to help make sure users with color vision impairments can understand it as well.
-- Use gray (#BBBFC4) for connections to avoid grabbing the attention of nodes.
+- 所有节点有边框（borderWidth=2）
+- 间距不粘连（gap >= 8，有连线时 >= 40）
+- 文字在背景上清晰可读（fontSize >= 14）。文字与背景色对比度应足够（参考 WCAG 2.1：正文至少 4.5:1，标题至少 3:1）
+- 不要仅靠颜色区分信息——同时使用边框、形状或文字标签辅助，确保色觉障碍用户也能理解
+- 连线用灰色（#BBBFC4），不抢节点注意力
 
-### Unified parameters
+### 统一参数
 
-| Parameter | Value | Why |
+| 参数 | 值 | 为什么 |
 |------|---|--------|
-| borderWidth | 2 | Make the border clearly visible |
-| borderRadius | 8 | Uniform rounded corners, neat |
-| gap (minimum value) | 8 | elements are not sticky |
-| padding (minimum value) | 8 | content will not fit |
-| gap (when connected) | 40 | Leave space for arrows |
-| fontSize(text) | >= 14 | Readable |
-| fontSize(title) | >= 24 | Eye-catching |
-| fontSize (auxiliary) | >= 13 | Easy on the eyes |
+| borderWidth | 2 | 让边框清晰可见 |
+| borderRadius | 8 | 统一的圆角，整洁 |
+| gap（最小值） | 8 | 元素不粘连 |
+| padding（最小值） | 8 | 内容不贴边 |
+| gap（有连线时） | 40 | 给箭头留空间 |
+| fontSize（正文） | >= 14 | 可读 |
+| fontSize（标题） | >= 24 | 醒目 |
+| fontSize（辅助） | >= 13 | 不费眼 |
 
 ---
 
-## Color Swatch Selection Guide
+## 色板选择指南
 
-Choose the appropriate color palette based on the keywords or scenes that the user needs. Defaults to the "Classic" color palette when not specified.
+根据用户需求的关键词或场景选择合适的色板。未指定时默认使用"经典"色板。
 
-| Color palette | Applicable scenarios | Keywords |
+| 色板 | 适用场景 | 关键词 |
 |------|---------|-------|
-| Classic | General charts, documentation | Default, general |
-| Business | Reporting, corporate structure, formal documents | Professional, formal, showing to the boss |
-| Technology | Technical architecture, DevOps, monitoring | Technology, cool, dark colors |
-| Fresh | Flowcharts, user journeys, tutorials | Fresh, natural, and easy |
-| Minimalist | Paper illustrations, academic reports | Academic, minimalist, black and white |
+| 经典 | 通用图表、说明文档 | 默认、通用 |
+| 商务 | 汇报、企业架构、正式文档 | 专业、正式、给老板看 |
+| 科技 | 技术架构、DevOps、监控 | 技术、炫酷、暗色 |
+| 清新 | 流程图、用户旅程、教程 | 清新、自然、轻松 |
+| 极简 | 论文配图、学术报告 | 学术、极简、黑白 |
 
 ---
 
-## Default color palette
+## 预设色板
 
-Each set of swatches defines the colors of 7 characters. **The connecting color is part of the color palette**, and different color palettes have different connecting colors.
+每套色板定义 7 个角色的颜色。**连线色是色板的一部分**，不同色板的连线色不同。
 
-### Classic
+### 经典
 
-| role | fillColor | borderColor | textColor |
+| 角色 | fillColor | borderColor | textColor |
 |------|-----------|-------------|-----------|
-| Partition Background | #F0F4FC | #5178C6 | #1F2329 |
-| Group title | #EAE2FE | #8569CB | #1F2329 |
-| Content Node | #FFFFFF | #5178C6 | #1F2329 |
-| Second Group | #DFF5E5 | #509863 | #1F2329 |
-| Third Group | #FEF1CE | #D4B45B | #1F2329 |
-| Group 4 | #FEE3E2 | #D25D5A | #1F2329 |
-| Emphasis/Header | #1F2329 | #1F2329 | #FFFFFF |
-| Wired | -- | -- | #BBBFC4 |
+| 分区背景 | #F0F4FC | #5178C6 | #1F2329 |
+| 分组标题 | #EAE2FE | #8569CB | #1F2329 |
+| 内容节点 | #FFFFFF | #5178C6 | #1F2329 |
+| 第二分组 | #DFF5E5 | #509863 | #1F2329 |
+| 第三分组 | #FEF1CE | #D4B45B | #1F2329 |
+| 第四分组 | #FEE3E2 | #D25D5A | #1F2329 |
+| 强调/表头 | #1F2329 | #1F2329 | #FFFFFF |
+| 连线 | -- | -- | #BBBFC4 |
 
-### Business
+### 商务
 
-| role | fillColor | borderColor | textColor |
+| 角色 | fillColor | borderColor | textColor |
 |------|-----------|-------------|-----------|
-| Partition Background | #EDF2F7 | #4A6FA5 | #1A202C |
-| Group title | #D4E0ED | #4A6FA5 | #1A202C |
-| Content Node | #FFFFFF | #718BAE | #1A202C |
-| Second Group | #E8EDF3 | #5A7B9A | #1A202C |
-| The third group | #F0F0F0 | #8895A7 | #1A202C |
-| Emphasis/Header | #2D4A7A | #2D4A7A | #FFFFFF |
-| Wired | -- | -- | #718BAE |
+| 分区背景 | #EDF2F7 | #4A6FA5 | #1A202C |
+| 分组标题 | #D4E0ED | #4A6FA5 | #1A202C |
+| 内容节点 | #FFFFFF | #718BAE | #1A202C |
+| 第二分组 | #E8EDF3 | #5A7B9A | #1A202C |
+| 第三分组 | #F0F0F0 | #8895A7 | #1A202C |
+| 强调/表头 | #2D4A7A | #2D4A7A | #FFFFFF |
+| 连线 | -- | -- | #718BAE |
 
-### science and technology
+### 科技
 
-| role | fillColor | borderColor | textColor |
+| 角色 | fillColor | borderColor | textColor |
 |------|-----------|-------------|-----------|
-| Canvas/Partition Background | #0F172A | #1E293B | #E2E8F0 |
-| Group title | #1E293B | #3B82F6 | #E2E8F0 |
-| Content Node | #1E293B | #334155 | #E2E8F0 |
-| Second Group | #1E293B | #8B5CF6 | #E2E8F0 |
-| The third group | #1E293B | #10B981 | #E2E8F0 |
-| Highlight | #2563EB | #3B82F6 | #FFFFFF |
-| Wired | -- | -- | #475569 |
+| 画布/分区背景 | #0F172A | #1E293B | #E2E8F0 |
+| 分组标题 | #1E293B | #3B82F6 | #E2E8F0 |
+| 内容节点 | #1E293B | #334155 | #E2E8F0 |
+| 第二分组 | #1E293B | #8B5CF6 | #E2E8F0 |
+| 第三分组 | #1E293B | #10B981 | #E2E8F0 |
+| 强调 | #2563EB | #3B82F6 | #FFFFFF |
+| 连线 | -- | -- | #475569 |
 
-### Fresh
+### 清新
 
-| role | fillColor | borderColor | textColor |
+| 角色 | fillColor | borderColor | textColor |
 |------|-----------|-------------|-----------|
-| Partition Background | #F0FDF4 | #86EFAC | #14532D |
-| Group title | #DCFCE7 | #4ADE80 | #14532D |
-| Content Node | #FFFFFF | #86EFAC | #14532D |
-| Second Group | #ECFDF5 | #6EE7B7 | #14532D |
-| Third Group | #F0FDFA | #5EEAD4 | #134E4A |
-| Highlight | #16A34A | #16A34A | #FFFFFF |
-| Wired | -- | -- | #86EFAC |
+| 分区背景 | #F0FDF4 | #86EFAC | #14532D |
+| 分组标题 | #DCFCE7 | #4ADE80 | #14532D |
+| 内容节点 | #FFFFFF | #86EFAC | #14532D |
+| 第二分组 | #ECFDF5 | #6EE7B7 | #14532D |
+| 第三分组 | #F0FDFA | #5EEAD4 | #134E4A |
+| 强调 | #16A34A | #16A34A | #FFFFFF |
+| 连线 | -- | -- | #86EFAC |
 
-### Minimalist
+### 极简
 
-| role | fillColor | borderColor | textColor |
+| 角色 | fillColor | borderColor | textColor |
 |------|-----------|-------------|-----------|
-| Partition Background | #F8F9FA | #DEE2E6 | #212529 |
-| Group title | #E9ECEF | #ADB5BD | #212529 |
-| Content Node | #FFFFFF | #CED4DA | #212529 |
-| Second Group | #F1F3F5 | #868E96 | #212529 |
-| Third Group | #F8F9FA | #ADB5BD | #212529 |
-| Emphasis/Header | #495057 | #495057 | #FFFFFF |
-| Wired | -- | -- | #ADB5BD |
+| 分区背景 | #F8F9FA | #DEE2E6 | #212529 |
+| 分组标题 | #E9ECEF | #ADB5BD | #212529 |
+| 内容节点 | #FFFFFF | #CED4DA | #212529 |
+| 第二分组 | #F1F3F5 | #868E96 | #212529 |
+| 第三分组 | #F8F9FA | #ADB5BD | #212529 |
+| 强调/表头 | #495057 | #495057 | #FFFFFF |
+| 连线 | -- | -- | #ADB5BD |
 
 ---
 
-## How to draw each element
+## 各元素怎么画
 
-> The following examples use classic color palettes. If you select another color palette, just replace the corresponding color and the structure remains unchanged.
+> 以下示例使用经典色板。如果选了其他色板，替换对应颜色即可，结构保持不变。
 
-### Chart title
+### 图表标题
 
-Tell the reader "What is this picture about?" Large dark text, centered.
+告诉读者"这张图讲什么"。大号深色文字，居中。
 
 ```json
 { "type": "text", "fontSize": 24, "textColor": "#1F2329", "textAlign": "center" }
 ```
 
-### Partition background
+### 分区背景
 
-Circle related content together to tell readers "these belong to the same category." Use fillColor for light colors, and borderColor for dark colors. Place white nodes inside.
+把相关的内容圈在一起，告诉读者"这些属于同一个大类"。浅色做 fillColor，对应深色做 borderColor。内部放白色节点。
 
 ```json
 { "fillColor": "#F0F4FC", "borderColor": "#5178C6", "borderWidth": 2, "borderRadius": 8, "padding": 20 }
 ```
 
-### Partition label
+### 分区标签
 
-Give the partition a name. Use independent text nodes and do not use the `title` attribute of the frame (it will be rendered as a very small title bar).
+给分区一个名字。用独立 text 节点，不要用 frame 的 `title` 属性（会被渲染为极小标题栏）。
 
-**All partition labels use dark text `#1F2329`**. Do not use different colors for each label - the color distinction is reflected through the background and border of the layer container, and the color of the label text remains consistent.
+**所有分区标签统一用深色文字 `#1F2329`**，不要给每个标签用不同颜色——颜色区分通过层容器背景和边框体现，标签文字颜色保持一致。
 
 ```json
 { "type": "text", "width": 180, "height": "fit-content", "text": "Access layer", "fontSize": 20, "textColor": "#1F2329", "textAlign": "right" }
 ```
 
-### Group title
+### 分组标题
 
-Tell the reader "What is this subgroup called?" Swatch color fill + same color dark border.
+告诉读者"这个子分组叫什么"。色板色填充 + 同色系深色边框。
 
 ```json
 { "fillColor": "#EAE2FE", "borderColor": "#8569CB", "borderWidth": 2, "borderRadius": 8, "fontSize": 14, "textColor": "#1F2329" }
 ```
 
-### Content node
+### 内容节点
 
-specific information items. White filling, border color follows the group it belongs to.
+具体的信息项。白色填充，边框颜色跟随所属分组。
 
 ```json
 { "fillColor": "#FFFFFF", "borderColor": "#5178C6", "borderWidth": 2, "borderRadius": 8, "fontSize": 14, "textColor": "#1F2329" }
 ```
 
-The borderColor of a white node depends on the group it belongs to:
+白色节点的 borderColor 取决于它所属的分组：
 ```
-Belongs to the blue group: fillColor="#FFFFFF" borderColor="#5178C6" borderWidth=2
-Belongs to the purple group: fillColor="#FFFFFF" borderColor="#8569CB" borderWidth=2
-Independent node: fillColor="#FFFFFF" borderColor="#DEE0E3" borderWidth=2
+属于蓝色分组: fillColor="#FFFFFF"  borderColor="#5178C6"  borderWidth=2
+属于紫色分组: fillColor="#FFFFFF"  borderColor="#8569CB"  borderWidth=2
+独立节点:     fillColor="#FFFFFF"  borderColor="#DEE0E3"  borderWidth=2
 ```
-(Note: The above are the values ​​​​of the classic color palette, other color palettes replace the corresponding borderColor)
+（注：以上为经典色板的值，其他色板替换对应的 borderColor）
 
-### Header
+### 表头
 
-Tell the reader "what dimension is this column/row". Dark fill + white text.
+告诉读者"这一列/行是什么维度"。深色填充 + 白色文字。
 
 ```json
 { "fillColor": "#1F2329", "borderColor": "#1F2329", "borderWidth": 2, "borderRadius": 0, "fontSize": 15, "textColor": "#FFFFFF", "textAlign": "center" }
 ```
 
-### textColor rules
+### 图标组件
+
+icon + text 的组合卡片。icon 的 `color` 跟随所属分组的 borderColor，与其他节点视觉一致。
+
+```json
+{
+  "type": "frame", "layout": "vertical", "gap": 4, "padding": 12,
+  "alignItems": "center", "fillColor": "#FFFFFF", "borderColor": "#5178C6", "borderWidth": 2, "borderRadius": 8,
+  "children": [
+    { "type": "icon", "name": "server", "width": 36, "height": 36, "color": "#5178C6" },
+    { "type": "text", "width": "fit-content", "height": "fit-content", "text": "应用服务器", "fontSize": 12 }
+  ]
+}
+```
+
+icon color 需要结合上下文选择合适的颜色, 比如: 使用所属分组的borderColor
+
+### textColor 规则
 
 ```
-- Text: #1F2329 (dark, clear on white/light background)
-- Auxiliary explanation: #646A73 (weakened, not grabbing attention)
-- On dark background: #FFFFFF (reverse color, clear and readable)
-(The above are the values ​​​​of the classic color palette, other color palette references correspond to the textColor column)
+- 正文：#1F2329（深色，在白底/浅色底上清晰）
+- 辅助说明：#646A73（弱化，不抢注意力）
+- 深色底上：#FFFFFF（反色，清晰可读）
+（以上为经典色板的值，其他色板参考对应 textColor 列）
 ```
 
-### Auxiliary instructions
+### 辅助说明
 
-Supplementary information without stealing the protagonist’s attention. Small gray text.
+补充信息，不抢主角的注意力。灰色小字。
 
 ```json
 { "fontSize": 13, "textColor": "#646A73" }
 ```
 
-### Connect
+### 连线
 
-Express the relationship or flow between elements. Use the connecting color from the color palette.
+表达元素之间的关系或流向。使用色板中的连线色。
 
 ```json
 { "lineColor": "#BBBFC4", "lineWidth": 2 }
 ```
 
-### Layout container
+### 布局容器
 
-The frame is purely used for typesetting and is invisible to readers. There is no fillColor or borderColor.
+纯粹用来排版的 frame，读者看不见它。不设 fillColor、borderColor。
 
 ```json
 { "type": "frame", "layout": "vertical", "gap": 28, "padding": 32 }
 ```
 
-### Grouping container
+### 分组容器
 
-Use a dotted box to enclose a group of nodes, which is more lightweight than a partition background.
+用虚线框圈定一组节点，比分区背景更轻量。
 
 ```json
 { "borderColor": "#DEE0E3", "borderWidth": 2, "borderDash": "dashed", "borderRadius": 8 }
@@ -252,49 +269,49 @@ Use a dotted box to enclose a group of nodes, which is more lightweight than a p
 
 ---
 
-## Common mistakes
+## 常见错误
 
-Error: One color for each node -> Readers can’t tell who is in a group with whom
+错误：每个节点一种颜色 -> 读者分不清谁和谁是一组
 ```json
 { "fillColor": "#8569CB" }, { "fillColor": "#5178C6" }, { "fillColor": "#509863" }
 ```
-Correct: Nodes in the same group are visually consistent -> readers can see the relationship at a glance
+正确：同组节点视觉一致 -> 读者一眼看出关系
 ```json
 { "fillColor": "#FFFFFF", "borderColor": "#8569CB" }, { "fillColor": "#FFFFFF", "borderColor": "#8569CB" }
 ```
 
-Error: Use heavy colors for both inner and outer layers -> Readers don’t know where to look first
+错误：内外层都用重色 -> 读者不知道先看哪里
 ```json
 { "type": "frame", "fillColor": "#5178C6", "children": [{ "fillColor": "#8569CB" }] }
 ```
-Correct: light color on the outside and white on the inside -> readers look at the structure first and then look at the details
+正确：外层浅色内层白色 -> 读者先看结构再看细节
 ```json
 { "type": "frame", "fillColor": "#F0F4FC", "children": [{ "fillColor": "#FFFFFF", "borderColor": "#5178C6" }] }
 ```
 
-Error: use the same color as the node for the connection -> grab attention with the node color
+错误：连线用和节点一样的彩色 -> 和节点颜色抢注意力
 ```json
 { "connector": { "lineColor": "#5178C6" } }
 ```
-Correct: Use the connection color in the color palette for the connection -> set off the node
+正确：连线用色板中的连线色 -> 衬托节点
 ```json
 { "connector": { "lineColor": "#BBBFC4" } }
 ```
 
-Error: Node has no border -> blends into the background and cannot see the border clearly
+错误：节点没边框 -> 和背景融为一体，看不清边界
 ```json
 { "fillColor": "#FFFFFF" }
 ```
-Correct: The node has a border -> the border is clear
+正确：节点有边框 -> 边界清晰
 ```json
 { "fillColor": "#FFFFFF", "borderColor": "#DEE0E3", "borderWidth": 2 }
 ```
 
-Error: The whole picture is black and white and gray, with no color distinction -> readers cannot quickly identify the groups
+错误：全图黑白灰，没有颜色区分 -> 读者无法快速识别分组
 ```json
 { "fillColor": "#FFFFFF", "borderColor": "#DEE0E3" }
 ```
-Correct: use different colors for different groups -> see the structure at a glance (blue group + purple group)
+正确：不同分组用不同颜色 -> 一眼看出结构（蓝色分组 + 紫色分组）
 ```json
 { "fillColor": "#F0F4FC", "borderColor": "#5178C6" }
 { "fillColor": "#EAE2FE", "borderColor": "#8569CB" }

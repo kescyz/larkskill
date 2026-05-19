@@ -1,56 +1,94 @@
-# workflow-enable
+# base +workflow-enable
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Enable an automated workflow in Base.
+启用 Base 中的一个自动化工作流。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/base/v3/bases/{base_token}/workflows/{workflow_id}/enable
-- body:
-  ```json
-  {}
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `workflow_id` | Yes | Workflow ID starting with `wkf` (path param) |
-
-## API request details
-
-```
-PATCH /open-apis/base/v3/bases/{base_token}/workflows/{workflow_id}/enable
+```bash
+lark-cli base +workflow-enable \
+  --base-token BascXxxxxx \
+  --workflow-id wkfxxxxxx
 ```
 
-Note: Pass an empty JSON body `{}` — a nil body may cause a server timeout.
+## 参数
 
-## Key return fields
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | 多维表格 Base Token（`Basc` 开头） |
+| `--workflow-id <id>` | 是 | 工作流 ID（`wkf` 开头） |
 
-| Field | Description |
-|-------|-------------|
-| `workflow_id` | Workflow unique identifier |
-| `status` | Always `enabled` after this operation |
+## 如何从链接中提取参数
 
-## Workflow
+用户通常会提供如下 URL：
 
-This is a write operation; confirm with the user before execution.
+```
+https://example.feishu.cn/base/<base_token>?table=<table_or_workflow_id>
+```
 
-1. Confirm `base_token` and `workflow_id` with the user.
-2. Execute the call.
-3. Confirm the returned `status` is `enabled`.
+- `--base-token`：取 `/base/` 后面的字符串（`Basc` 开头）
+- `--workflow-id`：取 `?table=` 后面的值，当其以 `wkf` 开头时即为 workflow_id
 
-## Pitfalls
+> ⚠️ **注意区分 ID 前缀**：table_id 以 `tbl` 开头，workflow_id 以 `wkf` 开头，两者在 URL 的 `?table=` 参数里都会出现，需要根据前缀判断。
 
-- `workflow_id` starts with `wkf`; do not confuse it with `table_id` (starts with `tbl`) — this causes `[2200] Internal Error`.
-- `/enable` is the last path segment, not a body field.
-- PATCH body must not be nil; pass `{}`.
+## API 入参详情
 
-## References
+**HTTP 方法和路径：**
 
-- [lark-base-workflow-disable.md](lark-base-workflow-disable.md) — disable workflow
-- [lark-base-workflow-list.md](lark-base-workflow-list.md) — list all workflows
+```
+PATCH /open-apis/base/v3/bases/:base_token/workflows/:workflow_id/enable
+```
+
+**Path 参数：**
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `base_token` | 是 | 多维表格 Base Token |
+| `workflow_id` | 是 | 工作流唯一标识 |
+
+**Request Body：** 无
+
+## API 出参详情
+
+**Response `data` 字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `workflow_id` | string | 工作流唯一标识符 |
+| `status` | string | 操作后的最新状态，固定为 `enabled` |
+
+## 返回值
+
+```json
+{
+  "ok": true,
+  "data": {
+    "workflow_id": "wkfxxxxxx",
+    "status": "enabled"
+  }
+}
+```
+
+## 工作流
+
+> [!CAUTION]
+> 这是**写入操作** — 执行前必须向用户确认。
+
+1. 向用户确认 `--base-token` 和 `--workflow-id`
+2. 执行命令
+3. 报告返回的 `status` 字段，确认值为 `enabled`
+
+## 坑点
+
+- ⚠️ **workflow_id 来源**：workflow_id 以 `wkf` 开头，从 URL 的 `?table=wkf...` 参数提取，不是表格的 table_id（`tbl` 开头），混淆会导致 `[2200] Internal Error`
+- ⚠️ **API 路径末尾动词**：`/enable` 是路径的最后一段，不是 body 字段；漏掉这个后缀会命中错误接口
+- ⚠️ **PATCH body 不能为 nil**：接口虽无请求体，仍需传 `{}` 空对象，否则服务端可能返回 `server time out error`
+- ⚠️ **scope 待确认**：内部文档未列出权限名称，代码中使用 `base:workflow:update`，如遇 `[230013] permission denied` 需核对实际 scope
+
+## 参考
+
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-base-workflow-disable](lark-base-workflow-disable.md) — 禁用工作流
+- [lark-base-workflow-list](lark-base-workflow-list.md) — 列出全部工作流
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

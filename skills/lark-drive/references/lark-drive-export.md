@@ -1,102 +1,119 @@
+
 # drive +export
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Export a `doc` / `docx` / `sheet` / `bitable` to a local file. This operation creates an export task with built-in limited polling:
+把 `doc` / `docx` / `sheet` / `bitable` 导出到本地文件。这个 shortcut 内置有限轮询：
 
-- If the export task completes within the polling window, download directly
-- If polling ends before completion, returns `ticket` for subsequent querying
-- To continue checking the result afterward, use `drive +task_result --scenario export`
-- Once you have the `file_token`, use `drive +export-download`
+- 如果导出任务在轮询窗口内完成，会直接下载到本地目录
+- 如果轮询结束仍未完成，会返回 `ticket`、`ready=false`、`timed_out=true` 和 `next_command`
+- 后续继续查结果时，改用 `drive +task_result --scenario export`
+- 拿到 `file_token` 后，改用 `drive +export-download`
 
-## Recommended call — Create export task
+## 命令
 
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/drive/v1/export_tasks
-- body:
-  {
-    "file_extension": "pdf",
-    "token": "<DOCX_TOKEN>",
-    "type": "docx"
-  }
-```
+```bash
+# 导出新版文档为 pdf，默认保存到当前目录
+lark-cli drive +export \
+  --token "<DOCX_TOKEN>" \
+  --doc-type docx \
+  --file-extension pdf
 
-Export spreadsheet as xlsx:
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/drive/v1/export_tasks
-- body:
-  {
-    "file_extension": "xlsx",
-    "token": "<SHEET_TOKEN>",
-    "type": "sheet"
-  }
-```
+# 导出旧版文档为 docx
+lark-cli drive +export \
+  --token "<DOC_TOKEN>" \
+  --doc-type doc \
+  --file-extension docx
 
-Export spreadsheet sheet as csv (sub_id required):
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/drive/v1/export_tasks
-- body:
-  {
-    "file_extension": "csv",
-    "token": "<SHEET_TOKEN>",
-    "type": "sheet",
-    "sub_id": "<SHEET_ID>"
-  }
-```
+# 导出 docx 为 markdown（Lark-flavored Markdown）
+# 注意：markdown 只支持 docx
+lark-cli drive +export \
+  --token "<DOCX_TOKEN>" \
+  --doc-type docx \
+  --file-extension markdown
 
-## Poll export task result
+# 导出电子表格为 xlsx
+lark-cli drive +export \
+  --token "<SHEET_TOKEN>" \
+  --doc-type sheet \
+  --file-extension xlsx \
+  --output-dir ./exports
 
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/drive/v1/export_tasks/{ticket}
-- params: { "token": "<SOURCE_DOC_TOKEN>" }
-```
+# 指定本地文件名（会按导出格式自动补扩展名）
+lark-cli drive +export \
+  --token "<DOCX_TOKEN>" \
+  --doc-type docx \
+  --file-extension pdf \
+  --file-name "weekly-report.pdf" \
+  --output-dir ./exports
 
-## API request details
+# 导出电子表格或多维表格为 csv 时，必须传 sub_id
+lark-cli drive +export \
+  --token "<SHEET_OR_BITABLE_TOKEN>" \
+  --doc-type "<sheet|bitable>" \
+  --file-extension csv \
+  --sub-id "<SUB_ID>" \
+  --output-dir ./exports
 
-```
-POST /open-apis/drive/v1/export_tasks
-GET  /open-apis/drive/v1/export_tasks/{ticket}
-```
+# 导出多维表格为 .base 快照（只支持 bitable）
+lark-cli drive +export \
+  --token "<BITABLE_TOKEN>" \
+  --doc-type bitable \
+  --file-extension base \
+  --output-dir ./exports
 
-## Parameters (body)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `file_extension` | Yes | Export format: `docx` / `pdf` / `xlsx` / `csv` / `markdown` |
-| `token` | Yes | Source document token |
-| `type` | Yes | Source document type: `doc` / `docx` / `sheet` / `bitable` |
-| `sub_id` | Conditionally required | Required when exporting `sheet` / `bitable` as `csv` |
-
-## Key Constraints
-
-- `markdown` only supports `docx`
-- Exporting `sheet` / `bitable` as `csv` requires `sub_id`
-
-## Recommended Follow-up Flow
-
-Step 1 — Create export task (call above).
-
-Step 2 — If not immediately done, poll:
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/drive/v1/export_tasks/{ticket}
-- params: { "token": "<SOURCE_DOC_TOKEN>" }
+# 允许覆盖已存在文件
+lark-cli drive +export \
+  --token "<DOCX_TOKEN>" \
+  --doc-type docx \
+  --file-extension pdf \
+  --overwrite
 ```
 
-Step 3 — Once `job_status = 0` (success), get `file_token` and download via `drive +export-download`.
+## 参数
 
-## References
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--token` | 是 | 源文档 token |
+| `--doc-type` | 是 | 源文档类型：`doc` / `docx` / `sheet` / `bitable` |
+| `--file-extension` | 是 | 导出格式：`docx` / `pdf` / `xlsx` / `csv` / `markdown` / `base` |
+| `--sub-id` | 条件必填 | 当 `sheet` / `bitable` 导出为 `csv` 时必填 |
+| `--file-name` | 否 | 覆盖默认本地文件名；如未带扩展名，会按 `--file-extension` 自动补齐 |
+| `--output-dir` | 否 | 本地输出目录，默认当前目录 |
+| `--overwrite` | 否 | 覆盖已存在文件 |
 
-- [lark-drive](../SKILL.md) -- All Drive commands
-- [lark-drive-export-download](lark-drive-export-download.md) -- Download exported file
-- [lark-drive-task-result](lark-drive-task-result.md) -- Poll async task
-- [lark-shared](../../lark-shared/SKILL.md) -- Authentication and global parameters
+## 关键约束
+
+- `markdown` 只支持 `docx`
+- `base` 只支持 `bitable`
+- `sheet` / `bitable` 导出为 `csv` 时必须带 `--sub-id`
+- shortcut 内部固定有限轮询：最多 10 次，每次间隔 5 秒
+- 轮询超时不是失败；会返回 `ticket`、`timed_out=true` 和 `next_command`，供后续继续查询
+
+## 推荐续跑方式
+
+```bash
+# 第一步：先尝试直接导出
+lark-cli drive +export \
+  --token "<DOCX_TOKEN>" \
+  --doc-type docx \
+  --file-extension pdf \
+  --file-name "weekly-report.pdf"
+
+# 如果返回 ready=false / timed_out=true，再继续查
+lark-cli drive +task_result \
+  --scenario export \
+  --ticket "<TICKET>" \
+  --file-token "<DOCX_TOKEN>"
+
+# 查到 file_token 后下载
+lark-cli drive +export-download \
+  --file-token "<EXPORTED_FILE_TOKEN>" \
+  --file-name "weekly-report.pdf" \
+  --output-dir ./exports
+```
+
+## 参考
+
+- [lark-drive](../SKILL.md) -- 云空间全部命令
+- [lark-shared](../../lark-shared/SKILL.md) -- 认证和全局参数

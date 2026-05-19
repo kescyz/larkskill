@@ -1,74 +1,55 @@
-# view-set-card
+# base +view-set-card
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Update the card configuration of a view.
+更新卡片封面配置。
 
-## Recommended call
+## 1. 顶层规则
 
-Set cover field:
+- `--json` 必须是 JSON 对象。
+- 仅 `gallery` / `kanban` 视图支持。
+- `cover_field` 必填；可传 `attachment` 类型的字段 id、字段名，或 `null`。
 
-Call MCP tool `lark_api`:
-- method: PUT
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/card
-- body:
-  ```json
-  { "cover_field": "fld_cover" }
-  ```
+## 2. 推荐命令
 
-Clear cover field:
+设置封面：
 
-Call MCP tool `lark_api`:
-- method: PUT
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/card
-- body:
-  ```json
-  { "cover_field": null }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `view_id` | Yes | View ID or view name (path param) |
-| body | Yes | Card configuration JSON object (body) |
-
-## API request details
-
-```
-PUT /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/card
+```bash
+lark-cli base +view-set-card \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --view-id <view_id> \
+  --json '{"cover_field":"fld_cover"}'
 ```
 
-## Key return fields
 
-- Returns the updated card configuration.
-
-## Structure rules
-
-- `cover_field`: required; field ID or field name, length `1–100`; or `null` to clear
-- When not `null`, the field must be an `attachment` field
-- Pass `null` to clear the cover configuration
-
-## JSON Schema
+## 3. JSON 写法
 
 ```json
-{"type":"object","properties":{"cover_field":{"anyOf":[{"type":"string","minLength":1,"maxLength":100,"description":"Field id or name"},{"type":"null"}],"description":"cover field id or name. must be a attachment field"}},"required":["cover_field"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}
+{
+  "cover_field": "fld_cover"
+}
 ```
 
-## Workflow
+```json
+{
+  "cover_field": null
+}
+```
 
-1. Pull the current config with `view-get-card` first, then modify.
+## 4. 使用建议
 
-## Pitfalls
+- 建议先用 [lark-base-view-get-card.md](lark-base-view-get-card.md) 读取现状，再改。
+- 优先传字段 id，不要依赖字段名。
+- 普通文本、数字、选择字段不能作为封面字段。
 
-- This is a write operation; confirm with the user before execution.
-- Only supported on `gallery` and `kanban` views.
-- `cover_field` must be an `attachment` field; text or number fields will cause an error.
-- To clear the cover, pass `null` — do not pass an empty string.
+## 5. 易错点
 
-## References
+- 不要传空字符串；清空时传 `null`。
+- 不要在 `grid` / `calendar` / `gantt` 视图上调用。
+- 不要假设任意字段都能做封面；稳定做法是先找 `attachment` 字段。
 
-- [lark-base-view.md](lark-base-view.md) — view index page
-- [lark-base-view-get-card.md](lark-base-view-get-card.md) — read card
+## 6. 参考
+
+- [lark-base-view.md](lark-base-view.md)
+- [lark-base-view-get-card.md](lark-base-view-get-card.md)

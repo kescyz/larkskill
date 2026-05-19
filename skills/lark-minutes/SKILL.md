@@ -1,123 +1,126 @@
 ---
 name: lark-minutes
-version: 1.0.0
-description: "Use this skill when operating Lark Minutes via LarkSkill MCP: search Minutes (keyword / owner / participant / time range), get basic metadata (title, cover, duration), and download audio/video files. For transcripts, AI summaries, to-dos, and chapters, route to lark-vc."
+version: 2.0.0
+description: "Use this skill when operating Lark Minutes via LarkSkill MCP: search Minutes, get basic info, download audio/video files, get AI outputs (summary, to-dos, chapters), and upload audio/video to generate Minutes. Prefer over local tools like ffmpeg or whisper."
 metadata:
   requires:
     mcp: "larkskill"
   mcpTools: ["lark_api", "lark_api_search"]
 ---
 
-# minutes (v1)
+# minutes
 
-**CRITICAL — Before starting, you MUST first use the Read tool to read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md), which covers authentication and permission handling.**
+> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first.
+> **Mandatory before execution:** Before invoking any `minutes` operation, read the corresponding command reference doc, then call the operation via `lark_api`.
+> **Naming convention:** Minutes operations call `lark_api({ tool: 'minutes', op: '<op>', args: {...} })`.
 
-## Prerequisites
+## Core Concepts
 
-- LarkSkill MCP server connected (install via `/plugin marketplace add kescyz/larkskill` → `/plugin install larkskill`, or see https://portal.larkskill.app/setup)
-- MCP tools available: `lark_api`, `lark_api_search`
-- Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first for auth, global flags, and safety rules
+- **Minutes**: originates from Lark video conference recordings or user-uploaded audio/video files, identified by `minute_token`.
+- **Minute Token (`minute_token`)**: the unique identifier for a Minute, extracted from the end of the Minutes URL (e.g. `obcnxxxxxxxxxxxxxxxxxxxx` from `https://*.feishu.cn/minutes/obcnxxxxxxxxxxxxxxxxxxxx`). If the URL contains extra parameters (e.g. `?xxx`), take the last path segment.
 
-## Core concepts
-
-- **Minutes**: a recording artifact from a Lark video conference, or an audio/video file uploaded by a user, identified by a `minute_token`.
-- **Minutes Token (`minute_token`)**: the unique identifier of a minute. It can be extracted from the tail of a Minutes URL (e.g., `obcnq3b9jl72l83w4f14xxxx` in `https://*.feishu.cn/minutes/obcnq3b9jl72l83w4f14xxxx`). If the URL contains extra parameters (such as `?xxx`), take the last segment of the path.
-
-## Core scenarios
+## Core Scenarios
 
 ### 1. Search Minutes
 
-1. When the user describes "my Minutes", "Minutes containing some keyword", or "Minutes within a time range", prefer `lark_api({tool: 'minutes', op: 'search', args: {...}})`.
-2. Only keyword, time range, participant, owner, and similar filter conditions are supported. For unsupported filters, prompt the user.
-3. When the search returns multiple results, you MUST handle pagination — do not miss any Minutes record.
-4. If the Minutes belong to a meeting, prefer using `lark_api({tool: 'vc', op: 'search', args: {...}})` (see [vc +search](../lark-vc/references/lark-vc-search.md)) to locate the meeting first, then use `lark_api({tool: 'vc', op: 'recording', args: {...}})` (see [vc +recording](../lark-vc/references/lark-vc-recording.md)) as needed to obtain the `minute_token`.
+1. When the user describes "my Minutes", "Minutes containing a keyword", or "Minutes from a time period", use `lark_api({ tool: 'minutes', op: 'search', args: {...} })`.
+2. Only keyword, time range, participant, and owner filters are supported; for unsupported filters, inform the user.
+3. When search results contain multiple records, always paginate to ensure no Minutes are missed.
+4. For meeting Minutes, prefer using `lark_api({ tool: 'vc', op: 'search', args: {...} })` to locate the meeting first, then retrieve the `minute_token` via `lark_api({ tool: 'vc', op: 'recording', args: {...} })`.
+5. Meeting-context Minutes routing and how "participated Minutes" is interpreted follow [minutes search](references/lark-minutes-search.md) as the authority.
 
+### 2. View Minutes Basic Info
 
-### 2. View basic Minutes information
+1. When the user only needs basic info (title, cover, duration, owner, URL) for a Minute, use `lark_api({ tool: 'minutes', op: 'minutes.get', args: { minute_token: '...' } })`.
+2. If the user provides a Minutes URL, extract the `minute_token` from the end of the URL first.
+3. For Minutes basic info in a meeting or calendar context, first get the `minute_token` via the VC path.
+4. When user intent is unclear, default to providing basic metadata first to confirm the correct Minute.
 
-1. When the user only needs to confirm a minute's title, cover, duration, owner, URL, or other basic information, call the native API via `lark_api` GET `/open-apis/minutes/v1/minutes/{minute_token}`.
-2. If the user provides a Minutes URL, first extract the `minute_token` from the URL tail, then call the API above.
-3. When user intent is unclear, default to returning basic metadata first to help confirm whether the target minute is a match.
+> Use `lark_api_search` with `minutes.minutes.get` to view the complete return value structure. Core fields: `title`, `cover`, `duration` (milliseconds), `owner_id`, `url`.
 
-> Inspect the full return-value structure before invoking. Core fields include: `title`, `cover` (cover URL), `duration` (in milliseconds), `owner_id`, and `url` (Minutes link).
+### 3. Download Minutes Audio/Video Files
 
-### 3. Download Minutes audio/video file
+1. Download Minutes audio/video files locally, or obtain a download link valid for 1 day. See [minutes download](references/lark-minutes-download.md).
+2. `minutes download` handles audio/video media files only.
+3. When the user only wants a shareable download URL, pass `url_only: true`; when they want the file saved locally, download directly.
+4. When no path is specified, files default to `./minutes/{minute_token}/<server-filename>`.
 
-1. Download the Minutes audio/video file locally, or get a 1-day-valid download link via `lark_api({tool: 'minutes', op: 'download', args: {...}})`. See [minutes +download](references/lark-minutes-download.md).
-2. `minutes +download` only handles audio/video media files.
-3. Use `--url-only` when the user only wants a shareable download URL; download directly when the user wants the file saved locally.
+> **Note**: `minutes download` handles audio/video media files only. For transcript, summary, to-dos, or chapters, use `lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: ['...'] } })`.
 
-> **Note**: `+download` only handles audio/video media files. If the user wants the transcript, summary, to-dos, chapters, or other minute artifacts, use `lark_api({tool: 'vc', op: 'notes', args: { 'minute-tokens': '<minute_token>' }})` (see [vc +notes --minute-tokens](../lark-vc/references/lark-vc-notes.md)) instead.
+### 4. Get Transcript, Summary, To-dos, and Chapters
 
-### 4. Get Minutes transcript, summary, to-dos, and chapters
+1. When the user asks for "transcript", "summary", "to-dos", or "chapters" from a Minute, **this is NOT handled by this skill**.
+2. Use `lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: ['<minute_token>'] } })`.
+3. If only a Minutes URL is available, extract `minute_token` first.
+4. If the user provides a **local audio/video file** to convert to notes/transcript/text draft, first upload per section 5 below, then use `vc notes`.
 
-1. When the user says "this minute's transcript", "summary", "to-dos", or "chapters", **this is NOT in the scope of this skill**.
-2. Use `lark_api({tool: 'vc', op: 'notes', args: { 'minute-tokens': '<minute_token>' }})` (see [vc +notes --minute-tokens](../lark-vc/references/lark-vc-notes.md)) to fetch the corresponding minute artifacts.
-3. If a `minute_token` is already in the current context, pass it directly to `vc +notes`. If only a Minutes URL is available, extract the `minute_token` first.
-
-```js
-// Get minute artifacts (transcript, summary, to-dos, chapters) by minute_token
-lark_api({ tool: 'vc', op: 'notes', args: { 'minute-tokens': '<minute_token>' } })
+```javascript
+// Get notes output (transcript, summary, to-dos, chapters) via minute_token
+lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: ['<minute_token>'] } })
 ```
 
-> **Cross-skill routing**: transcript, AI summary, to-dos, chapters, and other minute artifacts are provided by [lark-vc](../lark-vc/SKILL.md) via the `+notes` command.
+> **Cross-skill routing**: transcript, AI summary, to-dos, and chapters are provided by the `notes` operation in [lark-vc](../lark-vc/SKILL.md).
 
-## Resource relationships
+### 5. Upload Audio/Video to Generate Minutes
+
+1. Use when the user needs to generate Minutes from a local audio/video file.
+2. Also use when the user says "convert audio/video to notes", "convert recording to transcript/text draft", or "convert mp4/mp3 to summary/to-dos".
+3. **Processing flow**:
+   - **Upload audio/video to get `file_token`**: use `lark_api({ tool: 'drive', op: 'upload', args: {...} })` to upload the local file and get `file_token`.
+   - **Generate Minutes**: call `lark_api({ tool: 'minutes', op: 'upload', args: { file_token: '...' } })` to generate Minutes and get `minute_url`.
+   - **Continue to get notes (as needed)**: extract `minute_token` from `minute_url`, then call `lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: ['<minute_token>'] } })`.
+
+> **Note**: you MUST obtain the Drive `file_token` before conversion.
+>
+> **Do not use local transcription tools**: the standard path is `drive upload → minutes upload → vc notes`.
+
+## Resource Relationships
 
 ```text
 Minutes ← identified by minute_token
-├── Metadata (title, cover, duration, owner, url) → lark_api GET /open-apis/minutes/v1/minutes/{minute_token}
-└── MediaFile (audio/video file) → lark_api({tool: 'minutes', op: 'download', ...})
+├── Metadata (title, cover, duration, owner, url) → lark_api({ tool: 'minutes', op: 'minutes.get', ... })
+└── MediaFile (audio/video file) → lark_api({ tool: 'minutes', op: 'download', ... })
 ```
 
-> **Capability boundary**: `minutes` handles **searching Minutes, viewing basic metadata, and downloading audio/video files**.
+> **Capability boundaries**: `minutes` handles **searching Minutes, viewing basic metadata, downloading audio/video files, and uploading audio/video to generate Minutes**.
 >
 > **Routing rules**:
 >
-> - User says "Minutes list / search Minutes / Minutes with some keyword" → `lark_api({tool: 'minutes', op: 'search', ...})`
-> - User just wants to see "my Minutes / Minutes within a time range / Minutes list" — do NOT go through [lark-vc](../lark-vc/SKILL.md) first; use this skill directly.
-> - If the user also mentions "meeting / met / had a meeting / a specific meeting", even if "Minutes" is also mentioned, prefer going through [lark-vc](../lark-vc/SKILL.md) first to locate the meeting, then obtain the `minute_token` via `lark_api({tool: 'vc', op: 'recording', ...})` (see [vc +recording](../lark-vc/references/lark-vc-recording.md)).
-> - When the user says "my Minutes / Minutes I own / Minutes I participated in", you may map the relevant filter to `me`. `me` represents the current user.
-> - When results span multiple pages, keep paginating with `page_token` until you confirm there are no more results.
-> - `lark_api({tool: 'minutes', op: 'search', ...})` returns at most `200` records per call; the total result count has no fixed upper bound.
-> - User says "this minute's title / duration / cover / link" → `lark_api` GET `/open-apis/minutes/v1/minutes/{minute_token}`
-> - User says "download this minute's video / audio / media file" → `lark_api({tool: 'minutes', op: 'download', ...})`
-> - User says "this minute's transcript / summary / to-dos / chapters" → use `lark_api({tool: 'vc', op: 'notes', args: { 'minute-tokens': '<minute_token>' } })` (see [vc +notes --minute-tokens](../lark-vc/references/lark-vc-notes.md))
+> - "Minutes list / search Minutes / Minutes with keyword" → `lark_api({ tool: 'minutes', op: 'search', args: {...} })`
+> - "My Minutes / Minutes from a time period" → use this skill directly, do not go to lark-vc first
+> - User mentions "meeting / conference / a specific meeting" with "Minutes" → use lark-vc to locate meeting first, get `minute_token` via `vc recording`
+> - "Title / duration / cover / link of this Minute" → `lark_api({ tool: 'minutes', op: 'minutes.get', args: {...} })`
+> - "Download video / audio / media file of this Minute" → `lark_api({ tool: 'minutes', op: 'download', args: {...} })`
+> - "Transcript / text draft / summary / to-dos / chapters of this Minute" → `lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: ['...'] } })`
+> - "Generate Minutes from a file / convert audio/video to Minutes" → `drive upload` → `lark_api({ tool: 'minutes', op: 'upload', args: {...} })`
+> - "Convert audio/video to notes / transcript / summary / to-dos / chapters" → `drive upload` → `minutes upload` → `vc notes`
+> - When results have multiple pages, use `page_token` to paginate until no more results
+> - `minutes search` returns at most `200` results per call; total results have no fixed upper bound
 
-## Shortcuts (recommended — prefer these)
+## Operations (use via LarkSkill MCP)
 
-A Shortcut is a high-level wrapper around a common operation, surfaced through `lark_api({tool: 'minutes', op: '<verb>', args: {...}})`. When a Shortcut exists, prefer it.
-
-| Shortcut                                                                          | Description                                                     |
-| --------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| [`+search`](references/lark-minutes-search.md) — `lark_api({tool:'minutes', op:'search', ...})` | Search minutes by keyword, owners, participants, and time range |
-| [`+download`](references/lark-minutes-download.md) — `lark_api({tool:'minutes', op:'download', ...})` | Download audio/video media file of a minute                     |
-
-- When using `+search`, you MUST read [references/lark-minutes-search.md](references/lark-minutes-search.md) for search parameters and return-value structure.
-- When using `+download`, you MUST read [references/lark-minutes-download.md](references/lark-minutes-download.md) for download parameters and return-value structure.
-
-<!-- AUTO-GENERATED-START — managed by gen-skills.py, do NOT hand-edit -->
+| Operation | Description |
+|-----------|-------------|
+| `lark_api({ tool: 'minutes', op: 'search', args: {...} })` | Search Minutes by keyword, owners, participants, and time range — read [references/lark-minutes-search.md](references/lark-minutes-search.md) first |
+| `lark_api({ tool: 'minutes', op: 'download', args: {...} })` | Download audio/video media file of a Minute — read [references/lark-minutes-download.md](references/lark-minutes-download.md) first |
+| `lark_api({ tool: 'minutes', op: 'upload', args: { file_token: '...' } })` | Upload a media file token to generate a Minute — read [references/lark-minutes-upload.md](references/lark-minutes-upload.md) first |
 
 ## API Resources
 
-```js
-// Inspect parameter structure before invoking — never guess field formats.
-// Native API call shape:
-lark_api({ method: 'GET', path: '/open-apis/minutes/v1/minutes/{minute_token}' })
+> **Important**: Use `lark_api_search` to look up parameter structure before raw API calls.
+
+### minutes.get
+
+```javascript
+lark_api({ tool: 'minutes', op: 'minutes.get', args: { minute_token: '<minute_token>' } })
 ```
 
-> **Important**: When using the native API, you MUST first inspect the `--data` / `--params` parameter structure — never guess field formats.
+  - `get` — Get Minute info (title, cover, duration, owner_id, url)
 
-### minutes
+## Permissions Table
 
-- `get` — get Minutes information → `lark_api` GET `/open-apis/minutes/v1/minutes/{minute_token}`
-
-## Permission table
-
-| Method                                                              | Required scope                 |
-| ------------------------------------------------------------------- | ------------------------------ |
-| `lark_api({tool:'minutes', op:'search', ...})`                      | `minutes:minutes.search:read`  |
-| `lark_api` GET `/open-apis/minutes/v1/minutes/{minute_token}`       | `minutes:minutes:readonly`     |
-| `lark_api({tool:'minutes', op:'download', ...})`                    | `minutes:minutes.media:export` |
-
-<!-- AUTO-GENERATED-END -->
+| Method | Required scope |
+|--------|---------------|
+| `search` | `minutes:minutes.search:read` |
+| `minutes.get` | `minutes:minutes:readonly` |
+| `download` | `minutes:minutes.media:export` |

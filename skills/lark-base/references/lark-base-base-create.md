@@ -1,83 +1,68 @@
-# base-create
+# base +base-create
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Create a new Base. Optionally set parent folder and timezone.
+创建一个新的 Base；可选指定父文件夹和时区。
 
-## MCP tool call
+## 推荐命令
 
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases
-- body:
-  {
-    "name": "New Base"
-  }
-```
+```bash
+lark-cli base +base-create \
+  --name "New Base"
 
-With optional params:
-
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases
-- body:
-  {
-    "name": "Project Management",
-    "folder_token": "fld_xxx",
-    "time_zone": "Asia/Shanghai"
-  }
+lark-cli base +base-create \
+  --name "项目管理" \
+  --folder-token fld_xxx \
+  --time-zone Asia/Shanghai
 ```
 
-## Parameters (body)
+## 参数
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | Yes | New Base name |
-| `folder_token` | No | Target folder token |
-| `time_zone` | No | Timezone, e.g. `Asia/Shanghai` |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--name <name>` | 是 | 新 Base 名称 |
+| `--folder-token <token>` | 否 | 目标文件夹 token |
+| `--time-zone <tz>` | 否 | 时区，如 `Asia/Shanghai` |
 
-## API request details
+## API 入参详情
+
+**HTTP 方法和路径：**
 
 ```
 POST /open-apis/base/v3/bases
 ```
 
-## Response highlights
+## 返回重点
 
-- Returns `base`.
-- In your reply, proactively return:
-  - `base.url` when available
-  - new Base token (commonly `base_token` or `app_token`)
-  - if `url` missing, at least Base name and token
+- 返回 `base`。
+- CLI 会额外标记 `created: true`。
+- 回复结果时，必须主动返回新 Base 的可访问链接：
+  - 优先使用返回结果中的 `base.url`
+  - 同时返回新 Base 的 token
+  - 如果本次返回没有 `url`，至少返回新 Base 的名称和 token
 
 > [!IMPORTANT]
-> If Base is created with app identity (bot), keep bot identity by default and grant `full_access` (admin) to the currently available user identity.
-> Recommended flow:
-> 1. Call `lark_api GET /open-apis/contact/v3/users/me` to get current user `open_id`
-> 2. Use bot identity to call the Base member/permission endpoint with `full_access` for that `open_id`
+> 如果 Base 是**以应用身份（bot）创建**的，shortcut 会在创建成功后自动尝试为当前 CLI 用户添加该 Base 的 `full_access`（管理员）权限，并在输出中附带 `permission_grant` 字段。
 >
-> If no local user identity is available or `open_id` cannot be obtained, clearly state authorization was not completed.
+> `permission_grant.status` 语义如下：
+> - `granted`：当前 CLI 用户已获得该 Base 的管理员权限
+> - `skipped`：Base 已创建成功，但没有可授权的当前 CLI 用户，或创建结果缺少可授权 token
+> - `failed`：Base 已创建成功，但自动授权失败；结果中会包含失败原因，用户可稍后重试授权，或继续使用应用身份（bot）处理该 Base
 >
-> In result reply, always include authorization status:
-> - success: user has admin permission
-> - no local user identity: explain auth not completed
-> - failed: Base created but auth failed, include reason and next step
+> 回复创建结果时，除 `base token` 和可访问链接外，还必须明确告知用户 `permission_grant` 的结果。
 >
-> If authorization is not completed, suggest retry later or continue with bot identity.
-> Do not transfer owner unless user explicitly asks and confirms.
+> **仍然不要擅自执行 owner 转移。** 如果用户需要把 owner 转给自己，必须单独确认。
 
-## Workflow
+## 工作流
 
 > [!CAUTION]
-> This is a write operation. Confirm with the user before execution.
+> 这是**写入操作** — 执行前必须向用户确认。
 
-1. Confirm Base name
-2. `folder_token` and `time_zone` are optional; do not over-ask
-3. After success, return Base name, token, and accessible link if present
+1. 先确认 Base 名称。
+2. `--folder-token`、`--time-zone` 都是可选项；用户没要求时不要为此额外追问。
+3. 创建成功后，整理并返回：Base 名称、token，以及响应中已有的可访问链接。
 
-## References
+## 参考
 
-- [lark-base-workspace.md](lark-base-workspace.md) - base/workspace index
-- [lark-base-base-copy.md](lark-base-base-copy.md) - copy Base
+- [lark-base-workspace.md](lark-base-workspace.md) — base / workspace 索引页
+- [lark-base-base-copy.md](lark-base-base-copy.md) — 复制 Base

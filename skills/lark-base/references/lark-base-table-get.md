@@ -1,53 +1,46 @@
-# table-get
+# base +table-get
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand auth, global parameters and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Get aggregated table info: table metadata, all fields, and all views.
+获取一张表的聚合信息：表基础信息、全部字段、全部视图。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}
-
-Then follow up with fields and views:
-
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields
-
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}/tables/{table_id}
+```bash
+lark-cli base +table-get \
+  --base-token app_xxx \
+  --table-id tbl_xxx
 ```
 
-Note: To get the full picture (table + fields + views), make three sequential calls.
+## 参数
 
-## Key return fields
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID（`id` 必须以 `tbl` 开头）或表名 |
 
-- Table call returns `table` metadata.
-- Fields call returns `items` (field list).
-- Views call returns `items` (view list).
-- Use this to understand table structure before field or view operations.
+## API 入参详情
 
-## Pitfalls
+**HTTP 方法和路径：**
 
-- ⚠️ `table_id` supports passing table names, but prefer `tbl_xxx` IDs in duplicate-name scenarios.
+```
+GET /open-apis/base/v3/bases/:base_token/tables/:table_id
+```
 
-## References
+- CLI 内部还会继续查询 `/fields` 和 `/views`，并聚合输出。
 
-- [lark-base-table.md](lark-base-table.md) — table index page
-- [lark-base-field-list.md](lark-base-field-list.md) — list fields
-- [lark-base-view-list.md](lark-base-view-list.md) — list views
+## 返回重点
+
+- 返回 `table`、`fields`、`views` 三段数据。
+- 适合先摸清表结构，再继续字段或视图操作。
+
+## 坑点
+
+- ⚠️ 如果 `--table-id` 传的是 `id`，必须是 `tbl` 开头；不是的话先询问用户具体是哪张表，或先用 `+table-list` 查表列表再确认。
+- ⚠️ `--table-id` 支持传表名，但重名场景下建议优先传 `tbl_xxx`。
+
+## 参考
+
+- [lark-base-table.md](lark-base-table.md) — table 索引页
+- [lark-base-field-list.md](lark-base-field-list.md) — 列字段
+- [lark-base-view-list.md](lark-base-view-list.md) — 列视图

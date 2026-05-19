@@ -1,44 +1,48 @@
-# field-search-options
+# base +field-search-options
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand auth, global parameters and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Search candidates for single/multi-select fields.
+搜索单选 / 多选字段的候选项。
 
-## Recommended call
+## 推荐命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields/{field_id}/options
-- params:
-  ```json
-  { "query": "completed", "offset": 0, "limit": 30 }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `field_id` | Yes | Field ID or field name (path param) |
-| `query` | No | Query keyword (query param) |
-| `offset` | No | Paging offset, default `0` (query param) |
-| `limit` | No | Paging size, default `30` (query param) |
-
-## API request details
-
-```
-GET /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields/{field_id}/options
+```bash
+lark-cli base +field-search-options \
+  --base-token app_xxx \
+  --table-id tbl_xxx \
+  --field-id fld_status \
+  --keyword 已完成 \
+  --offset 0 \
+  --limit 30
 ```
 
-## Response highlights
+## 参数
 
-- Returns `options`, `total`, and the echoed `field_id / field_name / keyword`.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
+| `--field-id <id_or_name>` | 是 | 字段 ID 或字段名 |
+| `--keyword <text>` | 否 | 查询关键字；会映射到 API 的 `query` |
+| `--offset <n>` | 否 | 分页偏移，默认 `0` |
+| `--limit <n>` | 否 | 分页大小，默认 `30` |
 
-## Pitfalls
+## API 入参详情
 
-- ⚠️ Only available for fields with option sets; normal text/number fields have no searchable options.
+**HTTP 方法和路径：**
 
-## References
+```
+GET /open-apis/base/v3/bases/:base_token/tables/:table_id/fields/:field_id/options
+```
 
-- [lark-base-field.md](lark-base-field.md) — field index page
+## 返回重点
+
+- 返回 `options`、`total`、以及回显的 `field_id / field_name / keyword`。
+
+## 坑点
+
+- ⚠️ 只适用于带选项集的字段；普通文本 / 数字字段没有可搜索选项。
+
+## 参考
+
+- [lark-base-field.md](lark-base-field.md) — field 索引页

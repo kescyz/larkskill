@@ -1,58 +1,38 @@
 # task +assign
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **Prerequisites:** Please read `../lark-shared/SKILL.md` to understand authentication, global parameters, and security rules.
 
 Assign or remove members (assignees) from a task.
 
-## Recommended call
+## Recommended Commands
 
-Add an assignee:
+```bash
+# Add an assignee
+lark-cli task +assign --task-id "<task_guid>" --add "ou_aaa"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasks/{task_guid}/add_members
-- body:
-  ```json
-  {
-    "members": [{ "id": "ou_aaa", "type": "open_id", "role": "assignee" }]
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
+# Add an app assignee
+lark-cli task +assign --task-id "<task_guid>" --add "cli_xxx"
 
-Remove an assignee:
+# Transfer an assignee (remove old, add new)
+lark-cli task +assign --task-id "<task_guid>" --remove "ou_old" --add "ou_new"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasks/{task_guid}/remove_members
-- body:
-  ```json
-  {
-    "members": [{ "id": "ou_old", "type": "open_id", "role": "assignee" }]
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
+# Add multiple assignees
+lark-cli task +assign --task-id "<task_guid>" --add "ou_aaa,ou_bbb"
+```
 
-Transfer assignee (remove old, add new) — two sequential calls:
-1. `remove_members` for old assignee
-2. `add_members` for new assignee
-
-## Parameters (body)
+## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `members` | Yes | Array of member objects. Each: `{id: "<open_id>", type: "open_id", role: "assignee"}` |
-
-## Parameters (query)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `user_id_type` | No | User ID type: `open_id` (default), `union_id`, or `user_id` |
+| `--task-id <guid>` | Yes | The task GUID to modify. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
+| `--add <ids>` | No | Comma-separated assignee IDs. Use user `open_id`s like `ou_xxx` for people, or app IDs like `cli_xxx` for apps. |
+| `--remove <ids>` | No | Comma-separated assignee IDs. Use user `open_id`s like `ou_xxx` for people, or app IDs like `cli_xxx` for apps. |
 
 ## Workflow
 
 1. Confirm the task and members to add/remove.
-2. Call `add_members` and/or `remove_members` as needed.
+2. Execute the command.
 3. Report success and the new count of assignees.
 
 > [!CAUTION]
-> This is a **Write Operation** — you must confirm the user's intent before executing.
+> This is a **Write Operation** -- You must confirm the user's intent before executing.

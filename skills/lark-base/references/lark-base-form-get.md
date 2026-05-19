@@ -1,52 +1,68 @@
-# form-get
+# base +form-get
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Get details of a specified form in a Base table. Read-only — no data is modified.
+获取多维表格数据表中指定表单的详情。只读操作，不修改任何数据。
 
-## Recommended call
+## 命令
 
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}
+```bash
+# 获取表单详情
+lark-cli base +form-get \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id>
 
-## Parameters
+# 以 pretty 格式展示
+lark-cli base +form-get \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --format pretty
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID (path param) |
-| `form_id` | Yes | Form ID (path param) |
-
-## API request details
-
+# 使用应用身份（bot）
+lark-cli base +form-get \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --form-id <form_id> \
+  --as bot
 ```
-GET /open-apis/base/v3/bases/{base_token}/tables/{table_id}/forms/{form_id}
-```
 
-## Key return fields
+## 参数
 
-| Field | Description |
-|-------|-------------|
-| `id` | Form ID |
-| `name` | Form name |
-| `description` | Form description |
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token（base_token） |
+| `--table-id <id>` | 是 | 数据表 ID |
+| `--form-id <id>` | 是 | 表单 ID |
+| `--format` | 否 | 输出格式：json（默认）\| pretty \| table \| ndjson \| csv |
+| `--as` | 否 | 身份：user（默认）\| bot |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
+
+## 输出格式
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 表单 ID |
+| `name` | 表单名称 |
+| `description` | 表单描述 |
 
 ```json
 {
+  "ok": true,
   "data": {
     "id": "vewX58te9D",
-    "name": "User Research Questionnaire",
-    "description": "2024 User Satisfaction Survey"
+    "name": "用户调研问卷",
+    "description": "2024年度用户满意度调研"
   }
 }
 ```
 
-## Pitfalls
+## 提示
 
-- `form_id` can be obtained via `form-list`.
+- `form_id` 可通过 `lark-cli base +form-list --base-token <token> --table-id <id>` 获取
 
-## References
+## 参考
 
-- [lark-base-form-list.md](lark-base-form-list.md) — List forms to find `form_id`
-- [lark-base-form-update.md](lark-base-form-update.md) — Update form name/description
+- [lark-base](../SKILL.md) — 多维表格全部命令
+- [lark-shared](../../lark-shared/SKILL.md) — 认证和全局参数

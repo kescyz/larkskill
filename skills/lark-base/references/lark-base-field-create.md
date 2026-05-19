@@ -1,109 +1,104 @@
-# field-create
+# base +field-create
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Create a field.
+创建一个字段。
 
-## Agent minimal workflow
+## Agent 最小工作流
 
-1. First determine whether it is `formula` / `lookup`.
-2. If yes: read the corresponding guide first.
-3. Do not create formula / lookup fields directly without reading the guide.
-4. After reading the guide, construct the body JSON and create the field.
-5. If it is a cross-table formula / lookup, also check the **target table** schema.
+1. 先判断是不是 `formula` / `lookup`。
+2. 如果是：先读对应 guide。
+3. 没读 guide 前，不要直接创建 formula / lookup 字段。
+4. 读完 guide 后，再构造 `--json` 并创建字段。
+5. 如果是跨表 formula / lookup，再补查**目标表**的结构。
 
-## Recommended call
+## 推荐命令
 
-Simple number field:
+```bash
+lark-cli base +field-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --json '{"name":"预算","type":"number","style":{"type":"plain","precision":2}}'
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields
-- body:
-  ```json
-  {
-    "name": "Budget",
-    "type": "number",
-    "precision": 2
-  }
-  ```
+lark-cli base +field-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --json '{"name":"状态","type":"select","multiple":false,"options":[{"name":"Todo","hue":"Blue","lightness":"Lighter"},{"name":"Done","hue":"Green","lightness":"Light"}]}'
 
-Select field with options:
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields
-- body:
-  ```json
-  {
-    "name": "Status",
-    "type": "select",
-    "multiple": false,
-    "options": [
-      {"name": "Todo", "hue": "Blue", "lightness": "Lighter"},
-      {"name": "Done", "hue": "Green", "lightness": "Light"}
-    ]
-  }
-  ```
-
-User field with description:
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields
-- body:
-  ```json
-  {
-    "name": "Owner",
-    "type": "user",
-    "multiple": false,
-    "description": "Marks the direct owner of the record; see [Team Field Conventions](https://example.com/field-spec) for collaboration guidelines"
-  }
-  ```
-
-## Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `name` | Yes | Field name (body) |
-| `type` | Yes | Field type (body) |
-| `description` | No | Plain text or Markdown links (body) |
-
-## API request details
-
-```
-POST /open-apis/base/v3/bases/{base_token}/tables/{table_id}/fields
+lark-cli base +field-create \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --json '{"name":"负责人","type":"user","multiple":false,"description":"用于标记记录的直接负责人；协作约定可参考[团队字段约定](https://example.com/field-spec)"}'
 ```
 
-## JSON body specification
+## 参数
 
-- Body must be a **JSON object**; pass field definitions directly at the top level without nesting.
-- Top level must contain at minimum: `name`, `type`.
-- To add a field description, pass `description` directly; supports plain text and Markdown links.
-- Different `type` values require different sub-fields:
-  - `select`: use `multiple` + `options` (only pass `name/hue/lightness` in `options`, do not pass `id`).
-  - `link`: must have `link_table`, optionally `bidirectional`, `bidirectional_link_field_name`.
-  - `formula`: must have `expression`; read the formula guide first, then create.
-  - `lookup`: must have `from`, `select`, `where`; read the lookup guide first, then create.
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
+| `--json <body>` | 是 | 字段属性 JSON 对象 |
+## API 入参详情
 
-## Response highlights
+**HTTP 方法和路径：**
 
-- Returns `field` and `created: true`.
+```
+POST /open-apis/base/v3/bases/:base_token/tables/:table_id/fields
+```
 
-## Workflow
+## JSON 值规范
 
-1. For formula / lookup fields, you must read the corresponding guide first; do not create directly without reading it.
+- `--json` 必须是 **JSON 对象**，顶层直接传字段定义，不要再套一层。
+- 顶层最少包含：`name`、`type`。
+- 所有字段类型都支持可选 `description`；支持纯文本，也支持 Markdown 链接，如 `协作约定可参考[团队字段约定](https://example.com/field-spec)`。
+- `type` 不同，必填子字段不同：
+  - `select`：`multiple` 控制是否多选，`options` 定义静态选项，`dynamic_options_source` 定义动态选项来源。静态与动态选项配置二选一，不能同时传。
+  - `link`：必须有 `link_table`，可选 `bidirectional`、`bidirectional_link_field_name`。
+  - `formula`：必须有 `expression`；先读 formula guide，再创建。
+  - `lookup`：必须有 `from`、`select`、`where`；先读 lookup guide，再创建。
 
-## Pitfalls
+**正确（base +field-create）**
 
-- This is a write operation; confirm with the user before execution.
-- When `type` is `formula` or `lookup`, read the corresponding guide first, then create.
+```json
+{
+  "name": "状态",
+  "type": "select",
+  "multiple": false,
+  "options": [
+    { "name": "Todo", "hue": "Blue", "lightness": "Lighter" },
+    { "name": "Done", "hue": "Green", "lightness": "Light" }
+  ]
+}
+```
 
-## References
+**字段说明示例**
 
-- [lark-base-field.md](lark-base-field.md) - field index page
-- [lark-base-shortcut-field-properties.md](lark-base-shortcut-field-properties.md) - shortcut field JSON spec (recommended)
-- [formula-field-guide.md](formula-field-guide.md) - formula guide (must read when creating formulas)
-- [lookup-field-guide.md](lookup-field-guide.md) - lookup guide (must read when creating lookup references)
+```json
+{
+  "name": "负责人",
+  "type": "user",
+  "multiple": false,
+  "description": "用于标记记录的直接负责人；协作约定可参考[团队字段约定](https://example.com/field-spec)"
+}
+```
+
+## 返回重点
+
+- 返回 `field` 和 `created: true`。
+
+## 工作流
+
+
+1. formula / lookup 字段必须先阅读对应指南；没读之前不要直接创建。
+
+## 坑点
+
+- ⚠️ 这是写入操作，执行前必须确认。
+- ⚠️ 当 `type` 是 `formula` 或 `lookup` 时，先读对应 guide，再创建。
+
+## 参考
+
+- [lark-base-field.md](lark-base-field.md) — field 索引页
+- [lark-base-shortcut-field-properties.md](lark-base-shortcut-field-properties.md) — shortcut 字段 JSON 规范（推荐）
+- [formula-field-guide.md](formula-field-guide.md) — formula 指南（创建公式必读）
+- [lookup-field-guide.md](lookup-field-guide.md) — lookup 指南（创建查找引用必读）

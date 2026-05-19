@@ -1,68 +1,51 @@
-# view-set-timebar
+# base +view-set-timebar
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Update the timeline configuration of a view.
+更新时间轴配置。
 
-## Recommended call
+## 1. 顶层规则
 
-Call MCP tool `lark_api`:
-- method: PUT
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/timebar
-- body:
-  ```json
-  {
-    "start_time": "fld_start",
-    "end_time": "fld_end",
-    "title": "fld_title"
-  }
-  ```
+- `--json` 必须是 JSON 对象。
+- 顶层固定写 `start_time`、`end_time`、`title` 三个字段，三者都必填。
+- `start_time` / `end_time` 必须是当前时间轴支持的日期字段。
+- `title` 必须是当前表中已存在的字段。
+- 仅 `calendar` / `gantt` 视图支持。
 
-## Parameters
+## 2. 推荐命令
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `view_id` | Yes | View ID or view name (path param) |
-| body | Yes | Timeline configuration JSON object (body) |
-
-## API request details
-
-```
-PUT /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/timebar
+```bash
+lark-cli base +view-set-timebar \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --view-id <view_id> \
+  --json '{"start_time":"fld_start","end_time":"fld_end","title":"fld_title"}'
 ```
 
-## Key return fields
-
-- Returns the updated timeline configuration.
-
-## Structure rules
-
-- `start_time`: required, field ID or field name, length `1–100`
-- `end_time`: required, field ID or field name, length `1–100`
-- `title`: required, field ID or field name, length `1–100`
-- `start_time` / `end_time` must be `datetime` / `created_at` type fields; prefer field IDs
-- `title` is typically the primary field, used to display the entry title
-
-## JSON Schema
+## 3. JSON 写法
 
 ```json
-{"type":"object","properties":{"start_time":{"type":"string","minLength":1,"maxLength":100,"description":"start time field id or name (must be a datetime/created_at field)"},"end_time":{"type":"string","minLength":1,"maxLength":100,"description":"end time field id or name (must be a datetime/created_at field)"},"title":{"type":"string","minLength":1,"maxLength":100,"description":"title datasource field id or name"}},"required":["start_time","end_time","title"],"additionalProperties":false,"$schema":"http://json-schema.org/draft-07/schema#"}
+{
+  "start_time": "fld_start",
+  "end_time": "fld_end",
+  "title": "fld_title"
+}
 ```
 
-## Workflow
+## 4. 使用建议
 
-1. Pull the current config with `view-get-timebar` first, then modify.
+- 优先传字段 id，不要依赖字段名。
+- `start_time` / `end_time` 稳定做法优先使用日期时间字段。
+- `title` 通常传主字段或文本标题字段。
+- 建议先用 [lark-base-view-get-timebar.md](lark-base-view-get-timebar.md) 读取现状。
 
-## Pitfalls
+## 5. 易错点
 
-- This is a write operation; confirm with the user before execution.
-- Only supported on `calendar` and `gantt` views.
-- `start_time` and `end_time` cannot be text, select, or link fields.
-- If the field does not exist or has the wrong type, the call will fail; do not guess field names.
+- 不要把普通文本、选项、链接字段写到 `start_time` / `end_time`。
+- 不要漏传 `title`。
+- 不要在 `grid` / `gallery` / `kanban` 视图上调用。
 
-## References
+## 6. 参考
 
-- [lark-base-view.md](lark-base-view.md) — view index page
-- [lark-base-view-get-timebar.md](lark-base-view-get-timebar.md) — read timebar
+- [lark-base-view.md](lark-base-view.md)
+- [lark-base-view-get-timebar.md](lark-base-view-get-timebar.md)

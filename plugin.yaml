@@ -1,5 +1,5 @@
 name: larkskill
-version: 0.3.0
+version: 0.3.2
 description: LarkSkill — Lark/Feishu workspace skills for Claude Code via MCP
 author: kescyz
 repository: https://github.com/kescyz/larkskill
@@ -25,6 +25,7 @@ skills:
   - lark-slides
   - lark-task
   - lark-vc
+  - lark-vc-agent
   - lark-whiteboard
   - lark-wiki
   - lark-workflow-meeting-summary

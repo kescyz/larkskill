@@ -1,358 +1,89 @@
-# docs +create
+# docs +create（创建飞书云文档）
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **前置条件（MUST READ）：** 生成文档内容前，必须先用 Read 工具读取以下文件，缺一不可：
+> 1. [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) — 认证、全局参数和安全规则
+> 2. [`lark-doc-xml.md`](lark-doc-xml.md) — XML 语法规则（使用 Markdown 格式时改读 [`lark-doc-md.md`](lark-doc-md.md)）
+> 3. [`lark-doc-style.md`](style/lark-doc-style.md) — 排版指南（元素选择、丰富度规则、颜色语义）
+> 4. [`lark-doc-create-workflow.md`](style/lark-doc-create-workflow.md) — 从零创作工作流（Code-Act Loop、并行执行策略）
+>
+> **未读完以上文件就生成内容会导致格式错误或样式不达标。**
 
-Create a Lark cloud document from Markdown content.
+从 XML（默认）或 Markdown 内容创建一个新的飞书云文档。
 
-## Recommended call
+> **⚠️ 格式选择规则：** 创建 / 导入场景下 XML 和 Markdown 都可以——用户提供 `.md` 本地文件、或明确说"导入 Markdown"时，直接用 Markdown；没有明确指示时默认 XML（表达能力更强，支持 callout、grid、checkbox 等富 block 类型）。不要在用户没要求的情况下主动从 XML 切到 Markdown，也不要在用户已给出 Markdown 时强行改成 XML。
 
+## 命令
+
+```bash
+# 创建 XML 文档（默认格式，推荐）
+lark-cli docs +create --api-version v2 --content '<title>项目计划</title><h1>目标</h1><ul><li>目标 1</li><li>目标 2</li></ul>'
+
+# 创建到指定文件夹（XML）
+lark-cli docs +create --api-version v2 --parent-token fldcnXXXX --content '<title>标题</title><p>首段内容</p>'
+
+# 创建到个人知识库（XML）
+lark-cli docs +create --api-version v2 --parent-position my_library --content '<title>标题</title><p>内容</p>'
+
+# 仅当用户明确要求时才使用 Markdown
+lark-cli docs +create --api-version v2 --doc-format markdown --content $'# 项目计划\n\n## 目标\n\n- 目标 1\n- 目标 2'
 ```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/docx/v1/documents
-- body:
-  {
-    "title": "Project Plan",
-    "folder_token": "<FOLDER_TOKEN>"
+
+## 返回值
+
+```json
+{
+  "ok": true,
+  "identity": "user",
+  "data": {
+    "document": {
+      "document_id": "doxcnXXXXXXXXXXXXXXXXXXX",
+      "revision_id": 1,
+      "url": "https://xxx.feishu.cn/docx/doxcnXXXXXXXXXXXXXXXXXXX",
+      "new_blocks": [
+        { "block_id": "blkcnXXXX", "block_type": "whiteboard", "block_token": "boardXXXX" }
+      ]
+    }
   }
+}
 ```
 
-After creating the document, insert content blocks via:
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/docx/v1/documents/{document_id}/blocks/{block_id}/children
-- body:
-  {
-    "children": [ ... block objects ... ],
-    "index": 0
-  }
-```
+- **`document.new_blocks`**：本次操作新增的 block 列表（如画板）。`block_id` 可用于 `docs +update` 的 `--block-id` 做精确编辑；`block_token` 是资源块（如画板）的 token，可交给 `lark-whiteboard` 等 skill 继续操作
+
+> \[!IMPORTANT]
+> 如果文档是**以应用身份（bot）创建**的，如 `lark-cli docs +create --as bot` 在文档创建成功后，CLI 会**尝试为当前 CLI 用户自动授予该文档的 `full_access`（可管理权限）**。
+>
+> 以应用身份创建时，结果里会额外返回 `permission_grant` 字段，明确说明授权结果：
+> - `status = granted`：当前 CLI 用户已获得该文档的可管理权限
+> - `status = skipped`：本地没有可用的当前用户 `open_id`，因此不会自动授权；可提示用户先完成 `lark-cli auth login`，再让 AI / agent 继续使用应用身份（bot）授予当前用户权限
+> - `status = failed`：文档已创建成功，但自动授权用户失败；会带上失败原因，并提示稍后重试或继续使用 bot 身份处理该文档
+>
+> `permission_grant.perm = full_access` 表示该资源已授予”可管理权限”。
+>
+> **不要擅自执行 owner 转移。** 如果用户需要把 owner 转给自己，必须单独确认。
+
+## 参数
+
+| 参数                  | 必填 | 说明                                          |
+| ------------------- | -- |---------------------------------------------|
+| `--api-version`     | 是  | 固定传 `v2`                                    |
+| `--content`         | 是  | 文档内容（XML 或 Markdown 格式）                     |
+| `--doc-format`      | 否  | 内容格式：`xml`（默认，始终优先使用）\| `markdown`（仅用户明确要求时） |
+| `--parent-token`    | 否  | 父文件夹或知识库节点 token（与 `--parent-position` 互斥）  |
+| `--parent-position` | 否  | 父节点位置，如 `my_library`（与 `--parent-token` 互斥） |
+
+## 最佳实践
+
+- 文档标题从内容中自动提取（XML `<title>` 或 Markdown `#`），不要在内容开头重复写标题
+- **创建较长的文档时只建骨架**：`--content` 仅传标题 + 各级 heading + 简短占位摘要；正文留给后续 `docs +update --command append` 或 `block_insert_after` 分段追加。一次性塞超长 `--content` 既容易触发参数限制，调试也更难。
+- **视觉丰富度**：必须遵循 [`lark-doc-style.md`](style/lark-doc-style.md) 中的样式指南，主动使用结构化 block 丰富文档
+
+## 参考
+
+- [`lark-doc-create-workflow.md`](style/lark-doc-create-workflow.md) — 从零创作工作流（Code-Act Loop、并行执行策略）
+- [`lark-doc-style.md`](style/lark-doc-style.md) — 文档样式指南（元素选择 + 丰富度规则 + 颜色语义）
+- [`lark-doc-xml.md`](lark-doc-xml.md) — XML 语法规范
+- [`lark-doc-fetch.md`](lark-doc-fetch.md) — 获取文档
+- [`lark-doc-update.md`](lark-doc-update.md) — 更新文档
+- [`lark-doc-media-insert.md`](lark-doc-media-insert.md) — 插入图片/文件到文档
+- [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) — 认证和全局参数
 
-## API request details
-
-```
-POST /open-apis/docx/v1/documents
-POST /open-apis/docx/v1/documents/{document_id}/blocks/{block_id}/children
-```
-
-## Parameters (document creation body)
-
-| Parameter | Required | Description |
-|------|------|------|
-| `title` | No | Document title |
-| `folder_token` | No | Target Drive folder token. If omitted, creates in root |
-
-## Markdown content support
-
-The following Markdown/HTML structures are supported when inserting blocks:
-
-### Text paragraphs
-
-```markdown
-normal text paragraph
-
-**Bold text** in paragraphs
-
-Separate multiple paragraphs with blank lines.
-
-Center text {align="center"}
-Right align text {align="right"}
-```
-
-### Headings
-
-```markdown
-# Level 1 title
-## Second level title
-### Third level title
-#### Level 4 heading
-##### Level 5 headings
-###### Sixth level title
-<h7>Level 7 heading</h7>
-<h8>Eight-level headings</h8>
-<h9>Level 9 headings</h9>
-
-# Colored title {color="blue"}
-## Red title {color="red"}
-# Center the title {align="center"}
-## Blue centered title {color="blue" align="center"}
-```
-
-### Lists
-
-```markdown
-- Unordered item 1
-  - Unordered item 1.a
-  - Unordered item 1.b
-
-1. Ordered item 1
-2. Ordered item 2
-
-- [ ] To-do
-- [x] Completed
-```
-
-### Quotes
-
-```markdown
-> This is a quote
-> Can span multiple lines
-
-> Reference formats such as **bold** and *italics* are supported
-```
-
-### Code blocks
-
-````markdown
-```python
-print("Hello")
-```
-````
-
-Supported languages: python, javascript, go, java, sql, json, yaml, shell, and more.
-
-### Horizontal Rule
-
-```markdown
----
-```
-
-### Callout
-
-```html
-<callout emoji="✅" background-color="light-green" border-color="green">
-Supports **formatted** content, which can contain multiple blocks
-</callout>
-```
-
-### Grid layout
-
-```html
-<grid cols="2">
-<column>
-
-Left column content
-
-</column>
-<column>
-
-Right column content
-
-</column>
-</grid>
-```
-
-```html
-<grid cols="3">
-<column width="20">Left column (20%)</column>
-<column width="60">Middle column (60%)</column>
-<column width="20">Right column (20%)</column>
-</grid>
-```
-
-### Tables
-
-```markdown
-| Column 1 | Column 2 | Column 3 |
-|------|------|------|
-| cell 1 | cell 2 | cell 3 |
-| Cell 4 | Cell 5 | Cell 6 |
-```
-
-```
-<lark-table> <- table container
-  <lark-tr> <- row (direct child elements can only be lark-tr)
-    <lark-td>Content</lark-td> <- cell (direct child element can only be lark-td)
-    <lark-td>Content</lark-td> <- The number of lark-td in each line must be the same!
-  </lark-tr>
-</lark-table>
-```
-
-```html
-<lark-td>
-
-Write content here
-
-</lark-td>
-```
-
-```html
-<lark-table column-widths="200,250,280" header-row="true">
-<lark-tr>
-<lark-td>
-
-**Header 1**
-
-</lark-td>
-<lark-td>
-
-**Header 2**
-
-</lark-td>
-<lark-td>
-
-**Header 3**
-
-</lark-td>
-</lark-tr>
-<lark-tr>
-<lark-td>
-
-normal text
-
-</lark-td>
-<lark-td>
-
-- List item 1
-- List item 2
-
-</lark-td>
-<lark-td>
-
-Code content
-
-</lark-td>
-</lark-tr>
-</lark-table>
-```
-
-### Images and files
-
-```html
-<image url="https://example.com/image.png" width="800" height="600" align="center" caption="Image description text"/>
-```
-
-```html
-<file url="https://example.com/document.pdf" name="Document.pdf" view-type="1"/>
-```
-
-### Whiteboard
-
-```html
-<whiteboard type="blank"></whiteboard>
-```
-
-Create a document with a single blank artboard:
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/docx/v1/documents
-- body: { "title": "Blank artboard example" }
-```
-
-Then insert whiteboard block into the document.
-
-Multiple blank whiteboards:
-```html
-<whiteboard type="blank"></whiteboard>
-<whiteboard type="blank"></whiteboard>
-```
-
-Reference existing whiteboard:
-```html
-<whiteboard token="xxx" align="center" width="800" height="600"/>
-```
-
-### Base (multidimensional table)
-
-```html
-<bitable view="table"/>
-<bitable view="kanban"/>
-```
-
-### Other embeds
-
-```html
-<chat-card id="oc_xxx" align="center"/>
-```
-
-```html
-<iframe url="https://example.com/survey?id=123" type="12"/>
-```
-
-```html
-<link-preview url="Message link" type="message"/>
-```
-
-```html
-<quote-container>
-Reference container content
-</quote-container>
-```
-
-```html
-<sheet rows="5" cols="5"/>
-<sheet/>
-```
-
-```html
-<task task-id="xxx" members="ou_123, ou_456" due="2025-01-01">Task title</task>
-```
-
-```html
-<!-- Source sync block -->
-<source-synced align="1">Sub-block content...</source-synced>
-
-<!-- Reference synchronized block -->
-<reference-synced source-block-id="xxx" source-document-id="yyy">Source content...</reference-synced>
-```
-
-```html
-<add-ons component-type-id="blk_xxx" record='{"key":"value"}'/>
-```
-
-```html
-<sub-page-list wiki="wiki_xxx"/>
-```
-
-```html
-<agenda>
-  <agenda-item>
-    <agenda-title>Agenda title</agenda-title>
-    <agenda-content>Agenda content</agenda-content>
-  </agenda-item>
-</agenda>
-```
-
-```html
-<okr id="okr_xxx">
-  <objective id="obj_1">
-    <kr id="kr_1"/>
-  </objective>
-</okr>
-```
-
-### Inline elements
-
-```html
-<mention-user id="ou_xxx"/>
-```
-
-```html
-<mention-doc token="doxcnXXX" type="docx">Document title</mention-doc>
-```
-
-```html
-<reminder date="2025-12-31T18:00+08:00" notify="true" user-id="ou_xxx"/>
-```
-
-### Math formulas
-
-````markdown
-$$
-\int_{0}^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
-$$
-````
-
-Inline formula:
-
-```markdown
-Einstein's equation: $E = mc^2$ (note that spaces are required before and after $, and there must be no spaces immediately adjacent to it)
-```
-
-## References
-
-- [lark-doc](../SKILL.md) — All Docs operations
-- [lark-doc-update](lark-doc-update.md) — Update document content
-- [lark-shared](../../lark-shared/SKILL.md) — Authentication and global parameters

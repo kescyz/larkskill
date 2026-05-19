@@ -1,72 +1,62 @@
-# table-create
+# base +table-create
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand auth, global parameters and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Create a table, and optionally create fields and views.
+创建数据表；可选地继续创建字段和视图。
 
-## Recommended call
+## 推荐命令
 
-Minimal (name only):
+```bash
+lark-cli base +table-create \
+  --base-token app_xxx \
+  --name "客户名单"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables
-- body:
-  ```json
-  {
-    "name": "Customer list"
-  }
-  ```
-
-With fields and view:
-
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/base/v3/bases/{base_token}/tables
-- body:
-  ```json
-  {
-    "name": "Project Management",
-    "fields": [{"name": "Project name", "type": "text"}],
-    "view": [{"name": "Default table", "type": "grid"}]
-  }
-  ```
-
-## Parameters (body)
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `name` | Yes | New table name |
-| `fields` | No | Field JSON array |
-| `view` | No | View JSON object or array |
-
-## API request details
-
-```
-POST /open-apis/base/v3/bases/{base_token}/tables
+lark-cli base +table-create \
+  --base-token app_xxx \
+  --name "项目管理" \
+  --fields '[{"name":"项目名称","type":"text"}]' \
+  --view '[{"name":"默认表格","type":"grid"}]' 
 ```
 
-Note: If `fields` or `view` are provided, additional field/view API calls may be needed as separate steps after table creation.
+## 参数
 
-## Key return fields
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--base-token <token>` | 是 | Base Token |
+| `--name <name>` | 是 | 新表名称 |
+| `--fields <json>` | 否 | 字段 JSON 数组 |
+| `--view <json>` | 否 | 视图 JSON 对象或数组 |
 
-- Returns at least `table`.
-- When `fields` / `view` is provided, response also includes `fields` / `views`.
+## API 入参详情
 
-## Workflow
+**HTTP 方法和路径：**
 
-1. Start with only `name` to create an empty table.
-2. If field/view params are complex, create the table first then add fields/views separately.
+```
+POST /open-apis/base/v3/bases/:base_token/tables
+```
 
-## Pitfalls
+- 如果传了 `--fields`，CLI 会继续调用字段接口。
+- 如果传了 `--view`，CLI 会继续调用视图接口。
 
-- ⚠️ This is a write operation and must be confirmed before execution.
-- ⚠️ The first element in `fields` updates the system default first column. Subsequent elements are newly added fields.
-- ⚠️ Do not update the same table in parallel to avoid race conditions.
+## 返回重点
 
-## References
+- 至少返回 `table`。
+- 传了 `--fields` / `--view` 时，还会附带 `fields` / `views`。
 
-- [lark-base-table.md](lark-base-table.md) — table index page
-- [lark-base-field-create.md](lark-base-field-create.md) — Create fields
-- [lark-base-view-create.md](lark-base-view-create.md) — Create views
+## 工作流
+
+
+1. 先只传 `--name` 建空表。
+2. 字段或视图参数较复杂时，先精简到最小必需字段，再以内联 JSON 传参。
+
+## 坑点
+
+- ⚠️ 这是写入操作，执行前必须确认。
+- ⚠️ CLI 会用 `--fields` 的第一个元素更新系统默认首列，后续元素才是新增字段。
+- ⚠️ 不要并行改同一张表，避免状态竞争。
+
+## 参考
+
+- [lark-base-table.md](lark-base-table.md) — table 索引页
+- [lark-base-field-create.md](lark-base-field-create.md) — 建字段
+- [lark-base-view-create.md](lark-base-view-create.md) — 建视图

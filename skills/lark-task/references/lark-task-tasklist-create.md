@@ -1,54 +1,35 @@
 # task +tasklist-create
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **Prerequisites:** Please read `../lark-shared/SKILL.md` to understand authentication, global parameters, and security rules.
 
 Create a new tasklist, and optionally batch create tasks within it.
 
-## Recommended call
+## Recommended Commands
 
-Create an empty tasklist:
+```bash
+# Create an empty tasklist
+lark-cli task +tasklist-create --name "Q1 Goals"
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasklists
-- body:
-  ```json
-  { "name": "Q1 Goals" }
-  ```
-- params: `{ "user_id_type": "open_id" }`
+# Create a tasklist and add members
+lark-cli task +tasklist-create --name "Project A" --member "ou_xxx,ou_yyy"
 
-Create a tasklist and add members:
+# Create a tasklist and batch create tasks within it
+lark-cli task +tasklist-create --name "Launch Checklist" --data '[{"summary": "Code Review", "assignee": "ou_aaa"}, {"summary": "Deploy", "assignee": "ou_bbb"}]'
+```
 
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/task/v2/tasklists
-- body:
-  ```json
-  {
-    "name": "Project A",
-    "members": [
-      { "id": "ou_xxx", "type": "open_id", "role": "editor" },
-      { "id": "ou_yyy", "type": "open_id", "role": "editor" }
-    ]
-  }
-  ```
-- params: `{ "user_id_type": "open_id" }`
-
-To batch create tasks within the tasklist after creation, call `lark_api POST /open-apis/task/v2/tasks` for each task with the `tasklist_guid` field set.
-
-## Parameters (body)
+## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `name` | Yes | The name of the tasklist |
-| `members` | No | Array of member objects: `{id: "<open_id>", type: "open_id", role: "editor"}` |
+| `--name <text>` | Yes | The name of the tasklist. |
+| `--member <ids>` | No | Comma-separated list of user `open_id`s to add as editors. |
+| `--data <json>` | No | JSON array of task definitions to create and add to the tasklist automatically. |
 
 ## Workflow
 
 1. Confirm the tasklist name, members, and tasks (if any).
-2. Call `lark_api POST /open-apis/task/v2/tasklists`.
-3. If tasks need to be created, call `lark_api POST /open-apis/task/v2/tasks` for each with `tasklist_guid` from step 2.
-4. Report success, including the new tasklist GUID and URL if available.
+2. Execute the command `lark-cli task +tasklist-create ...`.
+3. Report success, including the new tasklist ID and the result of the batch task creation.
 
 > [!CAUTION]
-> This is a **Write Operation** — you must confirm the user's intent before executing.
+> This is a **Write Operation** -- You must confirm the user's intent before executing.

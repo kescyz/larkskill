@@ -1,59 +1,49 @@
 ---
 name: lark-markdown
-version: 1.0.0
-description: "Use this skill when creating, fetching, or overwriting Markdown files in Lark Drive via LarkSkill MCP. Handles native .md files stored in Drive — not docx documents."
+version: 2.0.0
+description: "Use this skill when operating Lark Markdown files via LarkSkill MCP: view, create, upload, and edit native Markdown (.md) files stored in Drive. Use when the user needs to create or edit a Markdown file, or read or modify one."
 metadata:
   requires:
     mcp: "larkskill"
-  mcpTools: ["lark_api"]
+  mcpTools: ["lark_api", "lark_api_search"]
 ---
 
-# markdown (v1)
+# markdown
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first — it covers authentication and permission handling.
+> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first.
+> **Mandatory before execution:** Before invoking any `markdown` operation, read the corresponding command reference doc, then call the operation via `lark_api`.
+> **Naming convention:** Markdown operations call `lark_api({ tool: 'markdown', op: '<op>', args: {...} })`.
 
-## Quick decision guide
+## Quick Decision
 
-- User wants to **upload or create a native `.md` file** → use `lark_api({ tool: 'markdown', op: 'create', ... })`
-- User wants to **read a `.md` file from Drive** → use `lark_api({ tool: 'markdown', op: 'fetch', ... })`
-- User wants to **overwrite an existing `.md` file in Drive** → use `lark_api({ tool: 'markdown', op: 'overwrite', ... })`
-- User wants to **import Markdown as an online Docs document (docx)** — do NOT use this skill; use [`lark-drive`](../lark-drive/SKILL.md) with `lark_api({ tool: 'drive', op: 'import', args: { type: 'docx', ... } })`
-- User wants to **rename / move / delete / search / manage permissions / add comments** on a Markdown file — do NOT stay in this skill; switch to [`lark-drive`](../lark-drive/SKILL.md)
+- To **create a native `.md` file**, use `lark_api({ tool: 'markdown', op: 'create', args: {...} })`
+- To **read the content of a `.md` file in Drive**, use `lark_api({ tool: 'markdown', op: 'fetch', args: {...} })`
+- To perform **partial text replacement / regex replacement** on a Markdown file, use `lark_api({ tool: 'markdown', op: 'patch', args: {...} })`
+- To **overwrite-update the content of a `.md` file in Drive**, use `lark_api({ tool: 'markdown', op: 'overwrite', args: {...} })`
+- To **import a local Markdown file as a new-version online doc (docx)**, do not use this skill — switch to [`lark-drive`](../lark-drive/SKILL.md) with `lark_api({ tool: 'drive', op: 'import', args: { type: 'docx', ... } })`
+- For **rename / move / delete / search / permissions / comments** and other Drive operations on a Markdown file, switch to [`lark-drive`](../lark-drive/SKILL.md)
 
-## Core boundaries
+## Core Boundaries
 
-- This skill handles **Markdown files stored as ordinary files in Drive** — not docx documents.
-- `--name` and the local `--file` filename MUST explicitly include the `.md` extension; if absent, the shortcut will error immediately.
-- `--content` accepts:
-  - A direct string value
-  - `@file` to read content from a local file
-  - `-` to read content from stdin
-- `--file` accepts only local `.md` file paths.
+- This skill handles **Markdown stored as a regular file in Drive**, not docx documents.
+- Both `name` and the local `file` filename MUST explicitly include the `.md` suffix; the operation reports an error otherwise.
+- `content` accepts a direct string, a local file path (prefixed with `@`), or stdin (`-`).
+- `markdown patch` internally: **downloads the full Markdown first, replaces locally, then uploads the entire file as an overwrite**.
+- `markdown patch` is NOT a server-side atomic patch; it is a partial-update capability orchestrated on the MCP tool side.
+- `markdown patch` currently supports only a **single** `pattern` / `content` pair.
+- The final content after `markdown patch` replacement **must not be empty**; if the replacement results in an empty string, the operation reports an error and does not upload the empty file.
+- `file` only accepts local `.md` file paths.
 
-## Shortcuts (use these first)
+## Operations (use via LarkSkill MCP)
 
-Shortcuts are high-level wrappers for common operations (`lark_api({ tool: 'markdown', op: '<verb>', args: {...} })`). Prefer shortcuts when available.
-
-| Shortcut | Description |
-|----------|-------------|
-| [`+create`](references/lark-markdown-create.md) | Create a Markdown file in Drive |
-| [`+fetch`](references/lark-markdown-fetch.md) | Fetch a Markdown file from Drive |
-| [`+overwrite`](references/lark-markdown-overwrite.md) | Overwrite an existing Markdown file in Drive |
-
-### Usage examples
-
-```
-// Create a new Markdown file in Drive
-lark_api({ tool: 'markdown', op: 'create', args: { name: 'notes.md', content: '# Hello\n\nContent here.' } })
-
-// Fetch an existing Markdown file
-lark_api({ tool: 'markdown', op: 'fetch', args: { file_token: '<token>' } })
-
-// Overwrite an existing Markdown file
-lark_api({ tool: 'markdown', op: 'overwrite', args: { file_token: '<token>', content: '# Updated\n\nNew content.' } })
-```
+| Operation | Description |
+|-----------|-------------|
+| `lark_api({ tool: 'markdown', op: 'create', args: {...} })` | Create a Markdown file in Drive — see [references/lark-markdown-create.md](references/lark-markdown-create.md) |
+| `lark_api({ tool: 'markdown', op: 'fetch', args: {...} })` | Fetch a Markdown file from Drive — see [references/lark-markdown-fetch.md](references/lark-markdown-fetch.md) |
+| `lark_api({ tool: 'markdown', op: 'patch', args: {...} })` | Patch a Markdown file in Drive via fetch-local-replace-overwrite — see [references/lark-markdown-patch.md](references/lark-markdown-patch.md) |
+| `lark_api({ tool: 'markdown', op: 'overwrite', args: {...} })` | Overwrite an existing Markdown file in Drive — see [references/lark-markdown-overwrite.md](references/lark-markdown-overwrite.md) |
 
 ## References
 
 - [lark-shared](../lark-shared/SKILL.md) — authentication and global parameters
-- [lark-drive](../lark-drive/SKILL.md) — Drive file management, docx import, move/delete/search, etc.
+- [lark-drive](../lark-drive/SKILL.md) — Drive file management, import as docx, move/delete/search, etc.

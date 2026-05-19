@@ -1,65 +1,65 @@
-# view-set-group
+# base +view-set-group
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for auth, global flags, and safety rules.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Update the group configuration of a view.
+更新视图分组配置。
 
-## Recommended call
+## 1. 顶层规则
 
-Call MCP tool `lark_api`:
-- method: PUT
-- path: /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/group
-- body:
-  ```json
-  [
-    { "field": "fld_status", "desc": false }
-  ]
-  ```
+- `--json` 必须是 JSON 对象。
+- 顶层写法固定为 `{"group_config":[...]}`。
+- 每项写 `{ "field": "<field_id_or_name>", "desc": false }`。
+- `desc` 可省略；省略时等价于 `false`。
+- 仅 `grid` / `kanban` / `gantt` 视图支持。
+- `group_config` 传空数组 `[]` 表示清空分组。
+- 分组字段必须是当前视图可分组的字段；字段存在也不代表一定可分组。
 
-## Parameters
+## 2. 推荐命令
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `base_token` | Yes | Base token (path param) |
-| `table_id` | Yes | Table ID or table name (path param) |
-| `view_id` | Yes | View ID or view name (path param) |
-| body | Yes | Array of group config items (body) |
+设置分组：
 
-## API request details
-
-```
-PUT /open-apis/base/v3/bases/{base_token}/tables/{table_id}/views/{view_id}/group
+```bash
+lark-cli base +view-set-group \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --view-id <view_id> \
+  --json '{"group_config":[{"field":"fld_status","desc":false}]}'
 ```
 
-## Key return fields
+清空分组：
 
-- Returns the updated group configuration.
+```bash
+lark-cli base +view-set-group \
+  --base-token <base_token> \
+  --table-id <table_id> \
+  --view-id <view_id> \
+  --json '{"group_config":[]}'
+```
 
-## Structure rules
-
-- Body is an array (`group_config`), length `0–3`.
-- Each item:
-  - `field`: field ID or field name, length `1–100`
-  - `desc`: optional, default `false`
-- Pass the array directly at the top level of the body.
-
-## JSON Schema
+## 3. JSON 写法
 
 ```json
-{"type":"array","items":{"type":"object","properties":{"field":{"type":"string","minLength":1,"maxLength":100,"description":"Field id or name"},"desc":{"type":"boolean","default":false,"description":"define how to sort group headers"}},"required":["field"],"additionalProperties":false},"minItems":0,"maxItems":3,"$schema":"http://json-schema.org/draft-07/schema#"}
+{
+  "group_config": [
+    { "field": "fld_status", "desc": false }
+  ]
+}
 ```
 
-## Workflow
+## 4. 使用建议
 
-1. Prefer field IDs over names to avoid issues with duplicate or renamed fields.
+- 优先传字段 id，不要依赖字段名。
+- 建议先用 [lark-base-view-get-group.md](lark-base-view-get-group.md) 读取现状。
+- 只传对象；不要传 `[]` 或 `[{"field":"..."}]` 这类裸数组。
+- 提交项数不要超过 3；如果当前视图实际允许更少，以错误提示为准收敛。
 
-## Pitfalls
+## 5. 易错点
 
-- This is a write operation; confirm with the user before execution.
-- Grouping only supported on `grid`, `kanban`, `gantt` views.
-- `group_config` max 3 items; exceeding this will cause a failure.
+- 不要把 `group_config` 写成对象。
+- 不要拿当前视图不支持分组的字段去分组。
+- 不要在 `gallery` / `calendar` 视图上调用。
 
-## References
+## 6. 参考
 
-- [lark-base-view.md](lark-base-view.md) — view index page
-- [lark-base-view-get-group.md](lark-base-view-get-group.md) — read group
+- [lark-base-view.md](lark-base-view.md)
+- [lark-base-view-get-group.md](lark-base-view-get-group.md)
