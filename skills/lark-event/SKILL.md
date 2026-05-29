@@ -45,6 +45,19 @@ Lark Open Platform delivers events via WebSocket long connection (server-push mo
 | `im.chat.updated_v1` | Chat info updated | `im:chat:readonly` |
 | `im.chat.disbanded_v1` | Chat disbanded | `im:chat:readonly` |
 
+### VC
+
+| Event Type | Description | Required Scope |
+|-----------|-------------|---------------|
+| `vc.meeting.participant_meeting_ended_v1` | Participant left / meeting ended | `vc:meeting:readonly` |
+| `vc.note.generated_v1` | Meeting note generated | `vc:meeting:readonly` |
+
+### Minutes
+
+| Event Type | Description | Required Scope |
+|-----------|-------------|---------------|
+| `minutes.minute.generated_v1` | Minutes generated | `minutes:minute:readonly` |
+
 ### Contact
 
 | Event Type | Description | Required Scope |
@@ -93,7 +106,7 @@ See the full list at the Lark Open Platform event documentation.
 
 ## Polling Alternative (Available Now via MCP)
 
-Until live event subscription is available, use polling with `lark_api` for common use cases:
+Until live event subscription is available, use polling with `lark_api` for common use cases.
 
 **Poll for new IM messages:**
 
@@ -122,6 +135,12 @@ lark_api({
 })
 ```
 
+If you need an operation not covered by a polling op above, discover one with `lark_api_search`:
+
+```
+lark_api_search({ query: "list task updates for current user" })
+```
+
 ## Event Payload Structure
 
 Event payloads follow this schema:
@@ -138,6 +157,16 @@ Event payloads follow this schema:
   "event": { ... }
 }
 ```
+
+**Field semantics:** payload fields carry Lark-defined semantic tags (not JSON Schema's standard `format`) — common values: `open_id` / `chat_id` / `message_id` / `timestamp_ms` / `email`. Use these to reverse-lookup via API or convert formats. When designing handlers, always read each field's `description` to know whether a field is already decoded (e.g. `.content` rendered to plain text) before parsing it.
+
+## Topic index
+
+| Topic | Reference | Coverage |
+|---|---|---|
+| IM | [`references/lark-event-im.md`](references/lark-event-im.md) | Catalog of 11 IM EventKeys + shape notes (flat vs V2 envelope) + `im.message.receive_v1` field gotchas (`sender_id` is open_id only; `.content` is plain text except for `interactive` cards) + common jq recipes (filter by chat_type / message_type / sender) |
+| VC | [`references/lark-event-vc.md`](references/lark-event-vc.md) | Catalog of 2 VC EventKeys (`vc.meeting.participant_meeting_ended_v1`, `vc.note.generated_v1`) + field reference + source type semantics (meeting only) |
+| Minutes | [`references/lark-event-minutes.md`](references/lark-event-minutes.md) | Catalog of 1 Minutes EventKey (`minutes.minute.generated_v1`) + field reference + source type semantics (meeting only) |
 
 ## References
 
