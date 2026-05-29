@@ -117,19 +117,20 @@
 明确时间时，需先判断是否需要会议室，如果需要，提前查询会议室；然后判断是否有时间冲突。这里的“明确时间”既可以来自用户直接表达，也可以来自已定位日程的原始时间。
 详见 [`+room-find`](./lark-calendar-room-find.md) 与 [`+freebusy`](./lark-calendar-freebusy.md)。
 
-```bash
-# 1. 如果需要会议室，提前查询会议室
-lark-cli calendar +room-find \
-  --slot "<start>~<end>" \
-  --attendee-ids "<ids>" \
-  --city "<city>" \
-  --building "<building>" \
-  --floor "<F2>" \
-  --room-name "<room_name>"
+```js
+// 1. 如果需要会议室，提前查询会议室
+lark_api({ tool: 'calendar', op: 'room-find', args: {
+  slot: '<start>~<end>',
+  attendee_ids: '<ids>',
+  city: '<city>',
+  building: '<building>',
+  floor: '<F2>',
+  room_name: '<room_name>'
+} })
 
-# 2. 查询当前用户及其他参会人忙闲
-# （如果有多名参会人，需分别调用查询：--user-id "<ou_xxx>"）
-lark-cli calendar +freebusy --start "<start>" --end "<end>"
+// 2. 查询当前用户及其他参会人忙闲
+// （如果有多名参会人，需分别调用查询：user_id: '<ou_xxx>'）
+lark_api({ tool: 'calendar', op: 'freebusy', args: { start: '<start>', end: '<end>' } })
 ```
 
 规则：
@@ -137,29 +138,30 @@ lark-cli calendar +freebusy --start "<start>" --end "<end>"
 - **参会人过多或包含群组时的处理**：
   - 如果参与人过多（例如超过 5 人），为避免高耗时，仅需查询**当前用户（自己）**及少数核心人员的忙闲状态即可。
   - 如果参与人中包含**群组**，无需展开群组成员查询其忙闲状态。
-- **编辑已有日程且不改时间，只新增会议室时**：这里的 `--slot` 必须来自已定位日程的当前 `start/end`。
-- **编辑已有日程且既改时间又加会议室时**：这里的 `--slot` 必须来自候选新时间，而不是旧时间；如果用户是“新增会议室”，后续落地只做添加，不删除旧会议室。
+- **编辑已有日程且不改时间，只新增会议室时**：这里的 `slot` 必须来自已定位日程的当前 `start/end`。
+- **编辑已有日程且既改时间又加会议室时**：这里的 `slot` 必须来自候选新时间，而不是旧时间；如果用户是“新增会议室”，后续落地只做添加，不删除旧会议室。
 - **如果没有冲突**：直接让用户选择会议室（如需），然后进入最终落地操作：创建新日程，或更新既有日程
 - **如果有冲突**：必须先说明冲突情况，询问用户继续选择这个时间还是换个时间
   - **如果说换个时间**：放弃当前时间，转入【模糊时间】流程，调用 `+suggestion` 推荐多个可用时间块
   - **如果继续选择这个时间**：直接让用户选择会议室（如需），然后进入最终落地操作：创建新日程，或更新既有日程
-- 位置信息要优先拆到结构化字段：用户明确说了城市才提取 `--city`；`--building` 不要再重复携带城市前缀。
-- 参数归类顺序应为：`city/building/floor` > `floor + room-name` 复合表达 > `room-name`。像 `2L`、`2F` 这类更像楼层或区域定位的短词，优先视为 `--floor`，不要默认当作 `--room-name`。像 `学清2层` 这种表达，通常拆为 `--building "学清"` 与 `--floor "F2"`。
-- 会议室名要做轻量归一化：`木星会议室` -> `--room-name "木星"`；`会议室 02` / `02会议室` -> `--room-name "02"`。
-- 对 `F3-05` / `F5-07` / `3楼-08` 这类复合表达，若能稳定识别楼层与会议室号，应优先提取为 `--floor + --room-name`，不要把整段直接退化成 `--room-name`。
+- 位置信息要优先拆到结构化字段：用户明确说了城市才提取 `city`；`building` 不要再重复携带城市前缀。
+- 参数归类顺序应为：`city/building/floor` > `floor + room_name` 复合表达 > `room_name`。像 `2L`、`2F` 这类更像楼层或区域定位的短词，优先视为 `floor`，不要默认当作 `room_name`。像 `学清2层` 这种表达，通常拆为 `building: '学清'` 与 `floor: 'F2'`。
+- 会议室名要做轻量归一化：`木星会议室` -> `room_name: '木星'`；`会议室 02` / `02会议室` -> `room_name: '02'`。
+- 对 `F3-05` / `F5-07` / `3楼-08` 这类复合表达，若能稳定识别楼层与会议室号，应优先提取为 `floor + room_name`，不要把整段直接退化成 `room_name`。
 
 ### 5. 模糊时间或无时间信息
 
 先调用：
 详见 [`+suggestion`](./lark-calendar-suggestion.md)；若需要会议室，再结合 [`+room-find`](./lark-calendar-room-find.md)。
 
-```bash
-lark-cli calendar +suggestion \
-  --start "<range_start>" \
-  --end "<range_end>" \
-  --attendee-ids "<ids>" \
-  --duration-minutes <n> \
-  --event-rrule "<rrule>"
+```js
+lark_api({ tool: 'calendar', op: 'suggestion', args: {
+  start: '<range_start>',
+  end: '<range_end>',
+  attendee_ids: '<ids>',
+  duration_minutes: '<n>',
+  event_rrule: '<rrule>'
+} })
 ```
 
 规则：
@@ -167,7 +169,7 @@ lark-cli calendar +suggestion \
 - 若用户完全没有提供时间信息，应先默认一个合理区间后再调用 `+suggestion`
 - 编辑流中，若用户表达的是“改到明天下午”“下周找个时间再约”这类模糊新时间，则基于用户期望的新时间范围调用 `+suggestion`；不要继续沿用旧时间。
 - **不需要会议室**：获取多个推荐时间块后，直接向用户展示候选时间，用户确认后进入最终落地操作：创建新日程，或更新既有日程。
-- **需要会议室**：获取多个候选时间块后，**不要急于让用户选时间**。先将这些时间块一次性交给 `calendar +room-find` 批量查询可用会议室，然后将【候选时间】与【对应的可用会议室列表】结构化分行展示，让用户一次性完成选择。（**注意：即使用户最初只说“查会议室”，且未带时间，也必须强制走到这一步，先 suggestion 再 room-find**）。
+- **需要会议室**：获取多个候选时间块后，**不要急于让用户选时间**。先将这些时间块一次性交给 `+room-find` 批量查询可用会议室，然后将【候选时间】与【对应的可用会议室列表】结构化分行展示，让用户一次性完成选择。（**注意：即使用户最初只说“查会议室”，且未带时间，也必须强制走到这一步，先 suggestion 再 room-find**）。
 - 用户一旦选择了 `+suggestion` 返回的时间块，**无需再次调用 `+freebusy`**
 
 ### 6. 模糊语义消解与长期记忆构建
@@ -185,7 +187,7 @@ lark-cli calendar +suggestion \
 
 ### 7. 重复性日程
 
-若当前会议为重复性日程，调用 `+room-find` 时需携带 `--event-rrule`。
+若当前会议为重复性日程，调用 `+room-find` 时需携带 `event_rrule`。
 
 必须检查返回中的：
 
@@ -202,32 +204,35 @@ lark-cli calendar +suggestion \
 如果是新建会议，详见 [`+create`](./lark-calendar-create.md)。
 如果是更新既有日程，详见 [`+update`](./lark-calendar-update.md)。必须先定位目标 `event_id`，再按用户意图用 `+update` 独立执行字段更新、添加参会人/会议室、移除参会人/会议室，或组合这些动作。若用户意图是“新增会议室”，默认仅追加 `room_id`，不移除已有会议室。
 
-```bash
-lark-cli calendar +create \
-  --summary "..." \
-  --start "<start>" \
-  --end "<end>" \
-  --attendee-ids "ou_xxx,oc_xxx,omm_xxx"
+```js
+lark_api({ tool: 'calendar', op: 'create', args: {
+  summary: '...',
+  start: '<start>',
+  end: '<end>',
+  attendee_ids: 'ou_xxx,oc_xxx,omm_xxx'
+} })
 
-lark-cli calendar +update \
-  --event-id "<event_id>" \
-  --start "<start>" \
-  --end "<end>" \
-  --add-attendee-ids "omm_new_room"
+lark_api({ tool: 'calendar', op: 'update', args: {
+  event_id: '<event_id>',
+  start: '<start>',
+  end: '<end>',
+  add_attendee_ids: 'omm_new_room'
+} })
 
-# 仅当用户明确要求“更换会议室”时，才同时移除旧会议室并添加新会议室
-lark-cli calendar +update \
-  --event-id "<event_id>" \
-  --remove-attendee-ids "omm_old_room" \
-  --add-attendee-ids "omm_new_room"
+// 仅当用户明确要求“更换会议室”时，才同时移除旧会议室并添加新会议室
+lark_api({ tool: 'calendar', op: 'update', args: {
+  event_id: '<event_id>',
+  remove_attendee_ids: 'omm_old_room',
+  add_attendee_ids: 'omm_new_room'
+} })
 ```
 
 规则：
 - 新建日程时，可使用 `+create`
 - 更新既有日程时，优先使用 `+update`。改时间/标题/描述、添加参会人/会议室、移除参会人/会议室可以分别独立执行；
 - 编辑流必须始终沿用前面定位得到的目标 `event_id`；禁止在最后一步重新按标题猜测一次目标日程。
-- 编辑流中如果只是新增群组或普通参会人，不涉及时间和会议室，可直接 `+update --add-attendee-ids ...`。
-- 编辑流中如果是“新增会议室但不改时间”，必须先基于目标日程原始时间查到可用会议室，再 `+update --add-attendee-ids "<room_id>"`；默认保留已有会议室。
+- 编辑流中如果只是新增群组或普通参会人，不涉及时间和会议室，可直接 `+update` 携带 `add_attendee_ids`。
+- 编辑流中如果是“新增会议室但不改时间”，必须先基于目标日程原始时间查到可用会议室，再 `+update` 携带 `add_attendee_ids: '<room_id>'`；默认保留已有会议室。
 - 编辑流中如果是“既改时间又新增会议室”，顺序必须是：先确定最终时间，再查会议室，最后一次性 `+update` 时间与新增会议室；默认保留已有会议室。
 - 编辑流中如果是“既改时间又更换会议室”，顺序必须是：先确定最终时间，再查会议室，最后一次性 `+update` 时间、移除旧会议室并添加新会议室。
 - 需要会议室时，将选中的 `room_id` 写入最终落地请求的参与人列表

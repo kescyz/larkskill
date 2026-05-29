@@ -7,26 +7,26 @@
 
 ## 选择规则
 
-- 用户说“看一下素材 / 图片 / 附件”“预览一下”时，优先使用 `docs +media-preview`
-- 用户明确说“下载”时，使用 [`docs +media-download`](lark-doc-media-download.md)
-- 如果目标明确是画板 / whiteboard / 画板缩略图，不要使用 `+media-preview`，改用 `docs +media-download --type whiteboard`
+- 用户说“看一下素材 / 图片 / 附件”“预览一下”时，优先使用 `lark_api({ tool: 'docs', op: 'media-preview' })`
+- 用户明确说“下载”时，使用 [`lark_api({ tool: 'docs', op: 'media-download' })`](lark-doc-media-download.md)
+- 如果目标明确是画板 / whiteboard / 画板缩略图，不要使用 `media-preview`，改用 `lark_api({ tool: 'docs', op: 'media-download', args: { type: 'whiteboard' } })`
 
 ## 命令
 
-```bash
-# 预览图片/文件素材
-lark-cli docs +media-preview --token "Z1Fjxxxxxxxx" --output ./asset
+```js
+// 预览图片/文件素材
+lark_api({ tool: 'docs', op: 'media-preview', args: { token: 'Z1Fjxxxxxxxx', output: './asset' } })
 
-# 指定输出文件名（带扩展名则不会自动补全）
-lark-cli docs +media-preview --token "Z1Fjxxxxxxxx" --output ./asset.png
+// 指定输出文件名（带扩展名则不会自动补全）
+lark_api({ tool: 'docs', op: 'media-preview', args: { token: 'Z1Fjxxxxxxxx', output: './asset.png' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--token <token>` | 是 | 素材 token，即 `file_token` |
-| `--output <path>` | 是 | 本地保存路径；不带扩展名会自动补全 |
+| `token` | 是 | 素材 token，即 `file_token` |
+| `output` | 是 | 本地保存路径；不带扩展名会自动补全 |
 
 ## token 从哪里来
 

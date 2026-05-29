@@ -9,36 +9,31 @@
 
 ## 命令
 
-```bash
-# 查询当前用户今天的忙闲（默认）
-lark-cli calendar +freebusy
+```js
+// 查询当前用户今天的忙闲（默认）
+lark_api({ tool: 'calendar', op: 'freebusy' })
 
-# 自定义时间范围（仅日期）
-lark-cli calendar +freebusy --start 2026-03-11 --end 2026-03-12
+// 自定义时间范围（仅日期）
+lark_api({ tool: 'calendar', op: 'freebusy', args: { start: '2026-03-11', end: '2026-03-12' } })
 
-# 自定义时间范围（完整 ISO 8601）
-lark-cli calendar +freebusy --start "2026-03-11T08:00:00+08:00" --end "2026-03-11T18:00:00+08:00"
+// 自定义时间范围（完整 ISO 8601）
+lark_api({ tool: 'calendar', op: 'freebusy', args: { start: '2026-03-11T08:00:00+08:00', end: '2026-03-11T18:00:00+08:00' } })
 
-# 查询指定用户的忙闲信息
-lark-cli calendar +freebusy --start 2026-03-11 --end 2026-03-12 --user-id ou_xxx
-
-# 人类可读格式输出
-lark-cli calendar +freebusy --format pretty
+// 查询指定用户的忙闲信息
+lark_api({ tool: 'calendar', op: 'freebusy', args: { start: '2026-03-11', end: '2026-03-12', user_id: 'ou_xxx' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--start <time>` | 否 | 查询开始时间（ISO 8601 或仅日期，默认当天） |
-| `--end <time>` | 否 | 查询结束时间（默认与 `--start` 属于同一天，自动取当天结束时间） |
-| `--user-id <open_id>` | 否 | 目标查询用户 ID（`ou_` 前缀）。省略时默认查询当前登录用户，bot 身份调用时必须明确指定 |
-| `--format` | 否 | 输出格式：json（默认） \| pretty |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `start` | 否 | 查询开始时间（ISO 8601 或仅日期，默认当天） |
+| `end` | 否 | 查询结束时间（默认与 `start` 属于同一天，自动取当天结束时间） |
+| `user_id` | 否 | 目标查询用户 ID（`ou_` 前缀）。省略时默认查询当前登录用户，bot 身份调用时必须明确指定 |
 
 ## 时间格式
 
-`--start` 和 `--end` 支持以下格式：
+`start` 和 `end` 支持以下格式：
 
 | 格式 | 示例 | 说明 |
 |------|------|------|
@@ -81,36 +76,37 @@ start             end               rsvp_status
 
 ### 1. 查找日程会议空闲时段
 
-```bash
-# 查询今天的忙碌时段
-lark-cli calendar +freebusy
+```js
+// 查询今天的忙碌时段
+lark_api({ tool: 'calendar', op: 'freebusy' })
 
-# 查询工作时间段
-lark-cli calendar +freebusy \
-  --start "2026-03-11T08:00:00+08:00" \
-  --end "2026-03-11T18:00:00+08:00"
+// 查询工作时间段
+lark_api({ tool: 'calendar', op: 'freebusy', args: {
+  start: '2026-03-11T08:00:00+08:00',
+  end: '2026-03-11T18:00:00+08:00'
+} })
 ```
 
 ### 2. 检查团队成员可用性
 
-```bash
-# 查询多个成员，对比找出共同空闲时间
-lark-cli calendar +freebusy --start 2026-03-12 --user-id ou_member_a
-lark-cli calendar +freebusy --start 2026-03-12 --user-id ou_member_b
+```js
+// 查询多个成员，对比找出共同空闲时间
+lark_api({ tool: 'calendar', op: 'freebusy', args: { start: '2026-03-12', user_id: 'ou_member_a' } })
+lark_api({ tool: 'calendar', op: 'freebusy', args: { start: '2026-03-12', user_id: 'ou_member_b' } })
 ```
 
 ## 注意事项
 
 1. **只查询主日历** — 此命令只返回用户主日历的忙闲信息，不包括其他订阅日历
 2. **隐私保护** — 只返回忙碌时段的起止时间，不包含日程标题、描述等详细信息
-3. **bot 身份** — bot 必须通过 `--user-id` 指定要查询的用户
+3. **bot 身份** — bot 必须通过 `user_id` 指定要查询的用户
 
 ## 与其他命令对比
 
 | 命令 | 用途 | 输出内容 |
 |------|------|----------|
-| `calendar +freebusy` | 查询忙闲时段 | 只返回忙碌时段列表（无日程详情） |
-| `calendar +agenda` | 查看日程安排 | 返回完整日程列表（含标题、描述等） |
+| `+freebusy` | 查询忙闲时段 | 只返回忙碌时段列表（无日程详情） |
+| `+agenda` | 查看日程安排 | 返回完整日程列表（含标题、描述等） |
 
 **选择建议**：
 - **仅需了解是否有空** → 使用 `+freebusy`（更快，隐私保护）

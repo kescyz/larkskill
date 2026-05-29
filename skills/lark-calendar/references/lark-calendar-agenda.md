@@ -9,36 +9,31 @@
 
 ## 命令
 
-```bash
-# 查看今天日程（默认）
-lark-cli calendar +agenda
+```js
+// 查看今天日程（默认）
+lark_api({ tool: 'calendar', op: 'agenda' })
 
-# 自定义时间范围（ISO 8601）
-lark-cli calendar +agenda --start "2026-03-10T00:00+08:00" --end "2026-03-17T00:00+08:00"
+// 自定义时间范围（ISO 8601）
+lark_api({ tool: 'calendar', op: 'agenda', args: { start: '2026-03-10T00:00+08:00', end: '2026-03-17T00:00+08:00' } })
 
-# 自定义时间范围（仅日期）
-lark-cli calendar +agenda --start 2026-03-10 --end 2026-03-17
+// 自定义时间范围（仅日期）
+lark_api({ tool: 'calendar', op: 'agenda', args: { start: '2026-03-10', end: '2026-03-17' } })
 
-# 人类可读格式输出
-lark-cli calendar +agenda --format pretty
-
-# 指定日历
-lark-cli calendar +agenda --calendar-id cal_xxx
+// 指定日历
+lark_api({ tool: 'calendar', op: 'agenda', args: { calendar_id: 'cal_xxx' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--start <time>` | 否 | 开始时间（ISO 8601 或仅日期，默认当天） |
-| `--end <time>` | 否 | 结束时间（默认与 `--start` 属于同一天，自动取当天结束时间） |
-| `--calendar-id <id>` | 否 | 日历 ID（省略则使用主日历） |
-| `--format` | 否 | 输出格式：json（默认） \| pretty |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `start` | 否 | 开始时间（ISO 8601 或仅日期，默认当天） |
+| `end` | 否 | 结束时间（默认与 `start` 属于同一天，自动取当天结束时间） |
+| `calendar_id` | 否 | 日历 ID（省略则使用主日历） |
 
 ## 时间格式
 
-`--start` 和 `--end` 支持以下格式：
+`start` 和 `end` 支持以下格式：
 
 | 格式 | 示例 | 说明 |
 |------|------|------|
@@ -70,7 +65,7 @@ lark-cli calendar +agenda --calendar-id cal_xxx
 - 已取消的日程会自动过滤，无需额外处理。
 - 如无日程，告知用户"日程清空"。
 - 大于 40 天的时间范围会自动拆分查询并合并结果。
-- 查看多个日历：先用 `lark-cli calendar calendars list --page-all` 列出日历列表，再逐个查询。
+- 查看多个日历：先用 `lark_api({ tool: 'calendar', op: 'calendars.list' })` 列出日历列表，再逐个查询。
 
 ## 参考
 

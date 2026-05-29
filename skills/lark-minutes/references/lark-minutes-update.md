@@ -4,7 +4,7 @@
 
 修改飞书妙记的标题（topic）。
 
-本 skill 对应 shortcut：`lark-cli minutes +update`。
+本 skill 对应 shortcut：`lark_api({ tool: 'minutes', op: 'update' })`。
 
 ## 典型触发表达
 
@@ -14,16 +14,16 @@
 
 ## 命令示例
 
-```bash
-lark-cli minutes +update --minute-token xxx --topic "周会纪要 2026-05-18"
+```js
+lark_api({ tool: 'minutes', op: 'update', args: { minute_token: 'xxx', topic: '周会纪要 2026-05-18' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--minute-token <token>` | 是 | 妙记的唯一标识，可从妙记 URL 末尾路径提取 |
-| `--topic <string>` | 是 | 新的妙记标题 |
+| `minute_token` | 是 | 妙记的唯一标识，可从妙记 URL 末尾路径提取 |
+| `topic` | 是 | 新的妙记标题 |
 
 ## 认证与权限
 - 所需 scope：`minutes:minutes:update`。
@@ -32,8 +32,8 @@ lark-cli minutes +update --minute-token xxx --topic "周会纪要 2026-05-18"
 
 | 字段 | 说明 |
 |------|------|
-| `minute_token` | 被修改的妙记 Token，与输入的 `--minute-token` 一致，可继续用于查询妙记信息、下载媒体或获取纪要产物 |
-| `topic` | 修改后的妙记标题，与输入的 `--topic` 一致 |
+| `minute_token` | 被修改的妙记 Token，与输入的 `minute_token` 一致，可继续用于查询妙记信息、下载媒体或获取纪要产物 |
+| `topic` | 修改后的妙记标题，与输入的 `topic` 一致 |
 
 ## 参考
 

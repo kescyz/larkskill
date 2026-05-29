@@ -6,17 +6,15 @@
 
 ## 命令
 
-```bash
-lark-cli slides xml_presentation.slide delete --as user --params '<json_params>'
+```js
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { /* ...路径参数 */ }, as: 'user' })
 ```
 
 ## 参数说明
 
-| 参数 | 类型 | 必需 | 说明 |
-|------|------|------|------|
-| `--params` | JSON string | 是 | 路径参数与查询参数 |
+`args` 包含路径参数与查询参数。
 
-### params JSON 结构
+### args 字段结构
 
 ```json
 {
@@ -38,21 +36,36 @@ lark-cli slides xml_presentation.slide delete --as user --params '<json_params>'
 
 ### 删除指定幻灯片
 
-```bash
-lark-cli slides xml_presentation.slide delete --as user --params '{
-  "xml_presentation_id": "slides_example_presentation_id",
-  "slide_id": "slide_example_id"
-}'
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.delete',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide_id: 'slide_example_id'
+  },
+  as: 'user'
+})
 ```
 
 ### 结合查询删除（使用 jq）
 
-```bash
-# 先读取 XML 内容，确认待删除页面
-lark-cli slides xml_presentations get --as user --params '{"xml_presentation_id":"slides_example_presentation_id"}' | jq -r '.data.xml_presentation.content'
+```js
+// 先读取 XML 内容（在返回的 data.xml_presentation.content 字段中），确认待删除页面
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentations.get',
+  args: { xml_presentation_id: 'slides_example_presentation_id' },
+  as: 'user'
+})
 
-# 然后按已知 slide_id 删除
-lark-cli slides xml_presentation.slide delete --as user --params '{"xml_presentation_id":"slides_example_presentation_id","slide_id":"slide_example_id"}'
+// 然后按已知 slide_id 删除
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.delete',
+  args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id' },
+  as: 'user'
+})
 ```
 
 ## 返回值
@@ -86,7 +99,7 @@ lark-cli slides xml_presentation.slide delete --as user --params '{"xml_presenta
 
 ## 注意事项
 
-1. **执行前必做**: 使用 `lark-cli schema slides.xml_presentation.slide.delete` 查看最新的参数结构
+1. **执行前必做**: 使用 `lark_api_search({ query: 'slides xml_presentation.slide.delete' })` 查看最新的参数结构
 2. **删除不可逆**: 删除操作无法撤销，请确保已备份重要内容
 3. **至少保留一页**: 演示文稿必须至少保留一页幻灯片，删除最后一页会报错
 4. **版本控制**: 如果依赖版本号并发控制，删除前先确认 `revision_id`
@@ -96,12 +109,16 @@ lark-cli slides xml_presentation.slide delete --as user --params '{"xml_presenta
 
 ### 方法 1: 创建时保存
 
-```bash
-lark-cli slides xml_presentation.slide create --as user --params '{"xml_presentation_id":"slides_example_presentation_id"}' --data '{
-  "slide": {
-    "content": "<slide xmlns=\"http://www.larkoffice.com/sml/2.0\"><data><shape type=\"text\" topLeftX=\"80\" topLeftY=\"80\" width=\"800\" height=\"120\"><content textType=\"title\"><p>新页面</p></content></shape></data></slide>"
-  }
-}'
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新页面</p></content></shape></data></slide>' }
+  },
+  as: 'user'
+})
 ```
 
 返回结果中的 `slide_id` 就是后续删除所需的值。
@@ -110,14 +127,20 @@ lark-cli slides xml_presentation.slide create --as user --params '{"xml_presenta
 
 如果需要删除多张幻灯片，建议先整理好待删 `slide_id` 列表，再逐个删除：
 
-```bash
-for slide_id in sld_a sld_b sld_c; do
-  lark-cli slides xml_presentation.slide delete --as user --params "{\"xml_presentation_id\":\"slides_example_presentation_id\",\"slide_id\":\"$slide_id\"}"
-done
+对每个待删 `slide_id` 逐个调用：
+
+```js
+// 对 sld_a / sld_b / sld_c 逐个删除
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.delete',
+  args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'sld_a' },
+  as: 'user'
+})
 ```
 
 ## 相关命令
 
-- [slides +create](lark-slides-create.md) - 创建空白 PPT
+- [create](lark-slides-create.md) - 创建空白 PPT
 - [xml_presentations get](lark-slides-xml-presentations-get.md) - 读取 PPT 内容
 - [xml_presentation.slide create](lark-slides-xml-presentation-slide-create.md) - 添加幻灯片页面

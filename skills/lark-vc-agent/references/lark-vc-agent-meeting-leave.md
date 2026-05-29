@@ -5,34 +5,26 @@
 
 通过 `meeting_id` 离开当前身份所在的视频会议（bot leave）。这是一次**写操作**，会实际把当前身份从会议中移出。
 
-本 skill 对应 shortcut：`lark-cli vc +meeting-leave`（调用 `POST /open-apis/vc/v1/bots/leave`）。
+本 skill 对应 shortcut：`lark_api({ tool: 'vc', op: 'meeting-leave' })`（调用 `POST /open-apis/vc/v1/bots/leave`）。
 
 ## 命令
 
-```bash
-# 通过 meeting_id 离会
-lark-cli vc +meeting-leave --meeting-id 69xxxxxxxxxxxxx28
-
-# 输出格式
-lark-cli vc +meeting-leave --meeting-id 69xxxxxxxxxxxxx28 --format json
-
-# 预览 API 调用（不实际离会）
-lark-cli vc +meeting-leave --meeting-id 69xxxxxxxxxxxxx28 --dry-run
+```js
+// 通过 meeting_id 离会
+lark_api({ tool: 'vc', op: 'meeting-leave', args: { meeting_id: '69xxxxxxxxxxxxx28' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--meeting-id <id>` | 是 | 会议 ID（**不是 9 位会议号**） |
-| `--format <fmt>` | 否 | 输出格式：json (默认) / pretty / table / ndjson / csv |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `meeting_id` | 是 | 会议 ID（**不是 9 位会议号**） |
 
 ## 核心约束
 
 ### 1. 入参是 meeting_id，不是会议号
 
-`--meeting-id` 必须是会议的长数字 ID，通常由 `+meeting-join` 返回体中的 `meeting.id` 提供，也可从 `+search` 结果中的 `id` 字段获取。**传 9 位会议号会失败**。
+`meeting_id` 必须是会议的长数字 ID，通常由 `meeting-join` 返回体中的 `meeting.id` 提供，也可从 `search` 结果中的 `id` 字段获取。**传 9 位会议号会失败**。
 
 ### 2. 仅支持 user 身份
 
@@ -40,64 +32,63 @@ lark-cli vc +meeting-leave --meeting-id 69xxxxxxxxxxxxx28 --dry-run
 
 ### 3. 当前身份必须在会议中
 
-必须先通过 `+meeting-join` 或其他方式在该会议中，否则接口会报错。
+必须先通过 `meeting-join` 或其他方式在该会议中，否则接口会报错。
 
 ### 4. 离会立即生效，对其他参会人可见
 
-机器人会立刻从参会列表消失；若会议启用了录制/纪要，bot 的参会时段到此截止。确认任务完成再调用；如需要重新入会，再跑 `+meeting-join` 即可（非真正"不可逆"）。
+机器人会立刻从参会列表消失；若会议启用了录制/纪要，bot 的参会时段到此截止。确认任务完成再调用；如需要重新入会，再调用 `meeting-join` 即可（非真正"不可逆"）。
 
 ## 输出结果
 
-接口成功返回时，默认输出：`Left meeting <meeting-id> successfully.`。
-`--format json` 返回 API 原始响应体。
+接口成功返回时，返回 API 原始响应体，表示已成功离会。
 
 ## 如何获取输入参数
 
 | 输入参数 | 获取方式 |
 |---------|---------|
-| `meeting-id` | `+meeting-join` 返回的 `meeting.id`；或 `+search` 结果中的 `id` 字段 |
+| `meeting_id` | `meeting-join` 返回的 `meeting.id`；或 `search` 结果中的 `id` 字段 |
 
 ## Agent 组合场景
 
 ### 场景 1：加入 → 完成任务 → 离开（最小闭环）
 
-```bash
-# 第 1 步：加入会议，记录 meeting.id
-lark-cli vc +meeting-join --meeting-number 123456789
+```js
+// 第 1 步：加入会议，记录 meeting.id
+lark_api({ tool: 'vc', op: 'meeting-join', args: { meeting_number: '123456789' } })
 
-# 第 2 步：在会中完成任务（如监听发言、记录信息等）
-# ...
+// 第 2 步：在会中完成任务（如监听发言、记录信息等）
+// ...
 
-# 第 3 步：使用上一步记录的 meeting.id 离会
-lark-cli vc +meeting-leave --meeting-id <meeting.id>
+// 第 3 步：使用上一步记录的 meeting.id 离会
+lark_api({ tool: 'vc', op: 'meeting-leave', args: { meeting_id: '<meeting.id>' } })
 ```
 
 ### 场景 2：会后补拉产物
 
-```bash
-# 第 1 步：离会后会议仍在进行或已结束
-lark-cli vc +meeting-leave --meeting-id <meeting.id>
+```js
+// 第 1 步：离会后会议仍在进行或已结束
+lark_api({ tool: 'vc', op: 'meeting-leave', args: { meeting_id: '<meeting.id>' } })
 
-# 第 2 步：会议结束后查询录制
-lark-cli vc +recording --meeting-ids <meeting.id>
+// 第 2 步：会议结束后查询录制
+lark_api({ tool: 'vc', op: 'recording', args: { meeting_ids: ['<meeting.id>'] } })
 
-# 第 3 步：查询会议纪要
-lark-cli vc +notes --meeting-ids <meeting.id>
+// 第 3 步：查询会议纪要
+lark_api({ tool: 'vc', op: 'notes', args: { meeting_ids: ['<meeting.id>'] } })
 ```
 
 ## 常见错误与排查
 
 | 错误现象 | 根本原因 | 解决方案 |
 |---------|---------|---------|
-| `--meeting-id is required` | 未传入 `--meeting-id` | 传入从 `+meeting-join` 得到的 `meeting.id` |
+| `meeting_id is required` | 未传入 `meeting_id` | 传入从 `meeting-join` 得到的 `meeting.id` |
 | `meeting not found` / `invalid meeting_id` | 误传了 9 位会议号 | 必须使用 `meeting.id`，不是会议号 |
-| `not in meeting` | 当前身份并不在该会议中 | 确认先 `+meeting-join` 成功 |
+| `not in meeting` | 当前身份并不在该会议中 | 确认先 `meeting-join` 成功 |
 
 ## 提示
 
-- 离会会让机器人从参会列表消失，对其他参会人可见；若需要重新入会直接再 `+meeting-join`，不是真正的"不可逆"。参数格式不确定时可选 `--dry-run` 预览。
-- 与 `+meeting-join` 成对使用：能 join 的身份才能 leave。
-- `meeting_id` 必须来自 `+meeting-join` 的返回值，不要用 9 位会议号。
+- 离会会让机器人从参会列表消失，对其他参会人可见；若需要重新入会直接再调用 `meeting-join`，不是真正的"不可逆"。
+- 与 `meeting-join` 成对使用：能 join 的身份才能 leave。
+- `meeting_id` 必须来自 `meeting-join` 的返回值，不要用 9 位会议号。
 
 ## 参考
 

@@ -8,33 +8,32 @@
 
 ## 命令
 
-```bash
-# 回复日程为接受 (使用主日历)
-lark-cli calendar +rsvp --event-id evt_xxx --rsvp-status accept
+```js
+// 回复日程为接受 (使用主日历)
+lark_api({ tool: 'calendar', op: 'rsvp', args: { event_id: 'evt_xxx', rsvp_status: 'accept' } })
 
-# 回复日程为拒绝
-lark-cli calendar +rsvp --event-id evt_xxx --rsvp-status decline
+// 回复日程为拒绝
+lark_api({ tool: 'calendar', op: 'rsvp', args: { event_id: 'evt_xxx', rsvp_status: 'decline' } })
 
-# 回复日程为待定
-lark-cli calendar +rsvp --event-id evt_xxx --rsvp-status tentative
+// 回复日程为待定
+lark_api({ tool: 'calendar', op: 'rsvp', args: { event_id: 'evt_xxx', rsvp_status: 'tentative' } })
 
-# 指定其他日历下的日程
-lark-cli calendar +rsvp --calendar-id cal_xxx --event-id evt_xxx --rsvp-status accept
+// 指定其他日历下的日程
+lark_api({ tool: 'calendar', op: 'rsvp', args: { calendar_id: 'cal_xxx', event_id: 'evt_xxx', rsvp_status: 'accept' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--event-id <id>` | **是** | 日程 ID |
-| `--rsvp-status <status>` | **是** | 回复状态，可选值：`accept` (接受), `decline` (拒绝), `tentative` (待定) |
-| `--calendar-id <id>` | 否 | 日历 ID（省略则使用主日历） |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `event_id` | **是** | 日程 ID |
+| `rsvp_status` | **是** | 回复状态，可选值：`accept` (接受), `decline` (拒绝), `tentative` (待定) |
+| `calendar_id` | 否 | 日历 ID（省略则使用主日历） |
 
 ## 提示
 
 - 只能回复你被邀请的日程。
-- 调用前通常需要通过 `+agenda` 等命令获取到具体的 `event-id`。
+- 调用前通常需要通过 `+agenda` 等命令获取到具体的 `event_id`。
 
 ## 参考
 

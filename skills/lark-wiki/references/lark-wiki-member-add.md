@@ -6,38 +6,35 @@ Add a member to a wiki space. OpenAPI: `POST /open-apis/wiki/v2/spaces/:space_id
 
 ## Usage
 
-```bash
-# Add a user as a regular member
-lark-cli wiki +member-add \
-  --space-id <space_id> \
-  --member-id <open_id|email|user_id|...> \
-  --member-type <openid|email|userid|unionid|openchat|opendepartmentid> \
-  --member-role <admin|member> \
-  [--need-notification] \
-  [--as user|bot]
+```js
+// Add a user as a regular member
+lark_api({ tool: 'wiki', op: 'member-add', args: {
+  space_id: '<space_id>',
+  member_id: '<open_id|email|user_id|...>',
+  member_type: '<openid|email|userid|unionid|openchat|opendepartmentid>',
+  member_role: '<admin|member>',
+  // need_notification: true,
+  as: 'user'
+} })
 
-# Personal library (resolves my_library to the per-user real space first)
-lark-cli wiki +member-add \
-  --space-id my_library \
-  --member-id ou_xxx --member-type openid --member-role member \
-  --as user
-
-# Preview the call chain without writing
-lark-cli wiki +member-add \
-  --space-id <space_id> --member-id <id> --member-type openid --member-role admin \
-  --dry-run
+// Personal library (resolves my_library to the per-user real space first)
+lark_api({ tool: 'wiki', op: 'member-add', args: {
+  space_id: 'my_library',
+  member_id: 'ou_xxx', member_type: 'openid', member_role: 'member',
+  as: 'user'
+} })
 ```
 
 ## Flags
 
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `--space-id` | string | **Yes** | — | Wiki space ID; use `my_library` for the personal document library (user only) |
-| `--member-id` | string | **Yes** | — | Member ID; interpretation is decided by `--member-type` |
-| `--member-type` | enum | **Yes** | — | `openchat` / `userid` / `email` / `opendepartmentid` / `openid` / `unionid` |
-| `--member-role` | enum | **Yes** | — | `admin` (full space administration) / `member` (collaborator) |
-| `--need-notification` | bool | No | unset | Send an in-app notification after the grant. **Omitting the flag sends no `need_notification` query at all** — passing `--need-notification=false` is the explicit opt-out |
-| `--as` | enum | No | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `--as user` |
+| `space_id` | string | **Yes** | — | Wiki space ID; use `my_library` for the personal document library (user only) |
+| `member_id` | string | **Yes** | — | Member ID; interpretation is decided by `--member-type` |
+| `member_type` | enum | **Yes** | — | `openchat` / `userid` / `email` / `opendepartmentid` / `openid` / `unionid` |
+| `member_role` | enum | **Yes** | — | `admin` (full space administration) / `member` (collaborator) |
+| `need_notification` | bool | No | unset | Send an in-app notification after the grant. **Omitting it sends no `need_notification` query at all** — passing `need_notification: false` is the explicit opt-out |
+| `as` | enum | No | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `as: 'user'` |
 
 ## Output
 
@@ -55,11 +52,10 @@ lark-cli wiki +member-add \
 
 ## Notes
 
-- **Bot + `my_library` is rejected upfront** — `my_library` is a per-user alias with no meaning for a tenant token. Pass an explicit `--space-id` when `--as bot`.
-- **Bot + `opendepartmentid` is a known unsupported path on the backend.** The CLI does not pre-block it (the API may evolve), but the call will fail. Use `--as user` for department adds.
-- Resolve `--member-id` **before** calling: `lark-cli contact +search-user` for users, `lark-cli im +chat-search` for groups, `lark-cli api POST /open-apis/contact/v3/departments/search` for departments. Do not call `+member-add` first and reverse-engineer the type from the error.
+- **Bot + `my_library` is rejected upfront** — `my_library` is a per-user alias with no meaning for a tenant token. Pass an explicit `space_id` when `as: 'bot'`.
+- **Bot + `opendepartmentid` is a known unsupported path on the backend.** The CLI does not pre-block it (the API may evolve), but the call will fail. Use `as: 'user'` for department adds.
+- Resolve `member_id` **before** calling: `lark_api({ tool: 'contact', op: 'search-user' })` for users, `lark_api({ tool: 'im', op: 'chat-search' })` for groups, `lark_api({ tool: 'api', op: 'POST', args: { path: '/open-apis/contact/v3/departments/search' } })` for departments. Do not call `+member-add` first and reverse-engineer the type from the error.
 - The role switch (`admin` ⇄ `member`) is not a single update — call [`+member-remove`](lark-wiki-member-remove.md) for the old role first, then `+member-add` with the new one.
-- `--dry-run` previews 2 steps when `--space-id my_library` (resolve → add), 1 step otherwise.
 
 ## Required Scope
 

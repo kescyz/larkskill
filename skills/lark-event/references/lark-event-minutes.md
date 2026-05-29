@@ -1,6 +1,6 @@
 # Minutes Events
 
-> **Prerequisite:** Read [`../SKILL.md`](../SKILL.md) first for the `event consume` essentials (commands, subprocess contract, jq usage).
+> **Prerequisite:** Read [`../SKILL.md`](../SKILL.md) first for the V2 event-model essentials (no live subscription; poll via `lark_api`, discover shapes via `lark_api_search`).
 
 ## Key catalog (1)
 
@@ -41,14 +41,9 @@ The Process hook calls `GET /open-apis/minutes/v1/minutes/{minute_token}` to enr
 
 ### Example
 
-```bash
-lark-cli event consume minutes.minute.generated_v1 --as user
-
-# Project title and token only (skip events where enrichment failed)
-lark-cli event consume minutes.minute.generated_v1 --as user \
-  --jq 'select(.title != "") | {minute_token, title}'
-
-# Filter by source type
-lark-cli event consume minutes.minute.generated_v1 --as user \
-  --jq 'select(.minute_source.source_type == "meeting") | {minute_token, title}'
+```js
+// V2 MCP has no live subscription; discover the polling/handler shape for this key:
+lark_api_search({ query: "minutes.minute.generated_v1" })
+// Project title and token only (skip events where enrichment failed): filter select(.title != "") | {minute_token, title}
+// Filter by source type: filter select(.minute_source.source_type == "meeting") | {minute_token, title}
 ```

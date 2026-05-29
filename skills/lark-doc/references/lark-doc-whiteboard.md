@@ -23,7 +23,7 @@
 |-------------------------|-----------------------------------------------------------|
 | 文档中需要思维导图、时序图、类图、饼图、甘特图 | 步骤 2A:使用 mermaid 插入图表                                     |
 | 文档中需要插入其他图表/自定义图形       | 步骤 2B: 使用 SVG 插入图表                                        |
-| 已有画板需要更新内容              | 先 `docs +fetch --api-version v2` 获取 `board_token`，跳至步骤 3B |
+| 已有画板需要更新内容              | 先 `lark_api({ tool: 'docs', op: 'fetch', args: { api_version: 'v2' } })` 获取 `board_token`，跳至步骤 3B |
 | 只查看 / 下载已有画板            | 切换至 `lark-whiteboard`，不走本流程                               |
 
 > [!IMPORTANT]
@@ -46,7 +46,7 @@ SubAgent 插入 SVG。
 
 ### 步骤 2B: SubAgent 使用 SVG 插入图表
 
-主 Agent 启动 SubAgent，让它用 `docs +create --api-version v2` / `docs +update --api-version v2` 插入：
+主 Agent 启动 SubAgent，让它用 `lark_api({ tool: 'docs', op: 'create', args: { api_version: 'v2' } })` / `lark_api({ tool: 'docs', op: 'update', args: { api_version: 'v2' } })` 插入：
 
 ```xml
 
@@ -114,15 +114,12 @@ Sub Agent 需要携带以下的最小上下文，以及后续的 [SVG 设计 Wor
 
 ###### 3.插入后审查
 
-插入画板后，可以从返回值使用 lark-cli 指令，将画板内容导出为 png
+插入画板后，可以从返回值使用 MCP 工具，将画板内容导出为 png
 图片。若是对设计不满意，可以修改后，删除原来的画板再重新插入，或是调用 [
 `../../lark-whiteboard/SKILL.md`](../../lark-whiteboard/SKILL.md) 编辑。
 
-```bash
-lark-cli whiteboard +query \
-  --whiteboard-token "wbcnxxxxxxxx" \
-  --output_as image \
-  --output ./preview.png
+```js
+lark_api({ tool: 'whiteboard', op: 'query', args: { whiteboard_token: 'wbcnxxxxxxxx', output_as: 'image', output: './preview.png' } })
 ```
 
 ### 步骤 3B：编辑已有画板 — 启动 lark-whiteboard SubAgent

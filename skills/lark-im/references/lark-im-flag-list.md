@@ -2,49 +2,30 @@
 
 > **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) for authentication, global parameters, and security rules.
 
-This skill maps to shortcut: `lark-cli im +flag-list`. Underlying API: `GET /open-apis/im/v1/flags`.
+This skill maps to shortcut: `lark_api({ tool: 'im', op: 'flag-list' })`. Underlying API: `GET /open-apis/im/v1/flags`.
 
 ## Sorting Rules (Important)
 
 The API returns data sorted by `update_time` in **ascending order**, meaning **oldest first, newest last**. When `has_more=true`, you cannot simply take the first page's items as the latest flags — you must paginate through all pages and take the last item on the last page as the newest.
 
-Recommended: use `--page-all` for auto-pagination to get the complete list, then use `-q '.data.flag_items[-1]'` to get the latest item.
+Recommended: page through the full list, then read `.data.flag_items[-1]` from the merged result to get the latest item.
 
 ## Commands
 
-```bash
-# Fetch first page (default page-size=50)
-lark-cli im +flag-list --as user
+```js
+// Fetch flags
+lark_api({ tool: 'im', op: 'flag-list', args: { as: 'user' } })
 
-# Manual pagination with custom page size
-lark-cli im +flag-list --as user --page-size 30 --page-token <page_token>
-
-# Auto-paginate to get all flags (recommended)
-lark-cli im +flag-list --as user --page-all
-
-# Auto-paginate + get the latest flag
-lark-cli im +flag-list --as user --page-all -q '.data.flag_items[-1]'
-
-# Auto-paginate + get only item_id list
-lark-cli im +flag-list --as user --page-all -q '.data.flag_items[].item_id'
-
-# Disable auto-enrichment of message content (enabled by default)
-lark-cli im +flag-list --as user --page-all --enrich-feed-thread=false
-
-# Limit max pages (default 20, max 1000)
-lark-cli im +flag-list --as user --page-all --page-limit 10
+// Disable auto-enrichment of message content (enabled by default)
+lark_api({ tool: 'im', op: 'flag-list', args: { as: 'user', enrich_feed_thread: false } })
 ```
 
 ## Parameters
 
 | Parameter | Default | Description |
 |------|------|------|
-| `--page-size <n>` | 50 | Range 1-50 (server max is 50) |
-| `--page-token <token>` | empty | Pagination token from previous page; empty string must still be provided |
-| `--page-all` | false | Auto-paginate to fetch all pages and merge results |
-| `--page-limit <n>` | 20 | Max pages in `--page-all` mode (max 1000) |
-| `--enrich-feed-thread` | true | Auto-enrich feed-layer thread entries with message content (calls `im.messages.mget`) |
-| `--as user` | Required | Currently only supports user identity |
+| `enrich_feed_thread` | true | Auto-enrich feed-layer thread entries with message content (calls `im.messages.mget`) |
+| `as: 'user'` | Required | Currently only supports user identity |
 
 ## Response Structure
 
@@ -62,7 +43,7 @@ Note: `(thread, feed)` / `(msg_thread, feed)` entries are automatically enriched
 
 ## Limitations
 
-- **delete_flag_items are not enriched**: Message content is only fetched for active flags (`flag_items`), not canceled flags (`delete_flag_items`). If you need message content for a canceled flag, query the message separately using `+messages-mget --message-ids <item_id>`.
+- **delete_flag_items are not enriched**: Message content is only fetched for active flags (`flag_items`), not canceled flags (`delete_flag_items`). If you need message content for a canceled flag, query the message separately using `lark_api({ tool: 'im', op: 'messages-mget', args: { message_ids: '<item_id>' } })`.
 
 ## Response Example (Sanitized)
 
@@ -97,4 +78,4 @@ Note: `(thread, feed)` / `(msg_thread, feed)` entries are automatically enriched
 ## Permissions
 
 - Base scope: `im:feed.flag:read`
-- Additional scopes only when `--enrich-feed-thread=true` needs to fetch missing message content: `im:message.group_msg:get_as_user`, `im:message.p2p_msg:get_as_user`
+- Additional scopes only when `enrich_feed_thread: true` needs to fetch missing message content: `im:message.group_msg:get_as_user`, `im:message.p2p_msg:get_as_user`

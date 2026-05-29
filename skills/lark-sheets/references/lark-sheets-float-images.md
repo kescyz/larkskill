@@ -14,13 +14,15 @@
 <a id="media-upload"></a>
 ## `+media-upload`
 
-对应命令：`lark-cli sheets +media-upload`
+对应命令：`lark_api({ tool: 'sheets', op: 'media-upload' })`
 
 把本地图片上传到指定电子表格的素材空间，返回 `file_token`，供 `+create-float-image` 使用。
 
-```bash
-lark-cli sheets +media-upload --url "https://example.larksuite.com/sheets/shtxxxxxxxx" \
-  --file ./image.png
+```js
+lark_api({ tool: 'sheets', op: 'media-upload', args: {
+  url: "https://example.larksuite.com/sheets/shtxxxxxxxx",
+  file: "./image.png"
+}})
 ```
 
 说明：
@@ -33,22 +35,26 @@ lark-cli sheets +media-upload --url "https://example.larksuite.com/sheets/shtxxx
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--url` | 否 | 电子表格 URL（与 `--spreadsheet-token` 二选一） |
-| `--spreadsheet-token` | 否 | 表格 token |
-| `--file` | 是 | 本地图片路径，必须是相对路径 |
-| `--dry-run` | 否 | 仅打印请求，不执行 |
+| `url` | 否 | 电子表格 URL（与 `--spreadsheet-token` 二选一） |
+| `spreadsheet_token` | 否 | 表格 token |
+| `file` | 是 | 本地图片路径，必须是相对路径 |
 
 输出：`file_token`、`file_name`、`size`、`spreadsheet_token`
 
 <a id="create-float-image"></a>
 ## `+create-float-image`
 
-对应命令：`lark-cli sheets +create-float-image`
+对应命令：`lark_api({ tool: 'sheets', op: 'create-float-image' })`
 
-```bash
-lark-cli sheets +create-float-image --url "https://example.larksuite.com/sheets/shtxxxxxxxx" \
-  --sheet-id "<sheetId>" --float-image-token "boxcnXXXX" \
-  --range "<sheetId>!A1:A1" --width 200 --height 150
+```js
+lark_api({ tool: 'sheets', op: 'create-float-image', args: {
+  url: "https://example.larksuite.com/sheets/shtxxxxxxxx",
+  sheet_id: "<sheetId>",
+  float_image_token: "boxcnXXXX",
+  range: "<sheetId>!A1:A1",
+  width: 200,
+  height: 150
+}})
 ```
 
 关键规则：
@@ -63,12 +69,17 @@ lark-cli sheets +create-float-image --url "https://example.larksuite.com/sheets/
 <a id="update-float-image"></a>
 ## `+update-float-image`
 
-对应命令：`lark-cli sheets +update-float-image`
+对应命令：`lark_api({ tool: 'sheets', op: 'update-float-image' })`
 
-```bash
-lark-cli sheets +update-float-image --url "https://example.larksuite.com/sheets/shtxxxxxxxx" \
-  --sheet-id "<sheetId>" --float-image-id "fi12345678" \
-  --width 400 --height 300 --offset-y 20
+```js
+lark_api({ tool: 'sheets', op: 'update-float-image', args: {
+  url: "https://example.larksuite.com/sheets/shtxxxxxxxx",
+  sheet_id: "<sheetId>",
+  float_image_id: "fi12345678",
+  width: 400,
+  height: 300,
+  offset_y: 20
+}})
 ```
 
 至少需要传一个更新字段：`--range` / `--width` / `--height` / `--offset-x` / `--offset-y`
@@ -78,11 +89,14 @@ lark-cli sheets +update-float-image --url "https://example.larksuite.com/sheets/
 <a id="get-float-image"></a>
 ## `+get-float-image`
 
-对应命令：`lark-cli sheets +get-float-image`
+对应命令：`lark_api({ tool: 'sheets', op: 'get-float-image' })`
 
-```bash
-lark-cli sheets +get-float-image --url "https://example.larksuite.com/sheets/shtxxxxxxxx" \
-  --sheet-id "<sheetId>" --float-image-id "fi12345678"
+```js
+lark_api({ tool: 'sheets', op: 'get-float-image', args: {
+  url: "https://example.larksuite.com/sheets/shtxxxxxxxx",
+  sheet_id: "<sheetId>",
+  float_image_id: "fi12345678"
+}})
 ```
 
 输出：`float_image`
@@ -90,11 +104,13 @@ lark-cli sheets +get-float-image --url "https://example.larksuite.com/sheets/sht
 <a id="list-float-images"></a>
 ## `+list-float-images`
 
-对应命令：`lark-cli sheets +list-float-images`
+对应命令：`lark_api({ tool: 'sheets', op: 'list-float-images' })`
 
-```bash
-lark-cli sheets +list-float-images --url "https://example.larksuite.com/sheets/shtxxxxxxxx" \
-  --sheet-id "<sheetId>"
+```js
+lark_api({ tool: 'sheets', op: 'list-float-images', args: {
+  url: "https://example.larksuite.com/sheets/shtxxxxxxxx",
+  sheet_id: "<sheetId>"
+}})
 ```
 
 输出：`items[]`
@@ -102,11 +118,14 @@ lark-cli sheets +list-float-images --url "https://example.larksuite.com/sheets/s
 <a id="delete-float-image"></a>
 ## `+delete-float-image`
 
-对应命令：`lark-cli sheets +delete-float-image`
+对应命令：`lark_api({ tool: 'sheets', op: 'delete-float-image' })`
 
-```bash
-lark-cli sheets +delete-float-image --url "https://example.larksuite.com/sheets/shtxxxxxxxx" \
-  --sheet-id "<sheetId>" --float-image-id "fi12345678"
+```js
+lark_api({ tool: 'sheets', op: 'delete-float-image', args: {
+  url: "https://example.larksuite.com/sheets/shtxxxxxxxx",
+  sheet_id: "<sheetId>",
+  float_image_id: "fi12345678"
+}})
 ```
 
 输出：`code`、`msg`
@@ -115,8 +134,11 @@ lark-cli sheets +delete-float-image --url "https://example.larksuite.com/sheets/
 
 上述读接口只返回元数据，不返回图片字节。要读取图片内容，用 `float_image_token` 调：
 
-```bash
-lark-cli docs +media-preview --token "<float_image_token>" --output ./image.png
+```js
+lark_api({ tool: 'docs', op: 'media-preview', args: {
+  token: "<float_image_token>",
+  output: "./image.png"
+}})
 ```
 
 ## 参考

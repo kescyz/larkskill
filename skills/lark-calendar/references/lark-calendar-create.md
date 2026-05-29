@@ -9,37 +9,40 @@
 
 ## 推荐命令
 
-```bash
-# 创建日程 + 邀请参会人（ISO 8601 时间）
-lark-cli calendar +create \
-  --summary "产品评审" \
-  --start "2026-03-12T14:00+08:00" \
-  --end "2026-03-12T15:00+08:00" \
-  --attendee-ids ou_aaa,ou_bbb
+```js
+// 创建日程 + 邀请参会人（ISO 8601 时间）
+lark_api({ tool: 'calendar', op: 'create', args: {
+  summary: '产品评审',
+  start: '2026-03-12T14:00+08:00',
+  end: '2026-03-12T15:00+08:00',
+  attendee_ids: 'ou_aaa,ou_bbb'
+} })
 
-# 无参会人
-lark-cli calendar +create \
-  --summary "午餐" \
-  --start "2026-03-12T12:00+08:00" \
-  --end "2026-03-12T13:00+08:00"
+// 无参会人
+lark_api({ tool: 'calendar', op: 'create', args: {
+  summary: '午餐',
+  start: '2026-03-12T12:00+08:00',
+  end: '2026-03-12T13:00+08:00'
+} })
 
-# 指定日历
-lark-cli calendar +create --summary "..." --start "..." --end "..." \
-  --calendar-id cal_xxx
+// 指定日历
+lark_api({ tool: 'calendar', op: 'create', args: {
+  summary: '...', start: '...', end: '...',
+  calendar_id: 'cal_xxx'
+} })
 ```
 
 参数：
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--summary <text>` | 否 | 日程标题。注意：标题中不应该出现时间、地点、人物信息 |
-| `--start <time>` | 是 | 开始时间（ISO 8601，如 `2026-03-12T14:00+08:00`） |
-| `--end <time>` | 是 | 结束时间（ISO 8601） |
-| `--description <text>` | 否 | 日程详细描述。提供会议议程、活动内容、注意事项或链接等。与 summary 配合使用，仅关注当前日程信息 |
-| `--attendee-ids <id_list>` | 否 | 参与人 ID 列表（逗号分隔）。支持用户（`ou_`）、群组（`oc_`）和会议室（`omm_`）。AI 提取时请务必保留对应前缀 |
-| `--calendar-id <id>` | 否 | 日历 ID（省略则使用主日历） |
-| `--rrule <rrule>` | 否 | 重复日程的重复性规则，规则设置方式参考rfc5545。**【⚠️注意：系统绝对不支持 COUNT，如需限制重复次数，必须转为 UNTIL】**。示例值："FREQ=DAILY;INTERVAL=1" |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `summary` | 否 | 日程标题。注意：标题中不应该出现时间、地点、人物信息 |
+| `start` | 是 | 开始时间（ISO 8601，如 `2026-03-12T14:00+08:00`） |
+| `end` | 是 | 结束时间（ISO 8601） |
+| `description` | 否 | 日程详细描述。提供会议议程、活动内容、注意事项或链接等。与 summary 配合使用，仅关注当前日程信息 |
+| `attendee_ids` | 否 | 参与人 ID 列表（逗号分隔）。支持用户（`ou_`）、群组（`oc_`）和会议室（`omm_`）。AI 提取时请务必保留对应前缀 |
+| `calendar_id` | 否 | 日历 ID（省略则使用主日历） |
+| `rrule` | 否 | 重复日程的重复性规则，规则设置方式参考rfc5545。**【⚠️注意：系统绝对不支持 COUNT，如需限制重复次数，必须转为 UNTIL】**。示例值："FREQ=DAILY;INTERVAL=1" |
 
 > **⚠️ `rrule` 规则限制：飞书日历系统不支持 `COUNT` 参数。遇到限制重复次数的需求，必须根据开始时间和频率自行推算并转换成 `UNTIL=<具体日期>` 格式。**
 > 自动设置 `attendee_ability: "can_modify_event"`，参会人可查看彼此并编辑日程。
@@ -54,34 +57,36 @@ lark-cli calendar +create --summary "..." --start "..." --end "..." \
 **注意**：
 - 全天日程的开始日期和结束日期必须分别是日程开始的第一天和结束的最后一天。如果只有一天的话，开始日期和结束日期是相同。
 
-```bash
-# 第一步：创建日程（含高级参数）
-## 查看完整参数定义
-lark-cli schema calendar.events.create
-## 创建日程
-lark-cli calendar events create \
-  --params '{"calendar_id":"<CALENDAR_ID>"}' \
-  --data '{
-  "summary": "技术分享：CLI 架构设计",
-  "start_time": { "timestamp": "1741586400" },
-  "end_time": { "timestamp": "1741593600" }
-}'
+```js
+// 第一步：创建日程（含高级参数）
+// 查看完整参数定义
+lark_api_search({ query: 'calendar.events.create' })
+// 创建日程
+lark_api({ tool: 'calendar', op: 'events.create', args: {
+  params: { calendar_id: '<CALENDAR_ID>' },
+  data: {
+    summary: '技术分享：CLI 架构设计',
+    start_time: { timestamp: '1741586400' },
+    end_time: { timestamp: '1741593600' }
+  }
+} })
 
-# 第二步：添加参会人（使用第一步返回的 calendar_id 和 event_id）
-## 查看完整参数定义
-lark-cli schema calendar.event.attendees.create
-## 添加参会人
-lark-cli calendar event.attendees create \
-  --params '{"calendar_id":"<CALENDAR_ID>","event_id":"<EVENT_ID>"}' \
-  --data '{"attendees": [{"type": "user", "user_id": "ou_xxx"}]}'
+// 第二步：添加参会人（使用第一步返回的 calendar_id 和 event_id）
+// 查看完整参数定义
+lark_api_search({ query: 'calendar.event.attendees.create' })
+// 添加参会人
+lark_api({ tool: 'calendar', op: 'event.attendees.create', args: {
+  params: { calendar_id: '<CALENDAR_ID>', event_id: '<EVENT_ID>' },
+  data: { attendees: [{ type: 'user', user_id: 'ou_xxx' }] }
+} })
 
-# 可选第三步（推荐）：若第二步失败，回滚删除空日程
-## 查看完整参数定义
-lark-cli schema calendar.events.delete
-## 删除空日程
-lark-cli calendar events delete \
-  --params '{"calendar_id":"<CALENDAR_ID>","event_id":"<EVENT_ID>","need_notification":false}'
-
+// 可选第三步（推荐）：若第二步失败，回滚删除空日程
+// 查看完整参数定义
+lark_api_search({ query: 'calendar.events.delete' })
+// 删除空日程
+lark_api({ tool: 'calendar', op: 'events.delete', args: {
+  params: { calendar_id: '<CALENDAR_ID>', event_id: '<EVENT_ID>', need_notification: false }
+} })
 ```
 
 > 完整 API 命令的时间参数是 **Unix 秒字符串**（非 ISO 8601）。

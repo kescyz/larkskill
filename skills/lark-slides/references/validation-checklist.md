@@ -18,9 +18,13 @@
 
 回读命令：
 
-```bash
-lark-cli slides xml_presentations get --as user \
-  --params '{"xml_presentation_id":"YOUR_ID"}'
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentations.get',
+  args: { xml_presentation_id: 'YOUR_ID' },
+  as: 'user'
+})
 ```
 
 ## Automated XML Text Overlap Lint

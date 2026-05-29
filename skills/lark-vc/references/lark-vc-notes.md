@@ -5,43 +5,36 @@
 
 查询会议纪要，支持通过会议 ID、妙记 Token 或日程事件 ID 获取纪要文档、逐字稿、AI 总结、待办和章节。只读操作。
 
-本 skill 对应 shortcut：`lark-cli vc +notes`。
+本 skill 对应 shortcut：`lark_api({ tool: 'vc', op: 'notes' })`。
 
 ## 命令
 
-```bash
-# 通过会议 ID 查询（逗号分隔支持批量，最多 50 个）
-lark-cli vc +notes --meeting-ids 69xxxxxxxxxxxxx28
-lark-cli vc +notes --meeting-ids 69xxxxxxxxxxxxx28,69xxxxxxxxxxxxx29
+```js
+// 通过会议 ID 查询（逗号分隔支持批量，最多 50 个）
+lark_api({ tool: 'vc', op: 'notes', args: { meeting_ids: '69xxxxxxxxxxxxx28' } })
+lark_api({ tool: 'vc', op: 'notes', args: { meeting_ids: '69xxxxxxxxxxxxx28,69xxxxxxxxxxxxx29' } })
 
-# 通过妙记 Token 查询（从妙记 URL 中提取）
-lark-cli vc +notes --minute-tokens obbxxxxxxxxxxxxxxxxxx
-lark-cli vc +notes --minute-tokens obbxxxxxxxxxxxxxxxxxx,obbyyyyyyyyyyyyyyyyyy
+// 通过妙记 Token 查询（从妙记 URL 中提取）
+lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx' } })
+lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx,obbyyyyyyyyyyyyyyyyyy' } })
 
-# 指定逐字稿输出目录（仅 --minute-tokens 路径有效）
-lark-cli vc +notes --minute-tokens obbxxxxxxxxxxxxxxxxxx --output-dir ./output
-lark-cli vc +notes --minute-tokens obbxxxxxxxxxxxxxxxxxx --overwrite
+// 指定逐字稿输出目录（仅 minute_tokens 路径有效）
+lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx', output_dir: './output' } })
+lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx', overwrite: true } })
 
-# 通过日程事件 ID 查询（从 calendar +agenda 获取 event_id）
-lark-cli vc +notes --calendar-event-ids xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx_0
-
-# 输出格式
-lark-cli vc +notes --meeting-ids 69xxxxxxxxxxxxx28 --format json
-
-# 预览 API 调用
-lark-cli vc +notes --meeting-ids 69xxxxxxxxxxxxx28 --dry-run
+// 通过日程事件 ID 查询（从 calendar +agenda 获取 event_id）
+lark_api({ tool: 'vc', op: 'notes', args: { calendar_event_ids: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx_0' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--meeting-ids <ids>` | 三选一 | 会议 ID，逗号分隔支持批量 |
-| `--minute-tokens <tokens>` | 三选一 | 妙记 Token，逗号分隔支持批量 |
-| `--calendar-event-ids <ids>` | 三选一 | 日程事件 ID，逗号分隔支持批量 |
-| `--output-dir <dir>` | 否 | 逐字稿输出目录。未指定时默认落到 `./minutes/{minute_token}/transcript.txt`（与 `minutes +download` 共享目录）；显式指定时沿用旧布局 `./{output-dir}/artifact-{title}-{token}/transcript.txt`。仅 `--minute-tokens` 路径有效 |
-| `--overwrite` | 否 | 覆盖已存在的逐字稿文件，仅 `--minute-tokens` 路径有效 |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `meeting_ids` | 三选一 | 会议 ID，逗号分隔支持批量 |
+| `minute_tokens` | 三选一 | 妙记 Token，逗号分隔支持批量 |
+| `calendar_event_ids` | 三选一 | 日程事件 ID，逗号分隔支持批量 |
+| `output_dir` | 否 | 逐字稿输出目录。未指定时默认落到 `./minutes/{minute_token}/transcript.txt`（与 `minutes +download` 共享目录）；显式指定时沿用旧布局 `./{output-dir}/artifact-{title}-{token}/transcript.txt`。仅 `--minute-tokens` 路径有效 |
+| `overwrite` | 否 | 覆盖已存在的逐字稿文件，仅 `--minute-tokens` 路径有效 |
 
 ## 核心约束
 
@@ -51,7 +44,7 @@ lark-cli vc +notes --meeting-ids 69xxxxxxxxxxxxx28 --dry-run
 
 ### 2. 仅支持 user 身份
 
-该命令仅支持 `user` 身份，使用前需完成 `lark-cli auth login`。
+该命令仅支持 `user` 身份，使用前需完成 `lark_auth_login`。
 
 ### 3. 批量上限
 

@@ -2,15 +2,15 @@
 
 > **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand authentication, global parameters, and safety rules.
 
-This is the single source of truth for the automatic message-enrichment contract shared by the four message-pulling shortcuts — [`+messages-mget`](lark-im-messages-mget.md), [`+chat-messages-list`](lark-im-chat-messages-list.md), [`+messages-search`](lark-im-messages-search.md), [`+threads-messages-list`](lark-im-threads-messages-list.md). They automatically attach `reactions` and `update_time` to each returned message, so callers do **not** need to invoke the raw [`im.reactions.batch_query`](lark-im-reactions.md) API separately.
+This is the single source of truth for the automatic message-enrichment contract shared by the four message-pulling shortcuts — [`messages-mget`](lark-im-messages-mget.md), [`chat-messages-list`](lark-im-chat-messages-list.md), [`messages-search`](lark-im-messages-search.md), [`threads-messages-list`](lark-im-threads-messages-list.md). They automatically attach `reactions` and `update_time` to each returned message, so callers do **not** need to invoke the raw [`im.reactions.batch_query`](lark-im-reactions.md) API separately.
 
 - **`reactions`** — populated from `im.reactions.batch_query` as `{counts, details}`. The field is only attached when the server actually returns data; messages with no reactions omit it. Replies inside `thread_replies` are enriched alongside their parent (collected into the same id set), so outer and inner messages follow identical semantics. The id set is split into batches of <= 20 (server-side cap) and the batches are dispatched with bounded concurrency (up to 4 in flight), so high-N pulls — e.g. page 50 + ~500 expanded thread replies = 550 ids → ⌈550 / 20⌉ = **28 batches** — finish in a few round-trips instead of serializing into tens of seconds.
 - **`update_time`** — emitted only when `updated == true` (message was actually edited). The server echoes `update_time == create_time` for unedited messages too, but the CLI gates that output away so consumers don't misread every message as "edited".
-- **Opt-out** — each shortcut accepts `--no-reactions` to skip the extra round-trip when the caller only needs message bodies.
+- **Opt-out** — each shortcut accepts `no_reactions: true` to skip the extra round-trip when the caller only needs message bodies.
 
 ## Thread replies expansion
 
-`+messages-mget` and `+chat-messages-list` also auto-expand thread replies: any returned message that carries a `thread_id` triggers a fetch of that thread's replies, which are attached as a `thread_replies` array on the host. Fetches across distinct threads run with bounded concurrency (up to 4 in flight). Two caps gate the result:
+`messages-mget` and `chat-messages-list` also auto-expand thread replies: any returned message that carries a `thread_id` triggers a fetch of that thread's replies, which are attached as a `thread_replies` array on the host. Fetches across distinct threads run with bounded concurrency (up to 4 in flight). Two caps gate the result:
 
 - **`perThread` (default 50)** — max replies fetched for any single thread.
 - **`totalLimit` (default 500)** — max cumulative replies across all threads on the page.
@@ -23,8 +23,8 @@ On per-thread fetch failure the host gets `thread_replies_error: true` (mirrors 
 
 The default enrichment requires `im:message.reactions:read`, already declared in each shortcut's `UserScopes` / `BotScopes` (or `Scopes` for the user-only search command), so the framework's pre-flight check surfaces a `missing_scope` error before the request is sent. Bots that were registered before this scope was added need an incremental authorization in the Feishu developer console; users can run:
 
-```bash
-lark-cli auth login --scope "im:message.reactions:read"
+```js
+lark_auth_login({ scope: 'im:message.reactions:read' })
 ```
 
 ## Data contract — missing field ≠ fetch failure

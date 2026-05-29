@@ -1,37 +1,22 @@
 # lark-wiki +space-list
 
-List wiki spaces accessible to the caller. **Default fetches a single page** (matches the rest of the CLI's list shortcuts); pass `--page-all` to walk every page.
+List wiki spaces accessible to the caller. **Default fetches a single page** (matches the rest of the list shortcuts).
 
 ## Usage
 
-```bash
-# Default: single page (first up to --page-size items)
-lark-cli wiki +space-list
+```js
+// Default: single page
+lark_api({ tool: 'wiki', op: 'space-list', args: {} })
 
-# Walk every page (capped by --page-limit, default 10)
-lark-cli wiki +space-list --page-all
-
-# Walk every page, no cap (use with care if you have many spaces)
-lark-cli wiki +space-list --page-all --page-limit 0
-
-# Resume from a specific cursor (single-page fetch regardless of --page-all)
-lark-cli wiki +space-list --page-token <TOKEN>
-
-# Pretty / table / csv / ndjson output
-lark-cli wiki +space-list --format pretty
-lark-cli wiki +space-list --format table
+// As user identity
+lark_api({ tool: 'wiki', op: 'space-list', args: { as: 'user' } })
 ```
 
 ## Flags
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--page-size` | int | 50 | Page size, 1-50 |
-| `--page-token` | string | — | Page cursor; implies single-page fetch (no auto-pagination) |
-| `--page-all` | bool | `false` | Automatically paginate through all pages (capped by `--page-limit`) |
-| `--page-limit` | int | 10 | Max pages with `--page-all` (0 = unlimited) |
-| `--format` | enum | `json` | `json` / `pretty` / `table` / `csv` / `ndjson` |
-| `--as` | enum | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `--as user` |
+| `as` | enum | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `as: 'user'` |
 
 ## Output
 
@@ -56,12 +41,12 @@ lark-cli wiki +space-list --format table
 }
 ```
 
-When the default single-page fetch (or `--page-all` capped by `--page-limit`) does not exhaust the upstream cursor, `has_more=true` and `page_token=<cursor>` so the caller can resume via `--page-token` or by increasing `--page-limit`.
+When the default single-page fetch does not exhaust the upstream cursor, `has_more=true` and `page_token=<cursor>` so the caller can resume.
 
 ## Notes
 
-- **The underlying API never returns the my_library personal library**; resolve it via `lark-cli wiki spaces get --params '{"space_id":"my_library"}'`.
-- Use `space_id` from the output as `--space-id` for `+node-list` or `+node-copy`.
+- **The underlying API never returns the my_library personal library**; resolve it via `lark_api({ tool: 'wiki', op: 'spaces.get', args: { space_id: 'my_library' } })`.
+- Use `space_id` from the output as `space_id` for `+node-list` or `+node-copy`.
 
 ## Required Scope
 

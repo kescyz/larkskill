@@ -1,6 +1,6 @@
 # VC Events
 
-> **Prerequisite:** Read [`../SKILL.md`](../SKILL.md) first for the `event consume` essentials (commands, subprocess contract, jq usage).
+> **Prerequisite:** Read [`../SKILL.md`](../SKILL.md) first for the V2 event-model essentials (no live subscription; poll via `lark_api`, discover shapes via `lark_api_search`).
 
 ## Key catalog (2)
 
@@ -43,12 +43,10 @@ Both keys use a **Custom schema** (flat output) and carry a **PreConsume hook** 
 
 ### Example
 
-```bash
-lark-cli event consume vc.meeting.participant_meeting_ended_v1 --as user
-
-# Project meeting topic and end time only
-lark-cli event consume vc.meeting.participant_meeting_ended_v1 --as user \
-  --jq '{meeting: .meeting_id, topic: .topic, ended: .end_time}'
+```js
+// V2 MCP has no live subscription; discover the polling/handler shape for this key:
+lark_api_search({ query: "vc.meeting.participant_meeting_ended_v1" })
+// Project meeting topic and end time only: filter client-side {meeting: .meeting_id, topic: .topic, ended: .end_time}
 ```
 
 ---
@@ -81,14 +79,9 @@ Fires when a note is generated — not just from meetings, but also from realtim
 
 ### Example
 
-```bash
-lark-cli event consume vc.note.generated_v1 --as user
-
-# Only notes with enriched tokens, skip incomplete ones
-lark-cli event consume vc.note.generated_v1 --as user \
-  --jq 'select(.note_token != "") | {note_id, note_token, verbatim_token}'
-
-# Filter to meeting-sourced notes only
-lark-cli event consume vc.note.generated_v1 --as user \
-  --jq 'select(.note_source.source_type == "meeting") | {note_id, meeting_id: .note_source.source_entity_id}'
+```js
+// V2 MCP has no live subscription; discover the polling/handler shape for this key:
+lark_api_search({ query: "vc.note.generated_v1" })
+// Only notes with enriched tokens, skip incomplete ones: filter select(.note_token != "") | {note_id, note_token, verbatim_token}
+// Filter to meeting-sourced notes only: filter select(.note_source.source_type == "meeting") | {note_id, meeting_id: .note_source.source_entity_id}
 ```

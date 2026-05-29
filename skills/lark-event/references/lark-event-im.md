@@ -1,8 +1,8 @@
 # IM Events
 
-> **Prerequisite:** Read [`../SKILL.md`](../SKILL.md) first for the `event consume` essentials (commands, subprocess contract, jq usage).
+> **Prerequisite:** Read [`../SKILL.md`](../SKILL.md) first for the V2 event-model essentials (no live subscription; poll via `lark_api`, discover shapes via `lark_api_search`).
 >
-> **Heads-up for AI agents**: this key's `.content` is **NOT** the raw OAPI payload shape your training data may suggest. `lark-cli` runs a Process hook (`convertlib`) that flattens the V2 envelope and **pre-renders** `.content` to human-readable text for `text` / `post` / `image` / `file` / `audio` / etc. Only `interactive` (cards) keeps the raw JSON string. Don't blindly `fromjson`.
+> **Heads-up for AI agents**: this key's `.content` is **NOT** the raw OAPI payload shape your training data may suggest. The event pipeline runs a Process hook (`convertlib`) that flattens the V2 envelope and **pre-renders** `.content` to human-readable text for `text` / `post` / `image` / `file` / `audio` / etc. Only `interactive` (cards) keeps the raw JSON string. Don't blindly `fromjson`.
 
 ## Key catalog (11)
 
@@ -35,52 +35,40 @@
 
 **Do not blindly `fromjson`** — for non-interactive messages it fails with `jq: fromjson cannot be applied to "hello"` because `.content` isn't JSON-encoded.
 
-```bash
-# text: .content is plain text — no fromjson needed
-lark-cli event consume im.message.receive_v1 --as bot \
-  --jq 'select(.message_type=="text") | .content'
-
-# interactive: .content is a JSON string — fromjson to parse
-lark-cli event consume im.message.receive_v1 --as bot \
-  --jq 'select(.message_type=="interactive") | .content | fromjson'
+```js
+// V2 MCP has no live subscription; discover the polling/handler shape for this key:
+lark_api_search({ query: "im.message.receive_v1" })
+// text: .content is plain text — no fromjson needed (filter client-side: select message_type=="text" | .content)
+// interactive: .content is a JSON string — fromjson to parse (filter: select message_type=="interactive" | .content | fromjson)
 ```
 
 ## On-demand filter recipes
 
-> **Default = no `--jq`.** Run `lark-cli event consume im.message.receive_v1 --as bot` to see every message. The recipes below are only for cases where the user has asked to narrow the stream.
+> **Default = no projection.** Discover the key shape with `lark_api_search({ query: "im.message.receive_v1" })` and handle every message. The recipes below are only for cases where the user has asked to narrow the stream client-side.
 
 ### 1. Filter by chat type (p2p vs group)
 
 `chat_type` is an enum with values `p2p` / `group`.
 
-```bash
-# p2p only (direct messages)
-lark-cli event consume im.message.receive_v1 --as bot \
-  --jq 'select(.chat_type=="p2p") | {from: .sender_id, msg: .content}'
-
-# group only
-lark-cli event consume im.message.receive_v1 --as bot \
-  --jq 'select(.chat_type=="group") | {chat: .chat_id, from: .sender_id, msg: .content}'
+```js
+lark_api_search({ query: "im.message.receive_v1" })
+// p2p only (direct messages): filter client-side select(.chat_type=="p2p") | {from: .sender_id, msg: .content}
+// group only: filter client-side select(.chat_type=="group") | {chat: .chat_id, from: .sender_id, msg: .content}
 ```
 
 ### 2. Filter by message type
 
-```bash
-# text only — content is plain human-readable text
-lark-cli event consume im.message.receive_v1 --as bot \
-  --jq 'select(.message_type=="text") | .content'
-
-# interactive (card) only — parse the card body
-lark-cli event consume im.message.receive_v1 --as bot \
-  --jq 'select(.message_type=="interactive") | .content | fromjson'
+```js
+lark_api_search({ query: "im.message.receive_v1" })
+// text only — content is plain human-readable text: filter select(.message_type=="text") | .content
+// interactive (card) only — parse the card body: filter select(.message_type=="interactive") | .content | fromjson
 ```
 
 ### 3. Filter by sender (only one user's messages)
 
-```bash
-# example: only messages from the given open_id
-lark-cli event consume im.message.receive_v1 --as bot\
-  --jq 'select(.sender_id=="ou_xxxxxxxxxxxxxxxxxxxxxxxxxx") | {msg_id: .message_id, text: .content}'
+```js
+lark_api_search({ query: "im.message.receive_v1" })
+// example: only messages from the given open_id — filter select(.sender_id=="ou_xxxxxxxxxxxxxxxxxxxxxxxxxx") | {msg_id: .message_id, text: .content}
 ```
 
-Get your own open_id via `lark-cli contact +get-user --as user`; other users' via `lark-cli contact +search-user`.
+Get your own open_id via `lark_api({ tool: 'contact', op: 'get-user', as: 'user' })`; other users' via `lark_api({ tool: 'contact', op: 'search-user' })`.

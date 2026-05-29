@@ -6,25 +6,25 @@ Manage tasklist members (editors/owners).
 
 ## Recommended Commands
 
-```bash
-# Add a member
-lark-cli task +tasklist-members --tasklist-id "tl_xxx" --add "ou_aaa"
+```js
+// Add a member
+lark_api({ tool: 'task', op: 'tasklist-members', args: { tasklist_id: 'tl_xxx', add: 'ou_aaa' } })
 
-# Remove a member
-lark-cli task +tasklist-members --tasklist-id "tl_xxx" --remove "ou_aaa"
+// Remove a member
+lark_api({ tool: 'task', op: 'tasklist-members', args: { tasklist_id: 'tl_xxx', remove: 'ou_aaa' } })
 
-# Replace all members exactly
-lark-cli task +tasklist-members --tasklist-id "tl_xxx" --set "ou_aaa,ou_bbb"
+// Replace all members exactly
+lark_api({ tool: 'task', op: 'tasklist-members', args: { tasklist_id: 'tl_xxx', set: 'ou_aaa,ou_bbb' } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `--tasklist-id <id>` | Yes | The GUID of the tasklist, or a full AppLink URL. |
-| `--add <ids>` | No | Comma-separated list of user `open_id`s to add as members. |
-| `--remove <ids>` | No | Comma-separated list of user `open_id`s to remove from members. |
-| `--set <ids>` | No | Comma-separated list of user `open_id`s to exactly set as members (replaces all existing). |
+| `tasklist_id` | Yes | The GUID of the tasklist, or a full AppLink URL. |
+| `add` | No | Comma-separated list of user `open_id`s to add as members. |
+| `remove` | No | Comma-separated list of user `open_id`s to remove from members. |
+| `set` | No | Comma-separated list of user `open_id`s to exactly set as members (replaces all existing). |
 
 ## Workflow
 

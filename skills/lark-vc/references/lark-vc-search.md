@@ -5,7 +5,7 @@
 
 搜索已结束的历史会议记录，支持关键词、时间范围、组织者、参与者以及会议室等多条件过滤。只读操作，不修改任何会议数据。
 
-本 skill 对应 shortcut：`lark-cli vc +search`（调用 `POST /open-apis/vc/v1/meetings/search`）。
+本 skill 对应 shortcut：`lark_api({ tool: 'vc', op: 'search' })`（调用 `POST /open-apis/vc/v1/meetings/search`）。
 
 ## 关键词使用边界
 
@@ -26,61 +26,51 @@
 
 ## 命令
 
-```bash
-# 关键词搜索
-lark-cli vc +search --query "周会"
+```js
+// 关键词搜索
+lark_api({ tool: 'vc', op: 'search', args: { query: "周会" } })
 
-# 查询某一天开过的会（单日查询时，start 和 end 必须填写同一天）
-lark-cli vc +search --start 2026-03-10 --end 2026-03-10
+// 查询某一天开过的会（单日查询时，start 和 end 必须填写同一天）
+lark_api({ tool: 'vc', op: 'search', args: { start: '2026-03-10', end: '2026-03-10' } })
 
-# 按时间范围搜索
-lark-cli vc +search --start "2026-03-10T00:00+08:00" --end "2026-03-17T00:00+08:00"
-lark-cli vc +search --start 2026-03-10 --end 2026-03-17
+// 按时间范围搜索
+lark_api({ tool: 'vc', op: 'search', args: { start: "2026-03-10T00:00+08:00", end: "2026-03-17T00:00+08:00" } })
+lark_api({ tool: 'vc', op: 'search', args: { start: '2026-03-10', end: '2026-03-17' } })
 
-# 关键词 + 时间范围
-lark-cli vc +search --query "周会" --start "2026-03-10T00:00+08:00" --end "2026-03-17T00:00+08:00"
-lark-cli vc +search --query "周会" --start "2026-03-10T00:00+08:00"
-lark-cli vc +search --query "周会" --end "2026-03-17T00:00+08:00"
+// 关键词 + 时间范围
+lark_api({ tool: 'vc', op: 'search', args: { query: "周会", start: "2026-03-10T00:00+08:00", end: "2026-03-17T00:00+08:00" } })
+lark_api({ tool: 'vc', op: 'search', args: { query: "周会", start: "2026-03-10T00:00+08:00" } })
+lark_api({ tool: 'vc', op: 'search', args: { query: "周会", end: "2026-03-17T00:00+08:00" } })
 
-# 按组织者过滤（open_id，逗号分隔）
-lark-cli vc +search --organizer-ids "ou_a,ou_b"
+// 按组织者过滤（open_id，逗号分隔）
+lark_api({ tool: 'vc', op: 'search', args: { organizer_ids: "ou_a,ou_b" } })
 
-# 按参与者过滤（open_id，逗号分隔）
-lark-cli vc +search --participant-ids "ou_x,ou_y"
+// 按参与者过滤（open_id，逗号分隔）
+lark_api({ tool: 'vc', op: 'search', args: { participant_ids: "ou_x,ou_y" } })
 
-# 查询我这个月参加过的历史会议，不带关键词
-lark-cli vc +search --start "<YYYY-MM-DD>" --end "<YYYY-MM-DD>" --participant-ids "ou_me"
+// 查询我这个月参加过的历史会议，不带关键词
+lark_api({ tool: 'vc', op: 'search', args: { start: "<YYYY-MM-DD>", end: "<YYYY-MM-DD>", participant_ids: "ou_me" } })
 
-# 查询最近两周我组织的历史会议，不带关键词
-lark-cli vc +search --start "<YYYY-MM-DD>" --end "<YYYY-MM-DD>" --organizer-ids "ou_me"
+// 查询最近两周我组织的历史会议，不带关键词
+lark_api({ tool: 'vc', op: 'search', args: { start: "<YYYY-MM-DD>", end: "<YYYY-MM-DD>", organizer_ids: "ou_me" } })
 
-# 按会议室过滤
-lark-cli vc +search --room-ids "123,456"
+// 按会议室过滤
+lark_api({ tool: 'vc', op: 'search', args: { room_ids: "123,456" } })
 
-# 多条件组合查询
-lark-cli vc +search --organizer-ids "ou_a" --room-ids "123" --start "2026-03-10T00:00+08:00"
-
-# 分页查询
-lark-cli vc +search --query "周会" --page-size 15
-lark-cli vc +search --query "周会" --page-token "next_page_token"
-
-# 输出为表格/可读格式
-lark-cli vc +search --query "周会" --format json
+// 多条件组合查询
+lark_api({ tool: 'vc', op: 'search', args: { organizer_ids: "ou_a", room_ids: "123", start: "2026-03-10T00:00+08:00" } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--query <text>` | 否 | 搜索关键词 |
-| `--start <time>` | 否 | 开始时间（ISO 8601 或仅日期） |
-| `--end <time>` | 否 | 结束时间（ISO 8601 或仅日期） |
-| `--organizer-ids <ids>` | 否 | 组织者 open_id 列表，逗号分隔 |
-| `--participant-ids <ids>` | 否 | 参与者 open_id 列表，逗号分隔 |
-| `--room-ids <ids>` | 否 | 会议室 ID 列表，逗号分隔 |
-| `--page-size <n>` | 否 | 每页数量，默认 `15`，最大 `30` |
-| `--page-token <token>` | 否 | 翻页标记，用于获取下一页 |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `query` | 否 | 搜索关键词 |
+| `start` | 否 | 开始时间（ISO 8601 或仅日期） |
+| `end` | 否 | 结束时间（ISO 8601 或仅日期） |
+| `organizer_ids` | 否 | 组织者 open_id 列表，逗号分隔 |
+| `participant_ids` | 否 | 参与者 open_id 列表，逗号分隔 |
+| `room_ids` | 否 | 会议室 ID 列表，逗号分隔 |
 
 ## 核心约束
 
@@ -98,7 +88,7 @@ lark-cli vc +search --query "周会" --format json
 
 ### 3. 仅支持 user 身份
 
-该接口仅支持 `user` 身份，使用前需完成 `lark-cli auth login` 并具备 `vc:meeting.search:read` 权限。
+该接口仅支持 `user` 身份，使用前需完成 `lark_auth_login` 并具备 `vc:meeting.search:read` 权限。
 
 ### 4. 支持分页
 
@@ -147,26 +137,18 @@ lark-cli vc +search --query "周会" --format json
 - 未明确要求全量时，`total` 数量小于 50 可自动分页获取所有结果；`total` 数量大于 50 时，先向用户确认是否继续获取全部结果。
 - 用户明确说"所有 / 全部 / 统计 / 按时间排序"时，该全量意图优先于 `total > 50` 的确认门槛；直接完成分页和去重，再排序或统计，不要只用第一页回答。
 
-```bash
-# First page
-lark-cli vc +search --query "周会" --page-size 15
-
-# Next page
-lark-cli vc +search --query "周会" --page-size 15 --page-token "<PAGE_TOKEN>"
-```
-
 ## 搜索结果中的下一步
 
 搜索结果中的 `meeting_id` 可直接用于继续查询会议纪要或妙记：
 
-```bash
-# 如果要会议纪要 / 逐字稿 / AI 总结 / 待办 / 章节
-lark-cli vc +notes --meeting-ids <MEETING_ID>
+```js
+// 如果要会议纪要 / 逐字稿 / AI 总结 / 待办 / 章节
+lark_api({ tool: 'vc', op: 'notes', args: { meeting_ids: '<MEETING_ID>' } })
 
-# 如果要会议对应的妙记信息 / minute_token / 妙记链接
-lark-cli vc +recording --meeting-ids <MEETING_ID>
-# 然后再用返回的 minute_token 调用：
-lark-cli minutes minutes get --params '{"minute_token":"<MINUTE_TOKEN>"}'
+// 如果要会议对应的妙记信息 / minute_token / 妙记链接
+lark_api({ tool: 'vc', op: 'recording', args: { meeting_ids: '<MEETING_ID>' } })
+// 然后再用返回的 minute_token 调用：
+lark_api({ tool: 'minutes', op: 'minutes.get', args: { minute_token: '<MINUTE_TOKEN>' } })
 ```
 
 ## 常见错误与排查

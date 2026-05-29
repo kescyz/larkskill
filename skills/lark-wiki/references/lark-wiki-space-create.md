@@ -1,25 +1,26 @@
 # lark-wiki +space-create
 
-Create a wiki space. OpenAPI: `POST /open-apis/wiki/v2/spaces`. This is the project-initialization entry point — the alternative is hand-writing `wiki spaces create --params '{...}'`.
+Create a wiki space. OpenAPI: `POST /open-apis/wiki/v2/spaces`. This is the project-initialization entry point — the alternative is hand-writing `lark_api({ tool: 'wiki', op: 'spaces.create', args: { ... } })`.
 
 > The underlying `spaces.create` API is flagged `danger: true` in the schema browser, but it is **not** confirmation-gated (no `--yes`). A space created by mistake is recoverable via `wiki +delete-space`.
 
 ## Usage
 
-```bash
-lark-cli wiki +space-create \
-  --name <space_name> \
-  [--description <text>] \
-  [--as user]
+```js
+lark_api({ tool: 'wiki', op: 'space-create', args: {
+  name: '<space_name>',
+  // description: '<text>',
+  as: 'user'
+} })
 ```
 
 ## Flags
 
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `--name` | string | **Yes** | — | Wiki space name. Blank/whitespace is rejected (an unnamed space is almost always an accident) |
-| `--description` | string | No | — | Wiki space description |
-| `--as` | enum | No | `user` | **User identity only** — the create API does not accept a tenant/bot token; `--as bot` is rejected upfront |
+| `name` | string | **Yes** | — | Wiki space name. Blank/whitespace is rejected (an unnamed space is almost always an accident) |
+| `description` | string | No | — | Wiki space description |
+| `as` | enum | No | `user` | **User identity only** — the create API does not accept a tenant/bot token; `as: 'bot'` is rejected upfront |
 
 ## Output
 
@@ -38,8 +39,7 @@ There is no `url` field — the create API does not return one.
 
 ## Notes
 
-- Only `--as user` is supported; this command declares `AuthTypes: ["user"]` and the framework rejects `--as bot` with a clear message.
-- `--dry-run` previews the `POST /open-apis/wiki/v2/spaces` request (and surfaces the blank-name validation error early).
+- Only `as: 'user'` is supported; this command declares `AuthTypes: ["user"]` and the framework rejects `as: 'bot'` with a clear message.
 
 ## Required Scope
 
