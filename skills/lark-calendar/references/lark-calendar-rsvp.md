@@ -1,70 +1,42 @@
 # calendar +rsvp
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-Reply to a specified event, updating the current user's RSVP status (accept, decline, or tentative).
+回复指定的日程，更新当前用户的 RSVP 状态（接受、拒绝或待定）。
 
-Required scopes: `["calendar:calendar.event:reply"]`
+需要的scopes: ["calendar:calendar.event:reply"]
 
-## When to use
+## 命令
 
-Call this shortcut when the user wants to respond to a calendar invitation — accept, decline, or mark as tentative.
+```bash
+# 回复日程为接受 (使用主日历)
+lark-cli calendar +rsvp --event-id evt_xxx --rsvp-status accept
 
-Before calling, obtain the `event_id` (and optionally `calendar_id`) via `+agenda` or another listing shortcut.
+# 回复日程为拒绝
+lark-cli calendar +rsvp --event-id evt_xxx --rsvp-status decline
 
-## Recommended call
+# 回复日程为待定
+lark-cli calendar +rsvp --event-id evt_xxx --rsvp-status tentative
 
-Step 1 — Get primary calendar ID (if no calendar_id in context):
-
-```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/calendar/v4/calendars/primary
-- as: user
-```
-
-Response: `data.calendars[0].calendar.calendar_id` is the primary calendar ID.
-
-Step 2 — Submit RSVP reply:
-
-```
-Call MCP tool `lark_api`:
-- method: PATCH
-- path: /open-apis/calendar/v4/calendars/{calendar_id}/events/{event_id}/attendees/batch_delete
+# 指定其他日历下的日程
+lark-cli calendar +rsvp --calendar-id cal_xxx --event-id evt_xxx --rsvp-status accept
 ```
 
-> **Note:** The Lark Open API exposes RSVP reply via the attendees sub-resource. Use the reply endpoint below.
+## 参数
 
-```
-Call MCP tool `lark_api`:
-- method: PUT
-- path: /open-apis/calendar/v4/calendars/{calendar_id}/events/{event_id}/reply
-- body:
-  {
-    "rsvp_status": "accept"
-  }
-```
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `--event-id <id>` | **是** | 日程 ID |
+| `--rsvp-status <status>` | **是** | 回复状态，可选值：`accept` (接受), `decline` (拒绝), `tentative` (待定) |
+| `--calendar-id <id>` | 否 | 日历 ID（省略则使用主日历） |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-`rsvp_status` values: `accept`, `decline`, `tentative`.
+## 提示
 
-If no `calendar_id` is known, use `primary` as the calendar ID — the API resolves it to the user's primary calendar.
+- 只能回复你被邀请的日程。
+- 调用前通常需要通过 `+agenda` 等命令获取到具体的 `event-id`。
 
-## Parameters
+## 参考
 
-| Field | Required | Description |
-|---|---|---|
-| `calendar_id` | No | Calendar ID containing the event; defaults to primary calendar |
-| `event_id` | Yes | Event ID (obtain from +agenda output) |
-| `rsvp_status` | Yes | Reply status: `accept`, `decline`, or `tentative` |
-
-## Tips
-
-- You can only reply to events you have been invited to.
-- Obtain `event_id` via `+agenda` or events search before calling.
-- Use `as: user` — this is a user-personal operation.
-
-## References
-
-- [lark-calendar](../SKILL.md) — All calendar shortcuts
-- [lark-calendar-agenda](lark-calendar-agenda.md) — View agenda and obtain event IDs
-- [lark-shared](../../lark-shared/SKILL.md) — Authentication and global parameters
+- [lark-calendar](../SKILL.md) -- 日历全部命令
+- [lark-shared](../../lark-shared/SKILL.md) -- 认证和全局参数

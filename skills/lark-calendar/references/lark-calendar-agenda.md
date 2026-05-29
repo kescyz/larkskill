@@ -1,103 +1,78 @@
+
 # calendar +agenda
 
-> **Prerequisite:** Read [../lark-shared/SKILL.md](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-View recent schedules. Read-only operation that does not modify any event.
+查看近期日程安排。只读操作，不修改任何日程。
 
-Required scopes: ["calendar:calendar.event:read"]
+需要的scopes: ["calendar:calendar.event:read"]
 
-## Recommended call
+## 命令
 
-View today's schedule (default):
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/calendar/v4/calendars/primary/events
-- params:
-  {
-    "start_time": "<today_start_unix_timestamp>",
-    "end_time": "<today_end_unix_timestamp>"
-  }
-```
+```bash
+# 查看今天日程（默认）
+lark-cli calendar +agenda
 
-Custom time range:
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/calendar/v4/calendars/primary/events
-- params:
-  {
-    "start_time": "1741564800",
-    "end_time": "1742169600"
-  }
+# 自定义时间范围（ISO 8601）
+lark-cli calendar +agenda --start "2026-03-10T00:00+08:00" --end "2026-03-17T00:00+08:00"
+
+# 自定义时间范围（仅日期）
+lark-cli calendar +agenda --start 2026-03-10 --end 2026-03-17
+
+# 人类可读格式输出
+lark-cli calendar +agenda --format pretty
+
+# 指定日历
+lark-cli calendar +agenda --calendar-id cal_xxx
 ```
 
-Specify calendar:
-```
-Call MCP tool `lark_api`:
-- method: GET
-- path: /open-apis/calendar/v4/calendars/{calendar_id}/events
-- params:
-  {
-    "start_time": "<start_unix_timestamp>",
-    "end_time": "<end_unix_timestamp>"
-  }
-```
+## 参数
 
-## API request details
-
-```
-GET /open-apis/calendar/v4/calendars/{calendar_id}/events
-```
-
-Use `primary` as `calendar_id` for the user's primary calendar.
-
-## Parameters (query)
-
-| Parameter | Required | Description |
+| 参数 | 必填 | 说明 |
 |------|------|------|
-| `start_time` | No | Start time (Unix second timestamp, default today start) |
-| `end_time` | No | End time (Unix second timestamp, defaults to end of same day as `start_time`) |
-| `calendar_id` | No (path) | Calendar ID (use `primary` for default) |
+| `--start <time>` | 否 | 开始时间（ISO 8601 或仅日期，默认当天） |
+| `--end <time>` | 否 | 结束时间（默认与 `--start` 属于同一天，自动取当天结束时间） |
+| `--calendar-id <id>` | 否 | 日历 ID（省略则使用主日历） |
+| `--format` | 否 | 输出格式：json（默认） \| pretty |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
-## Time Formats
+## 时间格式
 
-Convert time expressions to Unix second timestamps before passing:
+`--start` 和 `--end` 支持以下格式：
 
-| Format | Example | Description |
+| 格式 | 示例 | 说明 |
 |------|------|------|
-| ISO 8601 | `2026-03-10T14:00:00+08:00` | Convert to Unix timestamp |
-| Date only | `2026-03-10` | start uses 00:00:00, end uses 23:59:59 |
-| Unix timestamp | `1741564800` | Use directly |
+| ISO 8601 | `2026-03-10T14:00:00+08:00` | 完整格式 |
+| 日期+时间 | `2026-03-10 14:00:00` | 自动补全时区 |
+| 仅日期 | `2026-03-10` | start 取 00:00:00，end 取 23:59:59 |
+| Unix 时间戳 | `1741564800` | 秒级时间戳 |
 
-> **Mandatory**: When converting between date/time strings and timestamps, use external tools or scripts to guarantee accuracy.
+## 输出格式
 
-## Output Format
-
-**Organize results as a readable schedule table:**
+**将结果整理为易读的日程表：**
 
 ```
-## 2026-03-10 Monday
+## 2026-03-10 周一
 
-09:00 - 09:30 Stand-up meeting
-10:00 - 11:00 Product Review
-14:00 - 15:00 1:1 with Alice
+09:00 - 09:30  站会
+10:00 - 11:00  产品评审
+14:00 - 15:00  与 Alice 1:1
 
-## 2026-03-11 Tuesday
+## 2026-03-11 周二
 
-(no events)
+（无日程）
 ```
 
-**Note: group by date and sort strictly by start time ascending (earliest to latest timeline).** Show title and duration.
+**注意：按日期分组，并严格按照开始时间升序（从早到晚的时间线）排序输出。** 显示标题、时长
 
-## Tips
+## 提示
 
-- Cancelled events are auto-filtered by the API, no extra handling needed.
-- If no events, tell user "agenda is clear".
-- Time ranges larger than 40 days should be split into multiple calls and merged.
-- To view multiple calendars: list calendars first via `GET /open-apis/calendar/v4/calendars`, then query each one.
+- 已取消的日程会自动过滤，无需额外处理。
+- 如无日程，告知用户"日程清空"。
+- 大于 40 天的时间范围会自动拆分查询并合并结果。
+- 查看多个日历：先用 `lark-cli calendar calendars list --page-all` 列出日历列表，再逐个查询。
 
-## References
+## 参考
 
-- [lark-calendar](../SKILL.md) -- All calendar commands
-- [lark-shared](../../lark-shared/SKILL.md) -- Authentication and global parameters
+- [lark-calendar](../SKILL.md) -- 日历全部命令
+- [lark-shared](../../lark-shared/SKILL.md) -- 认证和全局参数

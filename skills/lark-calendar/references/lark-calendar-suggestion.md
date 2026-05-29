@@ -1,106 +1,125 @@
 # calendar +suggestion
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first. LarkSkill MCP server must be connected.
+> **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md)。
 
-For scheduling requests where time is not yet fixed, provide multiple recommended time options so users can choose, helping solve meeting-time coordination.
+根据非明确时间或一段时间范围，推荐多个可用时间块方案。帮助用户解决协调时间的难题。
 
-**When to call (Agent Guidance):**
-- **When user intent is to schedule but time is not fully specified** (for example `today`, `next three days`, `this week`, `afternoon`, or no time description), call this tool to get recommended time slots for user selection.
-- **When user already gives a specific time point** (for example `today at 3pm`), **do not** call this tool. Call `+create` directly to create the event.
+**调用时机 (Agent Guidance):**
+- ✅ **当用户需求涉及寻找时间块，且时间未完全确定**（如`今天`、`近三天`、`本周`、`下午`, `无时间描述`）时，调用此工具来获取推荐时间块给用户选择（包括但不限于预约日程）。
+- ❌ **当用户已经明确了具体的时间点**（如`今天下午3点`），则**不需要**调用此工具
 
-Required scopes: `["calendar:calendar.free_busy:read"]`
+需要的scopes: ["calendar:calendar.free_busy:read"]
 
-## Recommended call
+## 命令
 
-Call freebusy list for the time window and all attendees, then compute free slots client-side:
+```bash
+# 获取默认的时间推荐方案（搜索范围：当前时刻至当天结束）
+lark-cli calendar +suggestion
 
+# 获取指定时间区间内的推荐方案（支持日期简写或完整 ISO 8601）
+lark-cli calendar +suggestion \
+  --start "2026-03-19" \
+  --end "2026-03-20"
+
+# 结合参与人及会议时长获取推荐方案（时长单位：分钟）
+# --attendee-ids 支持传入用户（ou_ 前缀）和群组（oc_ 前缀）混合列表
+lark-cli calendar +suggestion \
+  --start "2026-03-19T14:00:00+08:00" \
+  --end "2026-03-19T18:00:00+08:00" \
+  --attendee-ids ou_xxx,oc_yyy \
+  --duration-minutes 60
+
+# 排除特定时间段
+lark-cli calendar +suggestion \
+  --start "2026-03-19T08:00:00+08:00" \
+  --end "2026-03-19T18:00:00+08:00" \
+  --exclude "2026-03-19T12:00:00+08:00~2026-03-19T13:00:00+08:00"
+
+# JSON 格式输出
+lark-cli calendar +suggestion \
+  --start "2026-03-19T08:00:00+08:00" \
+  --end "2026-03-19T18:00:00+08:00" \
+  --format json
 ```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/calendar/v4/freebusy/list
-- body:
-  {
-    "time_min": "2026-03-19T08:00:00+08:00",
-    "time_max": "2026-03-19T18:00:00+08:00",
-    "user_id_list": ["ou_member_a", "ou_member_b"]
-  }
-```
 
-Repeat calls as needed to cover the full search range, adjusting `time_min` / `time_max`.
+## 参数
 
-To exclude specific time blocks (e.g., user said "show another batch"), exclude those ranges when computing free slots.
+| 参数                              | 必填    | 说明                                                                  |
+| ------------------------------- | ----- | ------------------------------------------------------------------- |
+| `--start <time>`                | 否     | 搜索区间开始时间（支持日期/ISO 8601等格式，默认**当前时间**）                                |
+| `--end <time>`                  | 否     | 搜索区间结束时间（默认与 `--start` 属于同一天，自动取当天结束时间）                                                     |
+| `--attendee-ids <id_list>`     | 否     | 目标参与人 ID 列表。提取对应实体的 ID。支持用户（`ou_` 前缀）和群组（`oc_` 前缀）。多个 ID 使用英文逗号分隔 |
+| `--event-rrule <rrule>`         | 否     | 重复日程的重复性规则，规则设置方式参考rfc5545。**【⚠️注意：系统绝对不支持 COUNT，如需限制重复次数，必须转为 UNTIL】**。示例值："FREQ=DAILY;INTERVAL=1"                                              |
+| `--duration-minutes <min>`      | 否     | 会议时长（分钟）。优先使用用户显式指定的值，若未指定则尝试根据上下文推断，推断失败则不传                                        |
+| `--timezone <tz>`               | 否     | 对话中明确提及的预约日程所使用的时区（默认取用户设备时区，例如 `Asia/Shanghai`）                                |
+| `--exclude <times>`             | 否     | 排除的时间块，支持 `start~end` 格式（如 `2026-03-19T12:00:00+08:00~2026-03-19T13:00:00+08:00`），多个用逗号分隔 |
+| `--format <flag>`               | 否     | 输出格式（固定为 `json`） |
+| `--dry-run`                     | 否     | 预览 API 调用，不执行                                                       |
 
-## Algorithm: computing free slots
+## 时间格式
 
-1. Collect all busy intervals from the `freebusy` response for all attendees.
-2. Union and sort busy intervals.
-3. Walk the search window; identify gaps ≥ `duration_minutes`.
-4. Return the first 3–5 candidate slots as recommended options.
+`--start`、`--end` 以及 `--exclude` 支持以下格式自动解析：
 
-## Parameters
+| 格式            | 示例                          | 说明                   |
+| ------------- | --------------------------- | -------------------- |
+| ISO 8601      | `2026-03-19T08:40:29+08:00` | 完整格式，精确包含日期、时间及带冒号的时区偏移 |
+| 日期+时间       | `2026-03-19 08:40:29`       | 自动补全时区               |
+| 仅日期          | `2026-03-19`                | start 取 00:00:00，end 取 23:59:59 |
+| Unix 时间戳     | `1741564800`                | 秒级时间戳               |
 
-| Parameter | Required | Description |
-|---|---|---|
-| `time_min` | Yes | Search range start (ISO 8601 with timezone) |
-| `time_max` | Yes | Search range end (ISO 8601 with timezone) |
-| `user_id_list` | No | Attendee open_id list (`ou_` prefix); include self if checking own availability |
-| `duration_minutes` | No | Meeting duration in minutes; infer from context if absent |
-| `exclude` | No | Time ranges to exclude when computing slots (e.g., previously shown options) |
+## 输出格式
 
-## Output format
-
-Present recommendations as a structured list with polished recommendation reasons:
+**将推荐结果整理为易读的选项列表，并附上润色后的推荐理由：**
 
 ```text
-## 2026-03-19 Thursday
+## 2026-03-19 周四
 
-- **Option 1: 10:00 - 10:30**
-  Reason: All participants are free.
-
-- **Option 2: 14:00 - 14:30**
-  Reason: All participants are free.
-```
-
-**AI Behavior Guidance:**
-- **Show options and reasons in structured form**: present recommended time options in a clear list, then ask user preference directly. Explain the advantage of each time block using both user original requirement and recommendation reason. Keep wording concise, direct, and unambiguous.
-- **Truthfully report conflicts**: recommended plans are not always fully free. If a recommendation contains conflicts, clearly state the conflict — never mislead user into thinking it is fully free.
-- **Proactively provide optimization suggestions**: when all recommendations are not fully free, provide reasonable alternatives (for example adjust time range, meeting duration, or attendee set).
-
-## Typical scenarios
-
-### 1. Find common free time for multiple people
+- **选项 1：10:00 - 10:30**
+  推荐理由：所有参与者均空闲。
 
 ```
-Call MCP tool `lark_api`:
-- method: POST
-- path: /open-apis/calendar/v4/freebusy/list
-- body:
-  {
-    "time_min": "2026-03-19T08:00:00+08:00",
-    "time_max": "2026-03-19T18:00:00+08:00",
-    "user_id_list": ["ou_member_a", "ou_member_b"]
-  }
+> **AI 行为指导：** 
+> - **结构化展示选项与理由**：以清晰的列表呈现推荐时间方案，并直接询问用户意向。**必须**结合“用户原始需求”与“推荐理由”说明每个时间块的优势，输出话术需简明、直接、无歧义。
+> - **如实反馈冲突情况**：注意，返回的推荐方案不一定都是完全空闲的（即使明确要求找空闲时间，系统在难以满足时也会返回包含忙闲冲突的方案）。判断推荐方案是否完全空闲，可以从推荐理由中是否表达了“完全空闲”或“没有任何忙闲冲突”来判断。如果推荐方案存在忙闲冲突，**必须**在展示方案时向用户如实说明冲突情况，绝不能误导用户认为是完全空闲。
+> - **主动提供优化建议**：当满足以下任一条件时（1. 返回结果包含 `ai_action_guidance` 字段内容；2. 用户要求找个空闲时间，但所有推荐方案都不是完全空闲的），你**必须**主动提供优化建议。若存在 `ai_action_guidance` 字段，需严格依据其核心意图生成引导话术；否则，请基于实际冲突情况主动提供合理的替代方案（如：建议调整时间范围、会议时长或参与人）。
+
+## 典型场景
+
+### 1. 查找多人的共同空闲会议时间
+
+```bash
+# 指定两名参与人，并要求找一个 45 分钟的空闲时段
+lark-cli calendar +suggestion \
+  --start "2026-03-19T08:00:00+08:00" \
+  --end "2026-03-19T18:00:00+08:00" \
+  --attendee-ids ou_member_a,ou_member_b \
+  --duration-minutes 45
 ```
 
-Compute slots ≥ 45 minutes where all attendees are free.
+### 2. 用户对当前推荐不满意，要求“换一批”
 
-### 2. User asks to "show another batch"
+```bash
+# 将上一次推荐的时段作为排除条件传入
+lark-cli calendar +suggestion \
+  --start "2026-03-19T08:00:00+08:00" \
+  --end "2026-03-19T18:00:00+08:00" \
+  --exclude "2026-03-19T10:00:00+08:00~2026-03-19T10:30:00+08:00"
+```
 
-Re-run freebusy query with same parameters, then exclude the previously shown slots when computing the next batch of candidate options.
+## 与其他命令对比
 
-## Comparison with other shortcuts
+| 命令                     | 用途       | 输出内容                |
+| ---------------------- | -------- | ------------------- |
+| `calendar +suggestion` | 根据非明确时间或一段时间范围，推荐多个可用时间块方案 | 返回多个推荐时段及其理由，以及后续建议 |
+| `calendar +freebusy`   | 查询忙闲时段   | 只返回忙碌时段列表和rsvp状态（无日程详情）    |
 
-| Shortcut | Purpose | Output |
-|---|---|---|
-| `+suggestion` | Uncertain time scheduling — provide multiple options | Multiple recommended slots with reasons |
-| `+freebusy` | Query free/busy status | Busy slot list and RSVP status (no event details) |
+**选择建议**：
 
-**Selection guidance:**
-- Looking for meeting time — prefer `+suggestion` for intelligent recommendations
-- Checking personal busy status — use `+freebusy`
+- **寻找可用时间（含开会等场景）** → 优先使用 `+suggestion`，直接获取智能推荐方案
+- **了解个人当前忙碌情况** → 使用 `+freebusy`
 
-## References
+## 参考
 
-- [lark-calendar-create](lark-calendar-create.md) — Create event
-- [lark-calendar-freebusy](lark-calendar-freebusy.md) — Query free/busy slots and RSVP status
-- [lark-calendar](../SKILL.md) — Full calendar API
+- [lark-calendar-create](lark-calendar-create.md) — 创建日程
+- [lark-calendar-freebusy](lark-calendar-freebusy.md) — 查询忙闲时段和rsvp状态
+- [lark-calendar](../SKILL.md) — 日历完整 API
