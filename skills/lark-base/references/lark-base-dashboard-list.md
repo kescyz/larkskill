@@ -6,24 +6,21 @@
 
 ## 关键约束
 
-- `+dashboard-list` 禁止并发调用；批量列多个 Base 时必须串行。
+- `dashboard-list` 禁止并发调用；批量列多个 Base 时必须串行。
 
 ## 推荐命令
 
-```bash
-lark-cli base +dashboard-list \
-  --base-token VwGhb**************fMnod
+```js
+lark_api({ tool: 'base', op: 'dashboard-list', args: {
+  base_token: 'VwGhb**************fMnod'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--page-size <n>` | 否 | 每页数量 |
-| `--page-token <token>` | 否 | 分页标记 |
-| `--format <fmt>` | 否 | 输出格式：json / pretty / table / csv / ndjson |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
 
 ## 返回示例
 

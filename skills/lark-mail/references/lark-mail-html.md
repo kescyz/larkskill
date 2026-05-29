@@ -1,6 +1,6 @@
 # 邮件 HTML 写法指南
 
-> **前置条件：** 先阅读 [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解通用安全规则。本文档定义 lark-cli mail 写信场景下的 HTML / CSS / URL 写法、LarkSuite mail-editor 原生格式、可复制片段、3 套场景模板。
+> **前置条件：** 先阅读 [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解通用安全规则。本文档定义 mail 写信场景下的 HTML / CSS / URL 写法、LarkSuite mail-editor 原生格式、可复制片段、3 套场景模板。
 
 **CRITICAL 邮件是重要的对外交流渠道，请你保证书写语言凝练扼要**
 **CRITICAL 电子邮件的 HTML 不是 Web 开发的 HTML，请你务必遵守本文档中提及的常用邮件格式书写规范**
@@ -12,7 +12,7 @@
 
 ## 风格底线
 
-- **邮件标题小于50字**： 邮件主题行 `--subject` 应控制在 50 字内，避免超长标题带来理解困难
+- **邮件标题小于50字**： 邮件主题行 `subject` 应控制在 50 字内，避免超长标题带来理解困难
 - **多用列表、表格**：不要堆叠过长的文本段落，请擅长使用列表`<ul>` / `<ol>`或分段 `<p>` 
 - **列表书写规则**：**不要**用 `<p>一、...</p><p>二、...</p>` 这种「中文编号 + 段落」的列表样式，"①②③"、"1) 2) 3)的机械写法也请摒弃；请擅长使用列表格式 `<ul>` / `<ol>`。
 - **正文长度自适应**：不限制正文长度，但要求**首屏要见到关键信息**。
@@ -294,15 +294,15 @@
 1. **判断是否能用模板** — 看用户当前要写的邮件类型（周报 / 调研 / 简历 / 资讯 / ...）能否对上 [`../assets/templates/`](../assets/templates/) 里的某个文件；不匹配就跳过模板，直接按写法规范从零写。
 2. **Read 整个 HTML** — 用 Read 工具完整读取选定的模板文件，理解骨架（章节标题 / 列表层级 / 占位文本 / mention chip / 段落顺序）。
 3. **替换文本内容** — 把模板里的样例文字换成用户当前邮件的真实内容；保留所有 inline style / class / data-* 等结构性属性不动；列表条目 / 表格行可按需增删；不需要的整段（如「风险」「下周计划」）整段删除即可，不要留空骨架。
-4. **调写信 shortcut 生成草稿** — 把替换后的 HTML 通过 `--body` 参数交给写信链路（推荐 `+draft-create` 先存草稿、用户复核后再 `+send`）：
+4. **调写信 shortcut 生成草稿** — 把替换后的 HTML 通过 `body` 参数交给写信链路（推荐 `+draft-create` 先存草稿、用户复核后再 `+send`）：
 
-   ```bash
-   lark-cli mail +draft-create --as user \
-     --to alice@example.com --subject 'Q3 团队周报' \
-     --body "$(cat skills/lark-mail/assets/templates/weekly--team-report.html)"
+   ```js
+   lark_api({ tool: 'mail', op: 'draft-create', as: 'user', args: {
+     to: 'alice@example.com', subject: 'Q3 团队周报',
+     body: '<替换文本后的 HTML 字符串>' } })
    ```
 
-   实际使用时 `$(cat ...)` 可换成 AI 替换文本后写入的本地副本，或直接把替换后的 HTML 字符串作为 `--body` 的值。
+   `body` 的值可以是 AI 替换文本后的 HTML 字符串，或先用 Read 工具读取本地模板副本再传入。
 
 5. **拿到草稿链接给用户复核** — 写信 shortcut 返回 `reference` 字段（草稿打开链接），把它给用户在飞书邮箱 UI 里打开核对，再决定下一步发送 / 编辑。
 
@@ -316,16 +316,16 @@
 | `draft_edit_hint` | **仅** `+draft-create` 默认附（其他 5 个 shortcut 不附） | 固定英文文案，提示拿到 `draft_id` 后改稿走 `+draft-edit --draft-id <id>` 而不是重跑 `+draft-create` 产生重复草稿 |
 | `draft_id` / `message_id` | OAPI 写入成功后写回 | `+draft-create` / `+draft-edit` 返回 `draft_id`；`+send` / `+reply` / `+reply-all` / `+forward` 返回 `message_id` |
 
-需要看 lint 详情时加 `--show-lint-details`：
+需要看 lint 详情时加 `show_lint_details: true`：
 
-```bash
-lark-cli mail +draft-create --show-lint-details \
-  --to alice@example.com --subject 'Hi' --body '<p>正文</p>'
+```js
+lark_api({ tool: 'mail', op: 'draft-create', args: { show_lint_details: true,
+  to: 'alice@example.com', subject: 'Hi', body: '<p>正文</p>' } })
 ```
 
-加了 `--show-lint-details` 后 envelope 同时返回 `lint_applied[]` / `original_blocked[]` 两个完整 Finding 数组（每条含 `rule_id` / `severity` / `tag_or_attr` / `excerpt` / `hint`），**不再返回任何 `*_count` 字段** —— 调用方需要 count 时直接 `len(lint_applied)` / `len(original_blocked)`。**默认场景不要加这个 flag**，徒增 token 消耗。
+加了 `show_lint_details: true` 后 envelope 同时返回 `lint_applied[]` / `original_blocked[]` 两个完整 Finding 数组（每条含 `rule_id` / `severity` / `tag_or_attr` / `excerpt` / `hint`），**不再返回任何 `*_count` 字段** —— 调用方需要 count 时直接 `len(lint_applied)` / `len(original_blocked)`。**默认场景不要加这个参数**，徒增 token 消耗。
 
-如果只是想预览 lint 会怎么改 HTML，建议直接用 [`+lint-html`](./lark-mail-lint-html.md) 命令——它本来就返回完整 `warnings[]` / `errors[]` + `cleaned_html`，比写信链路 `--show-lint-details` 更清晰。
+如果只是想预览 lint 会怎么改 HTML，建议直接用 [`+lint-html`](./lark-mail-lint-html.md) 命令（通过 `lark_api_search({ query: 'mail lint html' })` 发现）——它本来就返回完整 `warnings[]` / `errors[]` + `cleaned_html`，比写信链路 `show_lint_details: true` 更清晰。
 
 ## 相关文档
 

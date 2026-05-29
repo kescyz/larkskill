@@ -8,37 +8,29 @@ CLI 分两阶段构建最终 JSON：
 - 安全的邮件元数据字段直接透传
 - 正文、附件和辅助字段由 shortcut 派生
 
-本 skill 对应 shortcut `lark-cli mail +message`，内部步骤：
+本 skill 对应 shortcut `lark_api({ tool: 'mail', op: 'message' })`，内部步骤：
 1. `GET /open-apis/mail/v1/user_mailboxes/{mailbox}/messages/{message_id}` — 获取完整邮件内容
 
 ## 命令
 
-```bash
-# 读取一封邮件（默认包含 HTML 正文）
-lark-cli mail +message --message-id <message-id>
+```js
+// 读取一封邮件（默认包含 HTML 正文）
+lark_api({ tool: 'mail', op: 'message', args: { message_id: '<message-id>' } })
 
-# 仅纯文本正文（更小的负载，适合 AI 处理）
-lark-cli mail +message --message-id <message-id> --html=false
+// 仅纯文本正文（更小的负载，适合 AI 处理）
+lark_api({ tool: 'mail', op: 'message', args: { message_id: '<message-id>', html: false } })
 
-# 指定邮箱
-lark-cli mail +message --mailbox user@example.com --message-id <message-id>
-
-# JSON 输出（脚本友好）
-lark-cli mail +message --message-id <message-id> --format json
-
-# Dry Run
-lark-cli mail +message --message-id <message-id> --dry-run
+// 指定邮箱
+lark_api({ tool: 'mail', op: 'message', args: { mailbox: 'user@example.com', message_id: '<message-id>' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `--message-id <id>` | 是 | — | 邮件 ID |
-| `--mailbox <email>` | 否 | 当前用户 | 邮箱地址（`user_mailbox_id`） |
-| `--html` | 否 | true | 是否返回 HTML 正文（`false` 仅返回纯文本，减少带宽） |
-| `--format <mode>` | 否 | json | 输出格式：`json`（默认）/ `pretty` / `table` / `ndjson` / `csv` |
-| `--dry-run` | 否 | — | 仅打印请求，不执行 |
+| `message_id` | 是 | — | 邮件 ID |
+| `mailbox` | 否 | 当前用户 | 邮箱地址（`user_mailbox_id`） |
+| `html` | 否 | true | 是否返回 HTML 正文（`false` 仅返回纯文本，减少带宽） |
 
 ## 返回值
 
@@ -157,40 +149,34 @@ lark-cli mail +message --message-id <message-id> --dry-run
 - **JSON 输出可直接使用** — 默认输出合法 UTF-8 JSON，可直接读取，无需额外编码转换。
 - JSON 输出中 `body_html` 里的 `<` / `>` 可能显示为 `\u003c` / `\u003e`（JSON 安全转义，内容不变，`jq -r` 可还原）。
 - `mail +message` 默认不再获取附件/图片下载 URL。这样可以保持邮件详情读取更轻量，调用方可按需单独请求 URL。
-- 查看原始 HTML：
-
-```bash
-# jq -r 自动处理 JSON 转义，输出原始 HTML
-lark-cli mail +message --message-id <id> --format json | jq -r '.data.body_html'
-```
+- 查看原始 HTML：从返回结果的 `data.body_html` 字段读取。
 
 ## 典型场景
 
 ### 读取邮件 → 摘要 → 回复
 
-```bash
-# 1. 读取邮件（仅纯文本，更小负载）
-lark-cli mail +message --message-id <id> --html=false --format json
+```js
+// 1. 读取邮件（仅纯文本，更小负载）
+lark_api({ tool: 'mail', op: 'message', args: { message_id: '<id>', html: false } })
 
-# 2. 让 LLM 分析 body_plain_text 并起草回复
+// 2. 让 LLM 分析 body_plain_text 并起草回复
 
-# 3. 发送回复
-lark-cli mail +reply --message-id <id> --body "..."
+// 3. 发送回复
+lark_api({ tool: 'mail', op: 'reply', args: { message_id: '<id>', body: '...' } })
 ```
 
 ### 按需获取附件或内嵌图片下载 URL
 
-```bash
-# 1. 读取邮件，从 .data.attachments[] 中获取附件 ID
-lark-cli mail +message --message-id <id> --format json
+```js
+// 1. 读取邮件，从 .data.attachments[] 中获取附件 ID
+lark_api({ tool: 'mail', op: 'message', args: { message_id: '<id>' } })
 
-# 2. 仅为需要的 ID 获取下载 URL
-lark-cli schema mail.user_mailbox.message.attachments.download_url
-lark-cli mail user_mailbox.message.attachments download_url \
-  --params '{"user_mailbox_id":"me","message_id":"<id>","attachment_ids":["att_xxx","att_yyy"]}'
+// 2. 仅为需要的 ID 获取下载 URL
+lark_api_search({ query: 'mail user_mailbox.message.attachments download_url' })
+lark_api({ tool: 'mail', op: 'user_mailbox.message.attachments.download_url', args: { user_mailbox_id: 'me', message_id: '<id>', attachment_ids: ['att_xxx', 'att_yyy'] } })
 ```
 
-普通附件和内嵌图片使用同一个 `user_mailbox.message.attachments download_url` 原生 API（无 shortcut 封装），传入 `attachments[].id` 即可。
+普通附件和内嵌图片使用同一个 `user_mailbox.message.attachments.download_url` 原生 API（无 shortcut 封装），传入 `attachments[].id` 即可。
 
 ## 日程邀请邮件
 
@@ -223,8 +209,8 @@ lark-cli mail user_mailbox.message.attachments download_url \
 
 ## 相关命令
 
-- `lark-cli mail +thread` — 读取会话中所有邮件
-- `lark-cli mail +reply` — 回复邮件
-- `lark-cli mail +forward` — 转发邮件
-- `lark-cli mail user_mailbox.message.attachments download_url` — 按需获取邮件附件/图片下载 URL
-- `lark-cli mail user_mailbox.messages list` — 列出收件箱邮件（获取 `message_id`）
+- `lark_api({ tool: 'mail', op: 'thread' })` — 读取会话中所有邮件
+- `lark_api({ tool: 'mail', op: 'reply' })` — 回复邮件
+- `lark_api({ tool: 'mail', op: 'forward' })` — 转发邮件
+- `lark_api({ tool: 'mail', op: 'user_mailbox.message.attachments.download_url' })` — 按需获取邮件附件/图片下载 URL
+- `lark_api({ tool: 'mail', op: 'user_mailbox.messages.list' })` — 列出收件箱邮件（获取 `message_id`）

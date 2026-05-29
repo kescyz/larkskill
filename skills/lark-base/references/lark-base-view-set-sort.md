@@ -17,22 +17,24 @@
 
 设置排序：
 
-```bash
-lark-cli base +view-set-sort \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"sort_config":[{"field":"fld_priority","desc":true},{"field":"fld_created_at","desc":false}]}'
+```js
+lark_api({ tool: 'base', op: 'view-set-sort', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { sort_config: [{ field: 'fld_priority', desc: true }, { field: 'fld_created_at', desc: false }] }
+} })
 ```
 
 清空排序：
 
-```bash
-lark-cli base +view-set-sort \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"sort_config":[]}'
+```js
+lark_api({ tool: 'base', op: 'view-set-sort', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { sort_config: [] }
+} })
 ```
 
 ## 3. JSON 写法

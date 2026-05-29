@@ -4,9 +4,9 @@
 
 创建一个新的个人邮件模板。适用于需要长期复用的邮件框架，例如周报、客户通知、请假申请等。
 
-不要用此命令发送邮件；模板只是预置内容，实际发信请使用 `+send` / `+draft-create` 等 shortcut 配合 `--template-id` 套用。
+不要用此命令发送邮件；模板只是预置内容，实际发信请使用 `+send` / `+draft-create` 等 shortcut 配合 `template_id` 套用。
 
-如需修改已有模板，使用 [`lark-cli mail +template-update`](./lark-mail-template-update.md)。
+如需修改已有模板，使用 [`lark_api({ tool: 'mail', op: 'template-update' })`](./lark-mail-template-update.md)。
 
 ## 安全约束
 
@@ -16,48 +16,43 @@
 
 ## 命令
 
-```bash
-# 纯 HTML 模板
-lark-cli mail +template-create --as user \
-  --name '周报模板' \
-  --subject '本周进展' \
-  --template-content '<p>大家好，请见本周进展：</p><ul><li>……</li></ul>'
+```js
+// 纯 HTML 模板
+lark_api({ tool: 'mail', op: 'template-create', as: 'user', args: {
+  name: '周报模板',
+  subject: '本周进展',
+  template_content: '<p>大家好，请见本周进展：</p><ul><li>……</li></ul>' } })
 
-# 带 HTML 内嵌图片 + 非 inline 附件
-lark-cli mail +template-create --as user \
-  --name '客户通知模板' \
-  --subject '产品更新' \
-  --template-content '<p>新版本上线：</p><img src="./banner.png"><p>附上发版说明。</p>' \
-  --attach './release-notes.pdf'
+// 带 HTML 内嵌图片 + 非 inline 附件
+lark_api({ tool: 'mail', op: 'template-create', as: 'user', args: {
+  name: '客户通知模板',
+  subject: '产品更新',
+  template_content: '<p>新版本上线：</p><img src="./banner.png"><p>附上发版说明。</p>',
+  attach: './release-notes.pdf' } })
 
-# 从文件加载正文
-lark-cli mail +template-create --as user \
-  --name '请假申请' \
-  --template-content-file './leave.html' \
-  --to 'manager@example.com,hr@example.com'
-
-# Dry Run
-lark-cli mail +template-create --as user \
-  --name '周报模板' --template-content '<p>x</p>' --dry-run
+// 从文件加载正文
+lark_api({ tool: 'mail', op: 'template-create', as: 'user', args: {
+  name: '请假申请',
+  template_content_file: './leave.html',
+  to: 'manager@example.com,hr@example.com' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--name <text>` | 是 | 模板名称，≤100 字符 |
-| `--subject <text>` | 否 | 默认主题 |
-| `--template-content <html>` | 否* | 模板正文。HTML 首选；支持 `<img src="./local.png" />` 相对路径自动上传到 Drive 并改写为 `cid:` |
-| `--template-content-file <path>` | 否* | 从文件加载正文内容；与 `--template-content` 互斥 |
-| `--plain-text` | 否 | 标记为纯文本模式（`is_plain_text_mode=true`）。仍可带内嵌图片，但 `+send --template-id` 套用时会走 plain-text 正文拼接 |
-| `--to <emails>` | 否 | 默认收件人列表，逗号分隔，支持 `Name <email>` 格式 |
-| `--cc <emails>` | 否 | 默认抄送 |
-| `--bcc <emails>` | 否 | 默认密送 |
-| `--attach <paths>` | 否 | 非 inline 附件路径，逗号分隔。每个文件按 `--attach` 书写顺序上传到 Drive |
-| `--mailbox <email>` | 否 | 所属邮箱，默认 `me`（当前用户主邮箱） |
-| `--dry-run` | 否 | 仅打印计划中的 API 调用链，不真实执行 |
+| `name` | 是 | 模板名称，≤100 字符 |
+| `subject` | 否 | 默认主题 |
+| `template_content` | 否* | 模板正文。HTML 首选；支持 `<img src="./local.png" />` 相对路径自动上传到 Drive 并改写为 `cid:` |
+| `template_content_file` | 否* | 从文件加载正文内容；与 `template_content` 互斥 |
+| `plain_text` | 否 | 标记为纯文本模式（`is_plain_text_mode=true`）。仍可带内嵌图片，但套用 `template_id` 时会走 plain-text 正文拼接 |
+| `to` | 否 | 默认收件人列表，逗号分隔，支持 `Name <email>` 格式 |
+| `cc` | 否 | 默认抄送 |
+| `bcc` | 否 | 默认密送 |
+| `attach` | 否 | 非 inline 附件路径，逗号分隔。每个文件按 `attach` 书写顺序上传到 Drive |
+| `mailbox` | 否 | 所属邮箱，默认 `me`（当前用户主邮箱） |
 
-\* `--template-content` / `--template-content-file` 二选一；两者都留空则模板正文为空（用户之后可通过 `+template-update` 补充）。
+\* `template_content` / `template_content_file` 二选一；两者都留空则模板正文为空（用户之后可通过 `template-update` 补充）。
 
 ## HTML 内嵌图片自动上传
 
@@ -82,7 +77,7 @@ lark-cli mail +template-create --as user \
 ## 顺序约束
 
 - inline 图片按正文中 `<img>` 出现顺序处理
-- 非 inline 按 `--attach` 书写顺序处理；重复路径不会去重
+- 非 inline 按 `attach` 书写顺序处理；重复路径不会去重
 
 ## 返回值
 
@@ -103,7 +98,7 @@ lark-cli mail +template-create --as user \
 }
 ```
 
-- `template_id` 为十进制字符串。后续套用模板时 `--template-id <template_id>`。
+- `template_id` 为十进制字符串。后续套用模板时传 `template_id: '<template_id>'`。
 
 ## 错误码速查
 
@@ -122,8 +117,8 @@ lark-cli mail +template-create --as user \
 ## 相关
 
 - 更新模板：[`+template-update`](./lark-mail-template-update.md)
-- 套用模板发信：在 `+send` / `+draft-create` / `+reply` / `+reply-all` / `+forward` 中使用 `--template-id`
+- 套用模板发信：在 `+send` / `+draft-create` / `+reply` / `+reply-all` / `+forward` 中使用 `template_id`
 - 原生 API：
-  - `lark-cli mail user_mailbox.templates list --params '{"user_mailbox_id":"me"}'` — 列出模板
-  - `lark-cli mail user_mailbox.templates get --params '{"user_mailbox_id":"me","template_id":"<id>"}'` — 获取完整模板
-  - `lark-cli mail user_mailbox.templates delete --params '{"user_mailbox_id":"me","template_id":"<id>"}'` — 删除
+  - `lark_api({ tool: 'mail', op: 'user_mailbox.templates.list', args: { user_mailbox_id: 'me' } })` — 列出模板
+  - `lark_api({ tool: 'mail', op: 'user_mailbox.templates.get', args: { user_mailbox_id: 'me', template_id: '<id>' } })` — 获取完整模板
+  - `lark_api({ tool: 'mail', op: 'user_mailbox.templates.delete', args: { user_mailbox_id: 'me', template_id: '<id>' } })` — 删除

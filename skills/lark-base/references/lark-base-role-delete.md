@@ -8,18 +8,19 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +role-delete \
-  --base-token VwGhb**************fMnod \
-  --role-id rolxxxxxx4
+```js
+lark_api({ tool: 'base', op: 'role-delete', args: {
+  base_token: 'VwGhb**************fMnod',
+  role_id: 'rolxxxxxx4'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token，27 位字母数字字符串 |
-| `--role-id <id>` | 是 | 角色 ID，格式 `rol` + 8 位字母数字 |
+| `base_token` | 是 | Base Token，27 位字母数字字符串 |
+| `role_id` | 是 | 角色 ID，格式 `rol` + 8 位字母数字 |
 
 ## API 入参详情
 
@@ -66,8 +67,8 @@ DELETE /open-apis/base/v3/bases/:base_token/roles/:role_id
 > [!CAUTION]
 > 这是**高风险不可逆操作** — 删除后无法恢复，执行前必须向用户二次确认。
 
-1. 建议先用 `+role-list` 确认角色存在
-2. 向用户确认 `--base-token` 和 `--role-id`
+1. 建议先用 `lark_api({ tool: 'base', op: 'role-list' })` 确认角色存在
+2. 向用户确认 `base_token` 和 `role_id`
 3. 执行命令
 4. 确认返回 `code: 0`
 
@@ -75,7 +76,7 @@ DELETE /open-apis/base/v3/bases/:base_token/roles/:role_id
 
 - ⚠️ **仅支持删除自定义角色**：系统角色（editor / reader）不可删除，会报业务错误
 - ⚠️ **不可逆操作**：删除后角色及其关联的成员配置无法恢复
-- ⚠️ **role_id 来源**：可通过 `+role-list` 获取，格式为 `rol` + 8 位字母数字
+- ⚠️ **role_id 来源**：可通过 `lark_api({ tool: 'base', op: 'role-list' })` 获取，格式为 `rol` + 8 位字母数字
 
 ## 参考
 

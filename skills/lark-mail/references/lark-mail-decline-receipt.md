@@ -4,7 +4,7 @@
 
 关闭收到邮件的已读回执请求 banner，**但不向发件人发送回执**。**本命令仅在对方邮件请求了已读回执（`READ_RECEIPT_REQUEST` 标签，系统 ID `-607`）时使用**。对齐飞书客户端上已读回执 banner 右侧的"不发送"按钮。
 
-本 skill 对应 shortcut：`lark-cli mail +decline-receipt`。
+本 skill 对应 shortcut：`lark_api({ tool: 'mail', op: 'decline-receipt' })`。
 
 ## 使用时机
 
@@ -16,24 +16,20 @@
 
 ## 命令
 
-```bash
-# 标准用法
-lark-cli mail +decline-receipt --message-id <message-id>
+```js
+// 标准用法
+lark_api({ tool: 'mail', op: 'decline-receipt', args: { message_id: '<message-id>' } })
 
-# 指定邮箱（公共邮箱场景）
-lark-cli mail +decline-receipt --mailbox shared@example.com --message-id <message-id>
-
-# Dry Run（不真改）
-lark-cli mail +decline-receipt --message-id <message-id> --dry-run
+// 指定邮箱（公共邮箱场景）
+lark_api({ tool: 'mail', op: 'decline-receipt', args: { mailbox: 'shared@example.com', message_id: '<message-id>' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 默认 | 说明 |
 |------|------|------|------|
-| `--message-id <id>` | 是 | — | 请求了已读回执的原邮件 message ID |
-| `--mailbox <email>` | 否 | `me` | 邮件归属的邮箱 |
-| `--dry-run` | 否 | — | 仅打印请求，不执行 |
+| `message_id` | 是 | — | 请求了已读回执的原邮件 message ID |
+| `mailbox` | 否 | `me` | 邮件归属的邮箱 |
 
 > 注意本命令没有 `--yes` —— 它只是移除一个本地 label，不对外发信，Risk 级别是 `write` 而非 `high-risk-write`。
 
@@ -76,30 +72,30 @@ lark-cli mail +decline-receipt --message-id <message-id> --dry-run
 
 ### 场景 1：用户选择不发回执
 
-```bash
-# 1. 拉信
-lark-cli mail +message --message-id msg-1 --format json | jq '.data.label_ids'
-# → ["UNREAD", "READ_RECEIPT_REQUEST"]
+```js
+// 1. 拉信，检查 .data.label_ids
+lark_api({ tool: 'mail', op: 'message', args: { message_id: 'msg-1' } })
+// → ["UNREAD", "READ_RECEIPT_REQUEST"]
 
-# 2. 向用户提示：
-#    "这封来自 alice@example.com 的邮件请求已读回执。主题：《周报》。
-#     要不要回一封告诉对方你已阅读？
-#     也可以选择：不发送回执，但关闭这条提示。"
+// 2. 向用户提示：
+//    "这封来自 alice@example.com 的邮件请求已读回执。主题：《周报》。
+//     要不要回一封告诉对方你已阅读？
+//     也可以选择：不发送回执，但关闭这条提示。"
 
-# 3. 用户选了"不发送" → 
-lark-cli mail +decline-receipt --message-id msg-1
+// 3. 用户选了"不发送" → 
+lark_api({ tool: 'mail', op: 'decline-receipt', args: { message_id: 'msg-1' } })
 ```
 
 ### 场景 2：幂等重跑
 
-```bash
-# 第一次移除标签
-lark-cli mail +decline-receipt --message-id msg-1
-# → {"declined": true}
+```js
+// 第一次移除标签
+lark_api({ tool: 'mail', op: 'decline-receipt', args: { message_id: 'msg-1' } })
+// → {"declined": true}
 
-# 再跑一次 —— 不会报错，也不会再发 modify 请求
-lark-cli mail +decline-receipt --message-id msg-1
-# → {"declined": false, "already_cleared": true}
+// 再跑一次 —— 不会报错，也不会再发 modify 请求
+lark_api({ tool: 'mail', op: 'decline-receipt', args: { message_id: 'msg-1' } })
+// → {"declined": false, "already_cleared": true}
 ```
 
 ## 不要这样做
@@ -110,6 +106,6 @@ lark-cli mail +decline-receipt --message-id msg-1
 
 ## 相关命令
 
-- `lark-cli mail +send-receipt` — 同意回执（发一封系统样式的已读回执邮件）
-- `lark-cli mail +message` — 拉单封邮件（在 `label_ids` 里检查 `READ_RECEIPT_REQUEST`）
-- `lark-cli mail +send --request-receipt` — 反向：**请求**别人回执
+- `lark_api({ tool: 'mail', op: 'send-receipt' })` — 同意回执（发一封系统样式的已读回执邮件）
+- `lark_api({ tool: 'mail', op: 'message' })` — 拉单封邮件（在 `label_ids` 里检查 `READ_RECEIPT_REQUEST`）
+- `lark_api({ tool: 'mail', op: 'send', args: { request_receipt: true } })` — 反向：**请求**别人回执

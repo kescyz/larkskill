@@ -14,12 +14,13 @@
 
 设置封面：
 
-```bash
-lark-cli base +view-set-card \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"cover_field":"fld_cover"}'
+```js
+lark_api({ tool: 'base', op: 'view-set-card', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { cover_field: 'fld_cover' }
+} })
 ```
 
 

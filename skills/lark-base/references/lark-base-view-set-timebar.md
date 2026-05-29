@@ -14,12 +14,13 @@
 
 ## 2. 推荐命令
 
-```bash
-lark-cli base +view-set-timebar \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"start_time":"fld_start","end_time":"fld_end","title":"fld_title"}'
+```js
+lark_api({ tool: 'base', op: 'view-set-timebar', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { start_time: 'fld_start', end_time: 'fld_end', title: 'fld_title' }
+} })
 ```
 
 ## 3. JSON 写法

@@ -7,26 +7,28 @@
 
 ## 推荐命令
 
-```bash
-# 基本用法
-lark-cli base +workflow-get \
-  --base-token BascXxxxxx \
-  --workflow-id wkfxxxxxx
+```js
+// 基本用法
+lark_api({ tool: 'base', op: 'workflow-get', args: {
+  base_token: 'BascXxxxxx',
+  workflow_id: 'wkfxxxxxx'
+} })
 
-# 指定用户 ID 类型（creator_id / updater_id 字段的格式）
-lark-cli base +workflow-get \
-  --base-token BascXxxxxx \
-  --workflow-id wkfxxxxxx \
-  --user-id-type open_id
+// 指定用户 ID 类型（creator_id / updater_id 字段的格式）
+lark_api({ tool: 'base', op: 'workflow-get', args: {
+  base_token: 'BascXxxxxx',
+  workflow_id: 'wkfxxxxxx',
+  user_id_type: 'open_id'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | 多维表格 Base Token，以 `Basc` 开头 |
-| `--workflow-id <id>` | 是 | Workflow ID，以 `wkf` 开头 |
-| `--user-id-type <type>` | 否 | 控制 `creator_id` / `updater_id` 字段返回的用户 ID 格式；枚举值：`open_id`（默认）、`union_id`、`user_id` |
+| `base_token` | 是 | 多维表格 Base Token，以 `Basc` 开头 |
+| `workflow_id` | 是 | Workflow ID，以 `wkf` 开头 |
+| `user_id_type` | 否 | 控制 `creator_id` / `updater_id` 字段返回的用户 ID 格式；枚举值：`open_id`（默认）、`union_id`、`user_id` |
 
 ## 如何从链接中提取参数
 
@@ -36,8 +38,8 @@ lark-cli base +workflow-get \
 https://xxx.feishu.cn/base/<base_token>?table=<table_id>&view=<view_id>
 ```
 
-- `--base-token`：取 `/base/` 后面的字符串（`Basc` 开头）
-- `--workflow-id`：以 `wkf` 开头，可从 `+workflow-list` 的输出中获取，URL 上通常不直接暴露
+- `base_token`：取 `/base/` 后面的字符串（`Basc` 开头）
+- `workflow_id`：以 `wkf` 开头，可从 `lark_api({ tool: 'base', op: 'workflow-list' })` 的输出中获取，URL 上通常不直接暴露
 
 ## API 入参详情
 
@@ -132,7 +134,7 @@ GET /open-apis/base/v3/bases/:base_token/workflows/:workflow_id
 
 ## 坑点
 
-- ⚠️ **workflow_id 来源**：`workflow_id` 以 `wkf` 开头，从 `+workflow-list` 命令输出中获取；URL 上通常拿不到，不要把 `table_id`（`tbl` 开头）误当成 `workflow_id`
+- ⚠️ **workflow_id 来源**：`workflow_id` 以 `wkf` 开头，从 `lark_api({ tool: 'base', op: 'workflow-list' })` 输出中获取；URL 上通常拿不到，不要把 `table_id`（`tbl` 开头）误当成 `workflow_id`
 - ⚠️ **steps 可能为空**：未配置任何步骤的 workflow 返回的 `steps` 为空数组，不代表接口异常
 - ⚠️ **文档中 `title` 字段类型标注为 int**：这是文档笔误，实际为 string
 - ⚠️ **API 路径版本**：本接口使用 `base/v3`，路径必须从原始文档提取，禁止用 WebSearch 补全，否则会拿到错误路径导致 `[2200] Internal Error`

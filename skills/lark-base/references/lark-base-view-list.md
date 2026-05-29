@@ -6,22 +6,23 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +view-list \
-  --base-token app_xxx \
-  --table-id tbl_xxx \
-  --offset 0 \
-  --limit 100
+```js
+lark_api({ tool: 'base', op: 'view-list', args: {
+  base_token: 'app_xxx',
+  table_id: 'tbl_xxx',
+  offset: 0,
+  limit: 100
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
-| `--offset <n>` | 否 | 分页偏移，默认 `0` |
-| `--limit <n>` | 否 | 分页大小，默认 `100`，范围 `1-200` |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID 或表名 |
+| `offset` | 否 | 分页偏移，默认 `0` |
+| `limit` | 否 | 分页大小，默认 `100`，范围 `1-200` |
 
 ## API 入参详情
 
@@ -37,7 +38,7 @@ GET /open-apis/base/v3/bases/:base_token/tables/:table_id/views
 
 ## 坑点
 
-- ⚠️ `+view-list` 禁止并发调用；批量列多个表视图时只能串行。
+- ⚠️ `view-list` 禁止并发调用；批量列多个表视图时只能串行。
 
 ## 参考
 

@@ -6,23 +6,23 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +dashboard-update \
-  --base-token VwGhb**************fMnod \
-  --dashboard-id blkxxxxxxx \
-  --name "新名称" \
-  --theme-style default
+```js
+lark_api({ tool: 'base', op: 'dashboard-update', args: {
+  base_token: 'VwGhb**************fMnod',
+  dashboard_id: 'blkxxxxxxx',
+  name: '新名称',
+  theme_style: 'default'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--dashboard-id <id>` | 是 | 仪表盘 ID |
-| `--name <name>` | 否 | 新名称 |
-| `--theme-style <style>` | 否 | 主题风格（见下方枚举） |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `dashboard_id` | 是 | 仪表盘 ID |
+| `name` | 否 | 新名称 |
+| `theme_style` | 否 | 主题风格（见下方枚举） |
 
 ### theme-style 枚举
 

@@ -10,34 +10,33 @@
 - 自动修复非法或不规范写法（autofix 始终启用），输出 `cleaned_html`；
 - 不写入任何邮箱状态，不调用任何 OAPI。
 
-写信链路（`+send` / `+draft-create` / `+reply` / `+reply-all` / `+forward` / `+draft-edit` body op）已**强制内置**同一份 lint，提交前会自动净化 HTML。默认 envelope 不携带任何 lint 字段以保持响应小巧；加 `--show-lint-details` 可拿到完整 `lint_applied[]` / `original_blocked[]` 两个 Finding 数组（不再返回任何 `*_count` 字段，调用方需要 count 时 `len(arr)` 即可，详见 [邮件 HTML 写法指南](./lark-mail-html.md#写信-shortcut-的-lint-返回值)）。本命令是写信链路 lint 的预览版，行为一致，调用更轻量，适合：
+写信链路（`+send` / `+draft-create` / `+reply` / `+reply-all` / `+forward` / `+draft-edit` body op）已**强制内置**同一份 lint，提交前会自动净化 HTML。默认 envelope 不携带任何 lint 字段以保持响应小巧；加 `show_lint_details: true` 可拿到完整 `lint_applied[]` / `original_blocked[]` 两个 Finding 数组（不再返回任何 `*_count` 字段，调用方需要 count 时 `len(arr)` 即可，详见 [邮件 HTML 写法指南](./lark-mail-html.md#写信-shortcut-的-lint-返回值)）。本命令是写信链路 lint 的预览版，行为一致，调用更轻量，适合：
 
 - AI / 用户在创建草稿前自检 HTML 会被怎么改写；
 - CI 流水线把 HTML 模板当作产物校验。
 
+> 通过 `lark_api_search({ query: 'mail lint html' })` 发现该 op 及其参数。
+
 ## 命令
 
-```bash
-# 直接传 HTML
-lark-cli mail +lint-html --body '<p>正文</p>'
+```js
+// 直接传 HTML
+lark_api({ tool: 'mail', op: 'lint-html', args: { body: '<p>正文</p>' } })
 
-# 从文件读 HTML（路径必须在 cwd 子树内）
-lark-cli mail +lint-html --body-file ./template.html
+// 从文件读 HTML（路径必须在 cwd 子树内）
+lark_api({ tool: 'mail', op: 'lint-html', args: { body_file: './template.html' } })
 
-# 查看完整 lint 详情
-lark-cli mail +lint-html --body-file ./template.html --show-lint-details
+// 查看完整 lint 详情
+lark_api({ tool: 'mail', op: 'lint-html', args: { body_file: './template.html', show_lint_details: true } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--body <html>` | 二选一 | 待检查的 HTML 内容 |
-| `--body-file <path>` | 二选一 | 从文件读取 HTML，仅支持 cwd 子树（绝对路径 / `..` 越出 cwd 会被拒） |
-| `--show-lint-details` | 否 | 默认 `false`。`true` 时 envelope 同时返回 `warnings[]` / `errors[]` 完整 Finding 数组；默认仅返回 `cleaned_html`，避免复杂模板触发数十条装饰性 warning 把响应撑大几千 token |
-| `--format <fmt>` | 否 | `json`（默认）/ `pretty` / `table` / `csv` / `ndjson` |
-| `--jq <expr>` | 否 | 对返回 JSON 用 jq 表达式过滤 |
-| `--dry-run` | 否 | 不执行 lint，仅返回 dry-run 描述 |
+| `body` | 二选一 | 待检查的 HTML 内容 |
+| `body_file` | 二选一 | 从文件读取 HTML，仅支持 cwd 子树（绝对路径 / `..` 越出 cwd 会被拒） |
+| `show_lint_details` | 否 | 默认 `false`。`true` 时 envelope 同时返回 `warnings[]` / `errors[]` 完整 Finding 数组；默认仅返回 `cleaned_html`，避免复杂模板触发数十条装饰性 warning 把响应撑大几千 token |
 
 ## 返回值
 
@@ -87,7 +86,7 @@ lark-cli mail +lint-html --body-file ./template.html --show-lint-details
 
 ## 调用示例
 
-下面是用 `lark-cli mail +lint-html --body '<INPUT>' --show-lint-details` 实跑得到的典型 case（加 `--show-lint-details` 才能看到 finding；默认只返回 `cleaned_html`），覆盖 error 类（强制删）和 warning 类（自动修复）。
+下面是用 `lark_api({ tool: 'mail', op: 'lint-html', args: { body: '<INPUT>', show_lint_details: true } })` 实跑得到的典型 case（加 `show_lint_details: true` 才能看到 finding；默认只返回 `cleaned_html`），覆盖 error 类（强制删）和 warning 类（自动修复）。
 
 ### Error 类（强制删除，写信链路也会拒）
 

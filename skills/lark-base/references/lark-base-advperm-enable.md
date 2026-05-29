@@ -6,17 +6,18 @@
 
 ## 推荐命令
 
-```bash
-# 启用高级权限
-lark-cli base +advperm-enable \
-  --base-token VwGh**************Mnod
+```js
+// 启用高级权限
+lark_api({ tool: 'base', op: 'advperm-enable', args: {
+  base_token: 'VwGh**************Mnod'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token，27 位字母数字字符串 |
+| `base_token` | 是 | Base Token，27 位字母数字字符串 |
 
 ## API 入参详情
 
@@ -63,8 +64,8 @@ PUT /open-apis/base/v3/bases/:base_token/advperm/enable?enable=true
 
 ## 工作流
 
-1. 向用户确认 `--base-token`
-2. 执行命令
+1. 向用户确认 `base_token`
+2. 执行操作
 3. 确认返回 `code: 0` 表示启用成功
 
 ## 坑点
@@ -72,7 +73,7 @@ PUT /open-apis/base/v3/bases/:base_token/advperm/enable?enable=true
 - ⚠️ **操作用户必须为 Base 管理员**：非管理员调用会返回权限错误
 - ⚠️ **API 路径版本**：本接口使用 `base/v3`，路径必须从原始文档提取，不要用 WebSearch 补全
 - ⚠️ **data 字段是 JSON 字符串**：响应中 `data` 是 string 类型（非 object），需要双重解析
-- ⚠️ **启用后才能管理角色**：`+role-create / +role-update / +role-delete` 等角色操作需要先启用高级权限
+- ⚠️ **启用后才能管理角色**：`role-create / role-update / role-delete` 等角色操作需要先启用高级权限
 
 ## 参考
 

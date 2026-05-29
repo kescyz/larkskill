@@ -2,35 +2,35 @@
 
 > **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-查询指定记录的变更历史。当前可执行命令为 `+record-history-list`，无 `+history-list` 别名。
+查询指定记录的变更历史。当前可执行操作为 `record-history-list`，无 `history-list` 别名。
 
 ## 推荐命令
 
-```bash
-# 查询最新一页历史
-lark-cli base +record-history-list \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --record-id <record_id>
+```js
+// 查询最新一页历史
+lark_api({ tool: 'base', op: 'record-history-list', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  record_id: '<record_id>'
+} })
 
-# 指定分页大小，带游标翻页
-lark-cli base +record-history-list \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --record-id <record_id> \
-  --page-size 30 \
-  --max-version 123456
+// 指定分页大小，带游标翻页
+lark_api({ tool: 'base', op: 'record-history-list', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  record_id: '<record_id>',
+  max_version: 123456
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID |
-| `--record-id <id>` | 是 | 记录 ID |
-| `--page-size <n>` | 否 | 每页条数，默认 `30`，最大 `50` |
-| `--max-version <n>` | 否 | 翻页游标，取上一页返回的 `next_max_version` 值 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID |
+| `record_id` | 是 | 记录 ID |
+| `max_version` | 否 | 翻页游标，取上一页返回的 `next_max_version` 值 |
 
 ## API 入参详情
 
@@ -65,9 +65,9 @@ GET /open-apis/base/v3/bases/:base_token/record_history
 
 ## 翻页工作流
 
-1. **首次请求**：不传 `--max-version`，获取最新一页。
+1. **首次请求**：不传 `max_version`，获取最新一页。
 2. **判断是否有下一页**：检查返回的 `has_more` 字段。
-3. **翻页**：若 `has_more = true`，取返回的 `next_max_version` 值，传入下一次请求的 `--max-version`。
+3. **翻页**：若 `has_more = true`，取返回的 `next_max_version` 值，传入下一次请求的 `max_version`。
 4. **终止**：当 `has_more = false` 时停止。
 
 ## 工作流
@@ -77,7 +77,7 @@ GET /open-apis/base/v3/bases/:base_token/record_history
 
 ## 坑点
 
-- ⚠️ `+record-history-list` 属于 `+xxx-list`，禁止并发调用；批量执行时只能串行。
+- ⚠️ `record-history-list` 属于 `xxx-list`，禁止并发调用；批量执行时只能串行。
 - ⚠️ 当前不支持整表历史扫描，只支持单条记录历史。
 
 ## 参考

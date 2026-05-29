@@ -13,39 +13,36 @@
 - **表名用 name，不是 ID** — `table_name` 对应的是表名称（如「订单表」），不是 `table_id`。
 - **`user_id_type`** 仅在 filter 涉及人员字段时有意义。
 
-> [!TIP]
-> CLI 默认会对 `data_config` 做轻量校验与规范化；如需兼容特殊场景，可加 `--no-validate` 跳过。
-
 ## 推荐命令
 
-```bash
-# 示例 1：更新组件名称
-lark-cli base +dashboard-block-update \
-  --base-token xxx \
-  --dashboard-id blk_xxx \
-  --block-id chtxxxxxxxx \
-  --name "新名称"
+```js
+// 示例 1：更新组件名称
+lark_api({ tool: 'base', op: 'dashboard-block-update', args: {
+  base_token: 'xxx',
+  dashboard_id: 'blk_xxx',
+  block_id: 'chtxxxxxxxx',
+  name: '新名称'
+} })
 
-# 示例 2：更新数据配置（只传要改的字段，未传字段保留原值）
-lark-cli base +dashboard-block-update \
-  --base-token xxx \
-  --dashboard-id blk_xxx \
-  --block-id chtxxxxxxxx \
-  --data-config '{"filter":{"conjunction":"and","conditions":[{"field_name":"状态","operator":"is","value":"已完成"}]}}'
+// 示例 2：更新数据配置（只传要改的字段，未传字段保留原值）
+lark_api({ tool: 'base', op: 'dashboard-block-update', args: {
+  base_token: 'xxx',
+  dashboard_id: 'blk_xxx',
+  block_id: 'chtxxxxxxxx',
+  data_config: {"filter":{"conjunction":"and","conditions":[{"field_name":"状态","operator":"is","value":"已完成"}]}}
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--dashboard-id <id>` | 是 | 仪表盘 ID |
-| `--block-id <id>` | 是 | Block ID |
-| `--name <name>` | 否 | 新名称 |
-| `--data-config <json>` | 否 | 数据配置 JSON。**结构随 block 的 `type` 变化**。**⚠️ 必须阅读 [dashboard-block-data-config.md](dashboard-block-data-config.md) 了解如何构造** |
-| `--user-id-type <type>` | 否 | 用户 ID 类型，filter 涉及人员字段时使用 |
-| `--no-validate` | 否 | 跳过 data_config 本地校验（用于兼容特殊场景） |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `dashboard_id` | 是 | 仪表盘 ID |
+| `block_id` | 是 | Block ID |
+| `name` | 否 | 新名称 |
+| `data_config` | 否 | 数据配置 JSON。**结构随 block 的 `type` 变化**。**⚠️ 必须阅读 [dashboard-block-data-config.md](dashboard-block-data-config.md) 了解如何构造** |
+| `user_id_type` | 否 | 用户 ID 类型，filter 涉及人员字段时使用 |
 
 ## 返回示例
 

@@ -6,43 +6,35 @@
 
 本 shortcut 是 `mail +message` 的批量版本。每个返回的 `messages[]` 项使用与 `+message` 相同的归一化结构：安全元数据字段直接透传，正文和辅助字段由 shortcut 派生。
 
-优先使用本 shortcut 而非原生 `mail user_mailbox.messages batch_get` API，因为：
+优先使用本 shortcut 而非原生 `mail user_mailbox.messages.batch_get` API，因为：
 - 正文字段已 base64url 解码
 - 每条邮件的输出结构已归一化
 - 不可用的 message ID 会被显式列出
 
-本 skill 对应 shortcut `lark-cli mail +messages`，内部步骤：
+本 skill 对应 shortcut `lark_api({ tool: 'mail', op: 'messages' })`，内部步骤：
 1. `POST /open-apis/mail/v1/user_mailboxes/{mailbox}/messages/batch_get` — 批量获取邮件
 2. 对每条返回的邮件使用与 `+message` 相同的规则归一化输出
 
 ## 命令
 
-```bash
-# 读取多封邮件（默认包含 HTML 正文）
-lark-cli mail +messages --message-ids <id1>,<id2>,<id3>
+```js
+// 读取多封邮件（默认包含 HTML 正文）
+lark_api({ tool: 'mail', op: 'messages', args: { message_ids: '<id1>,<id2>,<id3>' } })
 
-# 仅纯文本正文（更小的负载，适合 AI 处理）
-lark-cli mail +messages --message-ids <id1>,<id2>,<id3> --html=false
+// 仅纯文本正文（更小的负载，适合 AI 处理）
+lark_api({ tool: 'mail', op: 'messages', args: { message_ids: '<id1>,<id2>,<id3>', html: false } })
 
-# 指定邮箱
-lark-cli mail +messages --mailbox user@example.com --message-ids <id1>,<id2>
-
-# JSON 输出
-lark-cli mail +messages --message-ids <id1>,<id2> --format json
-
-# Dry Run
-lark-cli mail +messages --message-ids <id1>,<id2> --dry-run
+// 指定邮箱
+lark_api({ tool: 'mail', op: 'messages', args: { mailbox: 'user@example.com', message_ids: '<id1>,<id2>' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
-| `--message-ids <id1,id2,...>` | 是 | — | 逗号分隔的邮件 ID 列表 |
-| `--mailbox <email>` | 否 | 当前用户 | 邮箱地址（`user_mailbox_id`） |
-| `--html` | 否 | true | 是否返回 HTML 正文（`false` 仅返回纯文本，减少带宽） |
-| `--format <mode>` | 否 | json | 输出格式：`json`（默认）/ `pretty` / `table` / `ndjson` / `csv` |
-| `--dry-run` | 否 | — | 仅打印请求，不执行 |
+| `message_ids` | 是 | — | 逗号分隔的邮件 ID 列表 |
+| `mailbox` | 否 | 当前用户 | 邮箱地址（`user_mailbox_id`） |
+| `html` | 否 | true | 是否返回 HTML 正文（`false` 仅返回纯文本，减少带宽） |
 
 ## 返回值
 
@@ -83,26 +75,26 @@ lark-cli mail +messages --message-ids <id1>,<id2> --dry-run
 
 ### 批量摘要多封已知邮件
 
-```bash
-# 一次性读取多封邮件
-lark-cli mail +messages --message-ids <id1>,<id2>,<id3> --html=false --format json
+```js
+// 一次性读取多封邮件
+lark_api({ tool: 'mail', op: 'messages', args: { message_ids: '<id1>,<id2>,<id3>', html: false } })
 
-# 让 LLM 分析 .data.messages[].body_plain_text 并生成分组摘要
+// 让 LLM 分析 .data.messages[].body_plain_text 并生成分组摘要
 ```
 
 ### 对比多封邮件内容后决策
 
-```bash
-# 获取多封邮件的归一化输出
-lark-cli mail +messages --message-ids <id1>,<id2> --html=false --format json
+```js
+// 获取多封邮件的归一化输出
+lark_api({ tool: 'mail', op: 'messages', args: { message_ids: '<id1>,<id2>', html: false } })
 
-# 检查 subject/from/body_preview 或 body_plain_text，对比意图和下一步操作
+// 检查 subject/from/body_preview 或 body_plain_text，对比意图和下一步操作
 ```
 
 ## 相关命令
 
-- `lark-cli mail +message` — 读取单封邮件
-- `lark-cli mail +thread` — 读取会话中所有邮件
-- `lark-cli mail +reply` — 回复邮件
-- `lark-cli mail +forward` — 转发邮件
-- `lark-cli mail user_mailbox.message.attachments download_url` — 按需获取邮件附件/图片下载 URL
+- `lark_api({ tool: 'mail', op: 'message' })` — 读取单封邮件
+- `lark_api({ tool: 'mail', op: 'thread' })` — 读取会话中所有邮件
+- `lark_api({ tool: 'mail', op: 'reply' })` — 回复邮件
+- `lark_api({ tool: 'mail', op: 'forward' })` — 转发邮件
+- `lark_api({ tool: 'mail', op: 'user_mailbox.message.attachments.download_url' })` — 按需获取邮件附件/图片下载 URL

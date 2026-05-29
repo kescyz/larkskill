@@ -8,28 +8,29 @@
 
 更新工作流前请按顺序完成：
 
-1. **先读本文档**，了解 `--json` 参数格式和 PUT 全量覆盖的语义
+1. **先读本文档**，了解 `json` 参数格式和 PUT 全量覆盖的语义
 2. **阅读 [workflow-guide.md](lark-base-workflow-guide.md)**，获取 Loop、IfElseBranch、SwitchBranch 等**完整示例**（与创建场景共用相同的步骤结构）
 3. **参考 [workflow-schema.md](lark-base-workflow-schema.md)**，查询具体字段定义
-4. **按需调用 `+workflow-list`** 获取工作流 ID（`wkf` 开头）
-5. **如需基于现有工作流修改**，先调用 `+workflow-get` 导出当前定义，在此基础上修改
+4. **按需调用 `lark_api({ tool: 'base', op: 'workflow-list' })`** 获取工作流 ID（`wkf` 开头）
+5. **如需基于现有工作流修改**，先调用 `lark_api({ tool: 'base', op: 'workflow-get' })` 导出当前定义，在此基础上修改
 
 ## 推荐命令
 
-```bash
-lark-cli base +workflow-update \
-  --base-token BascXxxxxx \
-  --workflow-id wkfosaYTS1V6rhjF \
-  --json '{"title":"新标题","steps":[{"id":"trigger_1","type":"AddRecordTrigger","title":"监控新订单","next":"action_1","data":{"table_name":"订单表","watched_field_name":"订单号"}},{"id":"action_1","type":"LarkMessageAction","title":"发送通知","next":null,"data":{"receiver":[{"value_type":"user","value":{"id":"ou_xxxx"}}],"send_to_everyone":false,"title":[{"value_type":"text","value":"新订单提醒"}],"content":[{"value_type":"text","value":"收到新订单"}],"btn_list":[]}}]}'
+```js
+lark_api({ tool: 'base', op: 'workflow-update', args: {
+  base_token: 'BascXxxxxx',
+  workflow_id: 'wkfosaYTS1V6rhjF',
+  json: {"title":"新标题","steps":[{"id":"trigger_1","type":"AddRecordTrigger","title":"监控新订单","next":"action_1","data":{"table_name":"订单表","watched_field_name":"订单号"}},{"id":"action_1","type":"LarkMessageAction","title":"发送通知","next":null,"data":{"receiver":[{"value_type":"user","value":{"id":"ou_xxxx"}}],"send_to_everyone":false,"title":[{"value_type":"text","value":"新订单提醒"}],"content":[{"value_type":"text","value":"收到新订单"}],"btn_list":[]}}]}
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | 多维表格 Base Token（`Basc` 开头） |
-| `--workflow-id <id>` | 是 | 工作流 ID（`wkf` 开头），可从 `+workflow-list` 获取 |
-| `--json <body>` | 是 | 工作流 body JSON，包含 `title` 和/或 `steps`|
+| `base_token` | 是 | 多维表格 Base Token（`Basc` 开头） |
+| `workflow_id` | 是 | 工作流 ID（`wkf` 开头），可从 `lark_api({ tool: 'base', op: 'workflow-list' })` 获取 |
+| `json` | 是 | 工作流 body JSON，包含 `title` 和/或 `steps`|
 
 ## 如何从链接中提取参数
 
@@ -39,8 +40,8 @@ lark-cli base +workflow-update \
 https://example.feishu.cn/base/<base_token>?table=<table_or_workflow_id>
 ```
 
-- `--base-token`：取 `/base/` 后面的字符串（`Basc` 开头）
-- `--workflow-id`：取 `?table=` 后面的值，当其以 `wkf` 开头时即为 workflow_id
+- `base_token`：取 `/base/` 后面的字符串（`Basc` 开头）
+- `workflow_id`：取 `?table=` 后面的值，当其以 `wkf` 开头时即为 workflow_id
 
 > ⚠️ **注意区分 ID 前缀**：table_id 以 `tbl` 开头，workflow_id 以 `wkf` 开头。
 
@@ -145,16 +146,16 @@ PUT /open-apis/base/v3/bases/:base_token/workflows/:workflow_id
 > [!CAUTION]
 > 这是**写入操作** — 执行前必须向用户确认。PUT 语义，会**完整覆盖**原有工作流定义。
 
-1. 确认 `--base-token` 和 `--workflow-id`（建议先用 `+workflow-list` 查出 ID）
-2. 确认 `--json` 的完整内容 — PUT 会全量覆盖，漏传 `steps` 会清空所有步骤
-3. 执行命令，报告返回的 `workflow_id` 和 `update_time`
+1. 确认 `base_token` 和 `workflow_id`（建议先用 `lark_api({ tool: 'base', op: 'workflow-list' })` 查出 ID）
+2. 确认 `json` 的完整内容 — PUT 会全量覆盖，漏传 `steps` 会清空所有步骤
+3. 执行操作，报告返回的 `workflow_id` 和 `update_time`
 
 ## 坑点
 
 - ⚠️ **PUT 是全量覆盖**：传什么就写什么；如果只传 `title` 不传 `steps`，原有 steps 会被清空；如需只改标题，使用 PATCH 接口（目前无对应 shortcut，可参考 API 文档直接调用）
 - ⚠️ **workflow_id 前缀**：以 `wkf` 开头，从 URL 的 `?table=wkf...` 提取；和 table_id（`tbl` 开头）混淆会导致 `[2200] Internal Error`
 - ⚠️ **steps 中 id 字段必须唯一**：每个步骤的 `id` 在同一工作流内必须唯一；`next` 和 `children.links[].to` 引用的 ID 必须在 steps 数组中存在
-- ⚠️ **更新不影响 enabled 状态**：`+workflow-update` 不会改变工作流的 `enabled/disabled` 状态；需要另外调用 `+workflow-enable` / `+workflow-disable`
+- ⚠️ **更新不影响 enabled 状态**：`lark_api({ tool: 'base', op: 'workflow-update' })` 不会改变工作流的 `enabled/disabled` 状态；需要另外调用 `lark_api({ tool: 'base', op: 'workflow-enable' })` / `lark_api({ tool: 'base', op: 'workflow-disable' })`
 
 ## 参考
 

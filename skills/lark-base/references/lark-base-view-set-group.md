@@ -18,22 +18,24 @@
 
 设置分组：
 
-```bash
-lark-cli base +view-set-group \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"group_config":[{"field":"fld_status","desc":false}]}'
+```js
+lark_api({ tool: 'base', op: 'view-set-group', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { group_config: [{ field: 'fld_status', desc: false }] }
+} })
 ```
 
 清空分组：
 
-```bash
-lark-cli base +view-set-group \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"group_config":[]}'
+```js
+lark_api({ tool: 'base', op: 'view-set-group', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { group_config: [] }
+} })
 ```
 
 ## 3. JSON 写法

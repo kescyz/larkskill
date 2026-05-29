@@ -6,22 +6,23 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +view-rename \
-  --base-token app_xxx \
-  --table-id tbl_xxx \
-  --view-id viw_xxx \
-  --name "进行中客户"
+```js
+lark_api({ tool: 'base', op: 'view-rename', args: {
+  base_token: 'app_xxx',
+  table_id: 'tbl_xxx',
+  view_id: 'viw_xxx',
+  name: '进行中客户'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
-| `--view-id <id_or_name>` | 是 | 视图 ID 或视图名 |
-| `--name <name>` | 是 | 新视图名 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID 或表名 |
+| `view_id` | 是 | 视图 ID 或视图名 |
+| `name` | 是 | 新视图名 |
 
 ## API 入参详情
 

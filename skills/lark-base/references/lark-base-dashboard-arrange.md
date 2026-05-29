@@ -8,7 +8,7 @@
 
 | 场景 | 说明 |
 |------|------|
-| **从 0 到 1 搭建后** | 使用 `+dashboard-create` 和 `+dashboard-block-create` 创建仪表盘后，默认布局可能不够工整美观，推荐使用本命令做一次整体重排 |
+| **从 0 到 1 搭建后** | 使用 `lark_api({ tool: 'base', op: 'dashboard-create' })` 和 `lark_api({ tool: 'base', op: 'dashboard-block-create' })` 创建仪表盘后，默认布局可能不够工整美观，推荐使用本命令做一次整体重排 |
 | **用户明确要求** | 用户主动要求对已有仪表盘进行布局重排或美化时 |
 
 > [!CAUTION]
@@ -18,21 +18,21 @@
 
 ## 推荐命令
 
-```bash
-# 基础用法
-lark-cli base +dashboard-arrange \
-  --base-token xxx \
-  --dashboard-id blk_xxx
+```js
+// 基础用法
+lark_api({ tool: 'base', op: 'dashboard-arrange', args: {
+  base_token: 'xxx',
+  dashboard_id: 'blk_xxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--dashboard-id <id>` | 是 | 仪表盘 ID |
-| `--user-id-type <type>` | 否 | 用户 ID 类型：open_id / union_id / user_id |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `dashboard_id` | 是 | 仪表盘 ID |
+| `user_id_type` | 否 | 用户 ID 类型：open_id / union_id / user_id |
 
 ## 返回示例
 

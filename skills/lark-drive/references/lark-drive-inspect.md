@@ -7,18 +7,18 @@
 
 ## 命令
 
-```bash
-# 检视一个 docx URL
-lark-cli drive +inspect --url 'https://xxx.feishu.cn/docx/doxcnXXX'
+```js
+// 检视一个 docx URL
+lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/docx/doxcnXXX' } })
 
-# 检视一个 wiki URL（自动解包到底层文档）
-lark-cli drive +inspect --url 'https://xxx.feishu.cn/wiki/wikcnXXX'
+// 检视一个 wiki URL（自动解包到底层文档）
+lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/wiki/wikcnXXX' } })
 
-# bare token 需要指定 --type
-lark-cli drive +inspect --url doxcnXXX --type docx
+// bare token 需要指定 type
+lark_api({ tool: 'drive', op: 'inspect', args: { url: 'doxcnXXX', type: 'docx' } })
 
-# 格式化输出
-lark-cli drive +inspect --url 'https://xxx.feishu.cn/base/bascnXXX' --format pretty
+// 检视一个 base URL
+lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/base/bascnXXX' } })
 ```
 
 ## 输出
@@ -38,13 +38,12 @@ JSON 输出包含以下字段：
 
 | 场景 | 命令 |
 |------|------|
-| 用户给了一个 URL，想知道它是什么类型的文档 | `lark-cli drive +inspect --url '<url>'` |
-| wiki 链接需要拿到底层文档的 token 来做后续操作 | `lark-cli drive +inspect --url '<wiki_url>'`，取输出中的 `token` |
-| 只有 token 没有 URL | `lark-cli drive +inspect --url <token> --type <type>` |
+| 用户给了一个 URL，想知道它是什么类型的文档 | `lark_api({ tool: 'drive', op: 'inspect', args: { url: '<url>' } })` |
+| wiki 链接需要拿到底层文档的 token 来做后续操作 | `lark_api({ tool: 'drive', op: 'inspect', args: { url: '<wiki_url>' } })`，取输出中的 `token` |
+| 只有 token 没有 URL | `lark_api({ tool: 'drive', op: 'inspect', args: { url: '<token>', type: '<type>' } })` |
 
 ## 注意事项
 
-- `--url` 为必填参数
-- 当 `--url` 是 bare token（非完整 URL）时，`--type` 也是必填的
+- `url` 为必填参数
+- 当 `url` 是 bare token（非完整 URL）时，`type` 也是必填的
 - wiki URL 会自动调用 `get_node` API 解包，输出中 `type` 和 `token` 是底层文档的类型和 token
-- 支持 `--dry-run` 查看将调用的 API 步骤

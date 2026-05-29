@@ -8,27 +8,29 @@
 
 ## 推荐命令
 
-```bash
-# 仅修改角色名称
-lark-cli base +role-update \
-  --base-token VwGhb**************fMnod \
-  --role-id rolxxxxxx4 \
-  --json '{"role_name":"高级审核员","role_type":"custom_role"}'
+```js
+// 仅修改角色名称
+lark_api({ tool: 'base', op: 'role-update', args: {
+  base_token: 'VwGhb**************fMnod',
+  role_id: 'rolxxxxxx4',
+  json: {"role_name":"高级审核员","role_type":"custom_role"}
+} })
 
-# 修改某个表的权限（其他表不受影响）
-lark-cli base +role-update \
-  --base-token VwGhb**************fMnod \
-  --role-id rolxxxxxx4 \
-  --json '{"role_name":"财务审核员","role_type":"custom_role","table_rule_map":{"订单表":{"perm":"read_only"}}}'
+// 修改某个表的权限（其他表不受影响）
+lark_api({ tool: 'base', op: 'role-update', args: {
+  base_token: 'VwGhb**************fMnod',
+  role_id: 'rolxxxxxx4',
+  json: {"role_name":"财务审核员","role_type":"custom_role","table_rule_map":{"订单表":{"perm":"read_only"}}}
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token，27 位字母数字字符串 |
-| `--role-id <id>` | 是 | 角色 ID，格式 `rol` + 8 位字母数字 |
-| `--json <body>` | 是 | 增量 AdvPermBaseRoleConfig JSON，仅含需变更的字段 |
+| `base_token` | 是 | Base Token，27 位字母数字字符串 |
+| `role_id` | 是 | 角色 ID，格式 `rol` + 8 位字母数字 |
+| `json` | 是 | 增量 AdvPermBaseRoleConfig JSON，仅含需变更的字段 |
 
 ## API 入参详情
 
@@ -75,10 +77,10 @@ PUT /open-apis/base/v3/bases/:base_token/roles/:role_id
 ## 工作流
 
 > [!CAUTION]
-> 这是**高危写入操作** — 执行前必须向用户确认，需要 `--yes` 标志。
+> 这是**高危写入操作** — 执行前必须向用户确认，需要 `yes: true`。
 
-1. 建议先用 `+role-get` 获取当前配置，确认变更范围
-2. 向用户确认 `--base-token`、`--role-id` 和变更 JSON，对于变化的部分可以高亮提示用户
+1. 建议先用 `lark_api({ tool: 'base', op: 'role-get' })` 获取当前配置，确认变更范围
+2. 向用户确认 `base_token`、`role_id` 和变更 JSON，对于变化的部分可以高亮提示用户
 3. 执行命令
 4. 确认返回 `code: 0`
 

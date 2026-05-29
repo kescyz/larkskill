@@ -4,45 +4,29 @@
 
 通过表单分享 Token 获取表单详情（含表单元信息、题目详情）。只读操作，不修改任何数据。
 
-与 `+form-get` 的区别：`+form-get` 需要 `base-token` + `table-id` + `form-id`（从 Base 内部获取）；`+form-detail` 仅需 `share-token`（从分享链接获取，无需知道 Base/表信息）。
+与 `form-get` 的区别：`form-get` 需要 `base_token` + `table_id` + `form_id`（从 Base 内部获取）；`form-detail` 仅需 `share_token`（从分享链接获取，无需知道 Base/表信息）。
 
 ## 命令
 
-```bash
-# 通过 share_token 获取表单详情
-lark-cli base +form-detail \
-  --share-token <share_token>
+```js
+// 通过 share_token 获取表单详情
+lark_api({ tool: 'base', op: 'form-detail', args: {
+  share_token: '<share_token>'
+} })
 
-# 以 pretty 格式展示（适合阅读 questions 结构）
-lark-cli base +form-detail \
-  --share-token <share_token> \
-  --format pretty
-
-# 使用 jq 过滤只看题目列表
-lark-cli base +form-detail \
-  --share-token <share_token> \
-  --jq '.data.questions'
-
-# 预览 API 调用（不执行）
-lark-cli base +form-detail \
-  --share-token <share_token> \
-  --dry-run
-
-# 使用应用身份（bot）
-lark-cli base +form-detail \
-  --share-token <share_token> \
-  --as bot
+// 使用应用身份（bot）
+lark_api({ tool: 'base', op: 'form-detail', args: {
+  share_token: '<share_token>',
+  as: 'bot'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--share-token <token>` | 是 | 表单分享 Token（从表单分享链接中提取） |
-| `--format` | 否 | 输出格式：json（默认）\| pretty \| table \| ndjson \| csv |
-| `--as` | 否 | 身份：user（默认）\| bot |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
-| `--jq <expr>` | 否 | 用 jq 表达式过滤 JSON 输出 |
+| `share_token` | 是 | 表单分享 Token（从表单分享链接中提取） |
+| `as` | 否 | 身份：user（默认）\| bot |
 
 ### 从分享链接提取 share-token
 
@@ -52,15 +36,16 @@ lark-cli base +form-detail \
 https://bitable-test.feishu-boe.cn/share/base/form/shrbcvST8eZy0vk8zjVZ1CAXNye
 ```
 
-**提取方式：** 取 URL 路径最后一段作为 `--share-token`。
+**提取方式：** 取 URL 路径最后一段作为 `share_token`。
 
 以上述链接为例：
 
-- `share-token` = `shrbcvST8eZy0vk8zjVZ1CAXNye`
+- `share_token` = `shrbcvST8eZy0vk8zjVZ1CAXNye`
 
-```bash
-lark-cli base +form-detail \
-  --share-token shrbcvST8eZy0vk8zjVZ1CAXNye
+```js
+lark_api({ tool: 'base', op: 'form-detail', args: {
+  share_token: 'shrbcvST8eZy0vk8zjVZ1CAXNye'
+} })
 ```
 
 ## 输出格式
@@ -307,9 +292,9 @@ lark-cli base +form-detail \
 ## 提示
 
 - `share_token` 从表单分享链接中提取，格式通常为 `shr` + 随机字符串（如 `shrbcvST8eZy0vk8zjVZ1CAXNye`）
-- 返回的 `questions` 列表可直接用于构造 `+form-submit` 的 `--json.fields` 参数
-- `questions[].title` 对应题目标题，可用于 `+form-submit` 的字段名映射
-- 如果需要通过 Base 内部路径操作表单，使用 `+form-get`（需要 base-token / table-id / form-id）
+- 返回的 `questions` 列表可直接用于构造 `form-submit` 的 `json.fields` 参数
+- `questions[].title` 对应题目标题，可用于 `form-submit` 的字段名映射
+- 如果需要通过 Base 内部路径操作表单，使用 `form-get`（需要 base_token / table_id / form_id）
 - 权限要求：`base:form:read`
 
 ## 参考

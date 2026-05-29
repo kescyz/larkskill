@@ -6,27 +6,29 @@
 
 ## 推荐命令
 
-```bash
-# 单条记录
-lark-cli base +record-share-link-create \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --record-ids <record_id>
+```js
+// 单条记录
+lark_api({ tool: 'base', op: 'record-share-link-create', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  record_ids: '<record_id>'
+} })
 
-# 多条记录（使用 "," 分隔）
-lark-cli base +record-share-link-create \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --record-ids rec001,rec002,rec003
+// 多条记录
+lark_api({ tool: 'base', op: 'record-share-link-create', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  record_ids: ['rec001', 'rec002', 'rec003']
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id>` | 是 | 表 ID |
-| `--record-ids <ids...>` | 是 | 记录 ID 列表，逗号分隔或重复使用该标志，最多 100 条 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID |
+| `record_ids` | 是 | 记录 ID 列表，传单个字符串或数组，最多 100 条 |
 
 ## API 入参详情
 
@@ -44,7 +46,7 @@ POST /open-apis/base/v3/bases/:base_token/tables/:table_id/records/share_links/b
 }
 ```
 
-> CLI 会自动对 `--record-ids` 去重后再调用接口。
+> 会自动对 `record_ids` 去重后再调用接口。
 
 ## 返回重点
 
@@ -63,9 +65,9 @@ POST /open-apis/base/v3/bases/:base_token/tables/:table_id/records/share_links/b
 
 ## 坑点
 
-- ⚠️ 单次最多 100 条记录，超出会被 CLI 校验拦截。
+- ⚠️ 单次最多 100 条记录，超出会被校验拦截。
 - ⚠️ 重复的 record_id 会在调用前自动去重。
-- ⚠️ `--record-ids` 为空时会被校验拦截。
+- ⚠️ `record_ids` 为空时会被校验拦截。
 
 ## 参考
 

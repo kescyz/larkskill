@@ -6,17 +6,18 @@
 
 ## 推荐命令
 
-```bash
-# 停用高级权限
-lark-cli base +advperm-disable \
-  --base-token VwGhbYCXQaYGMzsWlEZcBbfMnod
+```js
+// 停用高级权限
+lark_api({ tool: 'base', op: 'advperm-disable', args: {
+  base_token: 'VwGhbYCXQaYGMzsWlEZcBbfMnod'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token，27 位字母数字字符串 |
+| `base_token` | 是 | Base Token，27 位字母数字字符串 |
 
 ## API 入参详情
 
@@ -66,8 +67,8 @@ PUT /open-apis/base/v3/bases/:base_token/advperm/enable?enable=false
 > [!CAUTION]
 > 这是**高风险写入操作** — 停用高级权限会影响所有已配置的自定义角色，执行前必须向用户确认。
 
-1. 向用户确认 `--base-token`，并提醒停用会影响已有角色配置
-2. 执行命令
+1. 向用户确认 `base_token`，并提醒停用会影响已有角色配置
+2. 执行操作
 3. 确认返回 `code: 0` 表示停用成功
 
 ## 坑点

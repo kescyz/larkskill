@@ -6,23 +6,22 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +dashboard-block-get \
-  --base-token bascn***************CtadY \
-  --dashboard-id blkxxx \
-  --block-id chtxxxxxxxx
+```js
+lark_api({ tool: 'base', op: 'dashboard-block-get', args: {
+  base_token: 'bascn***************CtadY',
+  dashboard_id: 'blkxxx',
+  block_id: 'chtxxxxxxxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--dashboard-id <id>` | 是 | 仪表盘 ID |
-| `--block-id <id>` | 是 | Block ID |
-| `--user-id-type <type>` | 否 | 用户 ID 类型：open_id / union_id / user_id |
-| `--format <fmt>` | 否 | 输出格式 |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `dashboard_id` | 是 | 仪表盘 ID |
+| `block_id` | 是 | Block ID |
+| `user_id_type` | 否 | 用户 ID 类型：open_id / union_id / user_id |
 
 ## 返回示例
 

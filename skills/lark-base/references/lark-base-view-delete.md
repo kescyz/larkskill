@@ -6,20 +6,21 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +view-delete \
-  --base-token app_xxx \
-  --table-id tbl_xxx \
-  --view-id viw_xxx
+```js
+lark_api({ tool: 'base', op: 'view-delete', args: {
+  base_token: 'app_xxx',
+  table_id: 'tbl_xxx',
+  view_id: 'viw_xxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
-| `--view-id <id_or_name>` | 是 | 视图 ID 或视图名 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID 或表名 |
+| `view_id` | 是 | 视图 ID 或视图名 |
 
 ## API 入参详情
 
@@ -36,7 +37,7 @@ DELETE /open-apis/base/v3/bases/:base_token/tables/:table_id/views/:view_id
 ## 工作流
 
 
-1. 建议先用 `+view-get` 确认目标视图。
+1. 建议先用 `view-get` 确认目标视图。
 2. 删除前必须让用户确认。
 
 ## 坑点

@@ -7,46 +7,42 @@
 
 ## 命令
 
-```bash
-# 为普通文件创建快捷方式
-lark-cli drive +create-shortcut \
-  --folder-token <TARGET_FOLDER_TOKEN> \
-  --file-token <FILE_TOKEN> \
-  --type file
+```js
+// 为普通文件创建快捷方式
+lark_api({ tool: 'drive', op: 'create-shortcut', args: {
+  folder_token: '<TARGET_FOLDER_TOKEN>',
+  file_token: '<FILE_TOKEN>',
+  type: 'file'
+} })
 
-# 为新版文档创建快捷方式
-lark-cli drive +create-shortcut \
-  --folder-token <TARGET_FOLDER_TOKEN> \
-  --file-token <DOCX_TOKEN> \
-  --type docx
+// 为新版文档创建快捷方式
+lark_api({ tool: 'drive', op: 'create-shortcut', args: {
+  folder_token: '<TARGET_FOLDER_TOKEN>',
+  file_token: '<DOCX_TOKEN>',
+  type: 'docx'
+} })
 
-# 为电子表格创建快捷方式
-lark-cli drive +create-shortcut \
-  --folder-token <TARGET_FOLDER_TOKEN> \
-  --file-token <SHEET_TOKEN> \
-  --type sheet
-
-# 仅预览即将发起的请求，不真正执行
-lark-cli drive +create-shortcut \
-  --folder-token <TARGET_FOLDER_TOKEN> \
-  --file-token <DOCX_TOKEN> \
-  --type docx \
-  --dry-run
+// 为电子表格创建快捷方式
+lark_api({ tool: 'drive', op: 'create-shortcut', args: {
+  folder_token: '<TARGET_FOLDER_TOKEN>',
+  file_token: '<SHEET_TOKEN>',
+  type: 'sheet'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--folder-token` | 是 | 目标父文件夹 token |
-| `--file-token` | 是 | 源文件 token，表示被引用的原始文件 |
-| `--type` | 是 | 源文件类型，推荐值：`file`、`docx`、`doc`、`sheet`、`bitable`、`mindnote`、`slides` |
+| `folder_token` | 是 | 目标父文件夹 token |
+| `file_token` | 是 | 源文件 token，表示被引用的原始文件 |
+| `type` | 是 | 源文件类型，推荐值：`file`、`docx`、`doc`、`sheet`、`bitable`、`mindnote`、`slides` |
 
 ## 输入规则
 
-- 该 shortcut 的最小输入是 `--folder-token` + `--file-token` + `--type`
-- CLI 层会把 `--file-token` 和 `--type` 组装为底层 API 所需的 `refer_entity`
-- `--file-token` 必须是 Drive 文件 token，不要直接传 wiki 节点 token
+- 该 shortcut 的最小输入是 `folder_token` + `file_token` + `type`
+- CLI 层会把 `file_token` 和 `type` 组装为底层 API 所需的 `refer_entity`
+- `file_token` 必须是 Drive 文件 token，不要直接传 wiki 节点 token
 - 如果来源是 `/wiki/...` 链接，必须先按 [`lark-drive`](../SKILL.md) 中的 wiki 解析流程拿到真实 `obj_token`，再创建快捷方式
 - 目标位置必须是云空间（云盘/云存储）文件夹；这个 shortcut 不是“复制文件内容”，而是“在另一个文件夹里挂一个引用入口”
 
@@ -65,8 +61,7 @@ lark-cli drive +create-shortcut \
 ## 行为说明
 
 - 成功时会调用 `POST /open-apis/drive/v1/files/create_shortcut`
-- 该 shortcut 继承通用能力，可配合 `--as user|bot|auto`、`--format`、`--jq`、`--dry-run` 使用
-- `--dry-run` 只输出请求方法、路径、身份和请求体预览，不会真正创建快捷方式
+- 该 shortcut 继承通用能力，可配合 `as: 'user'|'bot'|'auto'` 使用
 - 这是写入操作；执行前应确认目标文件夹和源文件都准确无误
 
 ## 限制
@@ -87,10 +82,10 @@ lark-cli drive +create-shortcut \
 
 | 错误码 / 错误信息 | 原因 | 处理建议 |
 |------|------|------|
-| `1061002 params error` | 缺少必填参数，或 `--file-token` / `--type` 组合无法构成有效源文件信息 | 检查 `--file-token`、`--type` 是否完整且匹配；如显式传了 `--folder-token`，再确认其值有效 |
+| `1061002 params error` | 缺少必填参数，或 `file_token` / `type` 组合无法构成有效源文件信息 | 检查 `file_token`、`type` 是否完整且匹配；如显式传了 `folder_token`，再确认其值有效 |
 | `1061003 not found` | 源文件或目标文件夹不存在 | 重新确认 token 是否正确、资源是否已删除 |
 | `1061004 forbidden` | 对源文件没有访问权限，或对目标文件夹没有编辑权限 | 切换到有权限的身份，或先授予文档 / 文件夹权限 |
-| `1061005 auth failed` | 身份类型或 access token 不正确 | 检查 `--as` 使用的身份及当前登录态 |
+| `1061005 auth failed` | 身份类型或 access token 不正确 | 检查 `as` 使用的身份及当前登录态 |
 | `1061007 file has been delete` | 源文件已删除 | 确认原文件仍存在，再重新执行 |
 | `1062507 parent node out of sibling num` | 目标文件夹单层挂载数超过上限 | 清理目标目录，或换一个父文件夹 |
 | `1061045 resource contention occurred, please retry` | 平台内部资源争抢 | 稍后重试，不要并发重复调用 |

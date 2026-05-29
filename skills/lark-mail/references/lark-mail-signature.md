@@ -4,27 +4,27 @@
 
 查看邮箱签名列表或详情。返回签名的类型、默认使用情况、内容预览等信息。TENANT（企业）签名的模板变量会被自动替换为实际值。
 
-本 skill 对应 shortcut：`lark-cli mail +signature`。
+本 skill 对应 shortcut：`lark_api({ tool: 'mail', op: 'signature' })`。
 
 ## 命令
 
-```bash
-# 列出所有签名
-lark-cli mail +signature
+```js
+// 列出所有签名
+lark_api({ tool: 'mail', op: 'signature', args: {} })
 
-# 查看某个签名的详情（渲染后的内容预览、模板变量值、图片信息）
-lark-cli mail +signature --detail <signature_id>
+// 查看某个签名的详情（渲染后的内容预览、模板变量值、图片信息）
+lark_api({ tool: 'mail', op: 'signature', args: { detail: '<signature_id>' } })
 
-# 指定邮箱
-lark-cli mail +signature --from shared@example.com
+// 指定邮箱
+lark_api({ tool: 'mail', op: 'signature', args: { from: 'shared@example.com' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--from <email>` | 否 | 邮箱地址（默认 `me`） |
-| `--detail <id>` | 否 | 签名 ID，查看详情。省略则列出所有签名 |
+| `from` | 否 | 邮箱地址（默认 `me`） |
+| `detail` | 否 | 签名 ID，查看详情。省略则列出所有签名 |
 
 ## 返回值
 
@@ -89,10 +89,10 @@ lark-cli mail +signature --from shared@example.com
 
 获取签名 ID 后，可在发送/回复/转发时附加签名：
 
-```bash
-# 查看签名列表获取 ID
-lark-cli mail +signature
+```js
+// 查看签名列表获取 ID
+lark_api({ tool: 'mail', op: 'signature', args: {} })
 
-# 在发送邮件时附加签名
-lark-cli mail +send --to alice@example.com --subject '你好' --body '<p>内容</p>' --signature-id <签名ID>
+// 在发送邮件时附加签名
+lark_api({ tool: 'mail', op: 'send', args: { to: 'alice@example.com', subject: '你好', body: '<p>内容</p>', signature_id: '<签名ID>' } })
 ```
