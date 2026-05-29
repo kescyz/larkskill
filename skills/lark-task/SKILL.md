@@ -12,31 +12,33 @@ metadata:
 
 **CRITICAL — Before starting, MUST read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first. It contains authentication and permission handling.**
 
-> **Task search tips**: First determine whether the user has **specifically requested the search skill**, and whether they have actually provided a **query keyword** (e.g. task name, keyword, fragment description). If the user specifically requests the search skill, or explicitly provides a task query keyword, prefer `+search` when the target is **tasks**. If the user has not specifically requested the search skill and the intent has no query keyword — only scope conditions (e.g. "since this year", "completed", "created by me", "I'm following") — prefer list-type capabilities. Among those, "related to me / I'm following / created by me" should prioritize `+get-related-tasks`; "assigned to me / I'm responsible for" should prioritize `+get-my-tasks`. Do NOT mistake time-range words (e.g. "since this year") as `query` values for search.
+> **Task search tips**: First determine whether the user has **specifically requested the search skill**, and whether they have actually provided a **query keyword** (e.g. task name, keyword, fragment description). If the user specifically requests the search skill, or explicitly provides a task query keyword, prefer `+search` when the target is **tasks**. If the user has not specifically requested the search skill and the intent has no query keyword — only scope conditions (e.g. "since this year", "completed", "created by me", "I'm following") — and both `+search` and `+get-related-tasks` / `+get-my-tasks` can achieve the goal, prefer list-type capabilities over search-type capabilities. Among those, "related to me / I'm following / created by me" should prioritize `+get-related-tasks`; "assigned to me / I'm responsible for" should prioritize `+get-my-tasks`. Do NOT mistake time-range words (e.g. "since this year") as `query` values for search.
 
-> **Tasklist search tips**: Tasklists follow the same logic. If the user explicitly provides a tasklist query keyword, prefer `+tasklist-search`. Otherwise, prefer the native `tasklists.list` API with local filtering.
+> **Tasklist search tips**: Tasklists follow the same decision logic. First determine whether the user has **specifically requested the search skill**, and whether they have actually provided a **tasklist query keyword** (e.g. tasklist name, keyword, fragment description). If the user specifically requests the search skill, or explicitly provides a tasklist query keyword, prefer `+tasklist-search`. Otherwise, when the intent has no query keyword — only scope conditions (e.g. "tasklists created by me", "tasklists created since this year") — prefer listing tasklists via the native `tasklists.list` op (`lark_api({ tool: 'task', op: 'tasklists.list', args: { ... } })`), then filter and paginate locally by fields such as `creator` and `created_at`.
 
-> **Intent disambiguation**: Expressions like "search Lark for tasks I'm following since this year" — if there is no actual query keyword and the intent is "related to me + time range" — prefer `+get-related-tasks`. Expressions like "search Lark for tasklists I created" — if there is no tasklist keyword — prefer native `tasklists.list` with local filtering.
+> **Intent disambiguation**: Expressions like "search Lark for tasks I'm following since this year" — although they literally contain "search", if there is no actual query keyword and the intent is essentially "related to me + time range" — should prefer `+get-related-tasks`. Expressions like "search Lark for tasklists I created" — if there is no tasklist keyword and the intent is essentially "tasklist scope + creator" — should prefer the native `tasklists.list` followed by local filtering, rather than going straight to a search-type shortcut.
 
-> **User identity recognition**: If the user mentions "me" (e.g. "assigned to me", "created by me"), default to fetching the currently logged-in user's `open_id` as the parameter value.
+> **User identity recognition**: In user-identity scenarios, if the user mentions "me" (e.g. "assigned to me", "created by me"), default to fetching the currently logged-in user's `open_id` as the parameter value.
 
-> **Terminology**: If the user mentions "todo", consider whether they mean "task" and use this skill's operations.
+> **Terminology**: If the user mentions "todo", consider whether they mean "task" and prefer using this skill's operations to handle it.
 
-> **Friendly output**: When outputting task or tasklist results, also extract and output the `url` field (task link) so the user can click to view details.
+> **Friendly output**: When outputting task or tasklist results to the user, also extract and output the `url` field (task link) from the result, so the user can click through to view details directly.
 
 > **Create/update notes**:
-> 1. `repeat_rule` and `reminder` can only be set if `due` has been set.
-> 2. If both `start` and `due` are set, start time must be ≤ due time.
+> 1. `repeat_rule` (repeat rule) and `reminder` (reminder time) can only be set if `due` (due time) has been set.
+> 2. If both `start` (start time) and `due` (due time) are set, the start time must be less than or equal to the due time.
 > 3. When using tenant_access_token (application identity), task members cannot be added across tenants.
 
 > **Query notes**:
-> 1. When rendering person fields (assignees, creators), in addition to `id`, MUST also fetch and display the person's real name (e.g. via the Contact skill).
-> 2. Same rule applies to owner, member, and role member fields in tasklist details.
-> 3. Render time fields (created time, due time) using local timezone (format: 2006-01-02 15:04:05).
+> 1. When outputting task details, if you need to render person fields such as assignee and creator, in addition to displaying the `id` (e.g. open_id) you MUST also try to fetch and display the person's real name through another means (e.g. via the Contact skill), so the user can recognize them more easily.
+> 2. When outputting tasklist details, if you need to render person fields such as owner, member, and role members, you must also resolve and display the real name of the corresponding person in addition to the `id`, just like task member rendering.
+> 3. When outputting task or tasklist details, if you need to render fields such as created time and due time, render them using the local timezone (format: 2006-01-02 15:04:05).
+
+> **Pending-task filter**: For `+get-my-tasks`, when the `complete` arg is not provided the result contains **both completed and incomplete tasks**. For standup / daily-summary / pending-todo scenarios, you **must** pass `complete: false` (e.g. `lark_api({ tool: 'task', op: '+get-my-tasks', args: { complete: false } })`); otherwise completed tasks will be surfaced as if they were still pending.
 
 > **Task GUID definition**:
-> The `guid` in Task OpenAPI is the globally unique identifier — NOT the client task number (e.g. `t104121` / `suite_entity_num`).
-> For Lark task applinks (e.g. `.../client/todo/task?guid=...`), use the `guid` URL query parameter as the task guid.
+> The `guid` used in Task OpenAPI to update/operate on a task is the task's globally unique identifier (GUID), not the task number shown in the client (e.g. `t104121` / `suite_entity_num`).
+> For Lark task applinks (e.g. `.../client/todo/task?guid=...`), use the `guid` query parameter in the URL as the task guid.
 
 ## Shortcuts
 
@@ -51,6 +53,7 @@ metadata:
 | Manage followers | `lark_api({ tool: 'task', op: '+followers', args: { guid: '...', ... } })` |
 | Manage reminders | `lark_api({ tool: 'task', op: '+reminder', args: { guid: '...', ... } })` |
 | List my tasks (assigned to me) | `lark_api({ tool: 'task', op: '+get-my-tasks', args: { ... } })` |
+| List pending tasks (standup/daily-summary) | `lark_api({ tool: 'task', op: '+get-my-tasks', args: { complete: false } })` |
 | List related tasks | `lark_api({ tool: 'task', op: '+get-related-tasks', args: { ... } })` |
 | Search tasks | `lark_api({ tool: 'task', op: '+search', args: { query: '...' } })` |
 | Subscribe to events | `lark_api({ tool: 'task', op: '+subscribe-event', args: { ... } })` |
