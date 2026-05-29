@@ -1,7 +1,7 @@
 ---
 name: lark-im
 version: 2.0.0
-description: "Lark Messenger: send and receive messages and manage group chats via LarkSkill MCP. Use when the user needs to send messages, view or search chat history, download files from chat, view group members, search groups, create group chats or topic chats, or manage bookmarked data."
+description: "Lark Messenger via LarkSkill MCP: send/reply to messages, search chat history, manage group members, upload/download images and files (chunked for large files), manage emoji reactions, send in-app/SMS/phone urgent notifications, create group or topic chats, and manage bookmarks."
 metadata:
   requires:
     mcp: "larkskill"
@@ -112,6 +112,9 @@ lark_api({ tool: 'im', op: '<resource>.<method>', args: { ... } })  // Call API
   - `forward` — Forward a message. Identity: supports `user` and `bot`.
   - `merge_forward` — Merge-forward messages. Identity: `bot` only (`tenant_access_token`).
   - `read_users` — Query message read status. Identity: `bot` only (`tenant_access_token`); the bot must be in the chat, and can only query read status for messages it sent within the last 7 days.
+  - `urgent_app` — Send an in-app urgent notification. Identity: `bot` only (`tenant_access_token`); the bot must be the message sender and must be in the conversation that contains the message.
+  - `urgent_phone` — Send a phone urgent notification. Identity: `bot` only (`tenant_access_token`); the bot must be the message sender and must be in the conversation that contains the message.
+  - `urgent_sms` — Send an SMS urgent notification. Identity: `bot` only (`tenant_access_token`); the bot must be the message sender and must be in the conversation that contains the message.
 
 ### reactions
 
@@ -150,6 +153,9 @@ lark_api({ tool: 'im', op: '<resource>.<method>', args: { ... } })  // Call API
 | `messages.forward` | `im:message` |
 | `messages.merge_forward` | `im:message` |
 | `messages.read_users` | `im:message:readonly` |
+| `messages.urgent_app` | `im:message.urgent` |
+| `messages.urgent_phone` | `im:message.urgent:phone` |
+| `messages.urgent_sms` | `im:message.urgent:sms` |
 | `threads.forward` | `im:message` |
 | `reactions.batch_query` | `im:message.reactions:read` |
 | `reactions.create` | `im:message.reactions:write_only` |
