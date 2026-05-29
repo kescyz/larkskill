@@ -6,16 +6,16 @@ Reopen a previously completed task.
 
 ## Recommended Commands
 
-```bash
-# Reopen a task
-lark-cli task +reopen --task-id "<task_guid>"
+```js
+// Reopen a task
+lark_api({ tool: 'task', op: 'reopen', args: { task_id: '<task_guid>' } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `--task-id <guid>` | Yes | The task GUID to reopen. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
+| `task_id` | Yes | The task GUID to reopen. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
 
 ## Workflow
 

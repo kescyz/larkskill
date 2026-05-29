@@ -6,29 +6,31 @@
 
 ## 推荐命令
 
-```bash
-# 列出全部工作流
-lark-cli base +workflow-list \
-  --base-token BascXxxxxx
+```js
+// 列出全部工作流
+lark_api({ tool: 'base', op: 'workflow-list', args: {
+  base_token: 'BascXxxxxx'
+} })
 
-# 只看已启用的工作流
-lark-cli base +workflow-list \
-  --base-token BascXxxxxx \
-  --status enabled
+// 只看已启用的工作流
+lark_api({ tool: 'base', op: 'workflow-list', args: {
+  base_token: 'BascXxxxxx',
+  status: 'enabled'
+} })
 
-# 只看已禁用的工作流
-lark-cli base +workflow-list \
-  --base-token BascXxxxxx \
-  --status disabled
+// 只看已禁用的工作流
+lark_api({ tool: 'base', op: 'workflow-list', args: {
+  base_token: 'BascXxxxxx',
+  status: 'disabled'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | 多维表格 Base Token（`Basc` 开头） |
-| `--status <value>` | 否 | 过滤状态：`enabled` 或 `disabled`；不传则返回全部 |
-| `--page-size <n>` | 否 | 每页大小，默认 100，最大 100 |
+| `base_token` | 是 | 多维表格 Base Token（`Basc` 开头） |
+| `status` | 否 | 过滤状态：`enabled` 或 `disabled`；不传则返回全部 |
 
 ## API 入参详情
 
@@ -105,15 +107,15 @@ POST /open-apis/base/v3/bases/:base_token/workflows/list
 - 查询统计：统计定时触发的工作流数量（先 list，再筛选）
 - 修改操作：修改指定名称的工作流（先 list ，从列表中找到对应名称工作流的 workflow_id，再 get/update）
   **❌ 不需要先 list 的场景**:
-- **创建工作流**：直接调用 `+workflow-create`，不需要先 list
-- 查看指定工作流详情：如果已知 workflow_id，直接 `+workflow-get`
+- **创建工作流**：直接调用 `lark_api({ tool: 'base', op: 'workflow-create' })`，不需要先 list
+- 查看指定工作流详情：如果已知 workflow_id，直接 `lark_api({ tool: 'base', op: 'workflow-get' })`
 ### 缓存策略
-同一会话中处理多个工作流时，只需调用一次 `+workflow-list` 获取全部结果，然后从中筛选所需的工作流，避免重复查询。
+同一会话中处理多个工作流时，只需调用一次 `lark_api({ tool: 'base', op: 'workflow-list' })` 获取全部结果，然后从中筛选所需的工作流，避免重复查询。
 
 ## 坑点
 
 - ⚠️ **列表用 POST 不用 GET**：`/workflows/list` 是 POST 接口，`page_token` 放在 Request Body 里而不是 Query 参数，常见误区
-- ⚠️ **workflow_id 前缀 `wkf`**：返回的 `workflow_id` 以 `wkf` 开头，传给 `+workflow-enable` / `+workflow-disable` 时直接使用即可，不要和 table_id（`tbl` 开头）混淆
+- ⚠️ **workflow_id 前缀 `wkf`**：返回的 `workflow_id` 以 `wkf` 开头，传给 `lark_api({ tool: 'base', op: 'workflow-enable' })` / `lark_api({ tool: 'base', op: 'workflow-disable' })` 时直接使用即可，不要和 table_id（`tbl` 开头）混淆
 - ⚠️ **scope 待确认**：内部文档未列出权限名，代码使用 `base:workflow:read`，如遇 `[230013] permission denied` 需核对实际 scope
 
 ## 参考

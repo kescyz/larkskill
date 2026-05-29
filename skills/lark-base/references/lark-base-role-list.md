@@ -8,16 +8,15 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +role-list --base-token VwGhb**************fMnod
+```js
+lark_api({ tool: 'base', op: 'role-list', args: { base_token: 'VwGhb**************fMnod' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token，27 位字母数字字符串 |
-| `--format <fmt>` | 否 | 输出格式：json / pretty / table / csv / ndjson |
+| `base_token` | 是 | Base Token，27 位字母数字字符串 |
 
 ## API 入参详情
 
@@ -72,7 +71,7 @@ GET /open-apis/base/v3/bases/:base_token/roles
 ## 坑点
 
 - ⚠️ **data 是 JSON 字符串**：响应 `data` 是 string 类型，内部 `base_roles` 数组的每个元素也是 JSON 字符串，需要多层解析
-- ⚠️ **返回摘要信息**：此接口只返回 role_id / role_name / role_type，不含完整权限配置。要获取完整配置请用 `+role-get`
+- ⚠️ **返回摘要信息**：此接口只返回 role_id / role_name / role_type，不含完整权限配置。要获取完整配置请用 `lark_api({ tool: 'base', op: 'role-get' })`
 - ⚠️ **包含系统角色**：返回结果包含  editor / reader 两个系统角色
 
 ## 参考

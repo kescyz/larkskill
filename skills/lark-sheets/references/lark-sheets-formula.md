@@ -6,8 +6,8 @@
 
 公式必须使用对象格式写入（参见 SKILL.md「单元格数据类型」）：
 
-```bash
---values '[[{"type":"formula","text":"=SUM(A1:A10)"}]]'
+```js
+lark_api({ tool: 'sheets', op: 'write', args: { values: [[{ type: 'formula', text: '=SUM(A1:A10)' }]] } })
 ```
 
 ## ARRAYFORMULA 判断流程

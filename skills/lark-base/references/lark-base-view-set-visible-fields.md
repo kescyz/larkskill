@@ -13,12 +13,13 @@
 
 ## 2. 推荐命令
 
-```bash
-lark-cli base +view-set-visible-fields \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"visible_fields":["标题","fld_status"]}'
+```js
+lark_api({ tool: 'base', op: 'view-set-visible-fields', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { visible_fields: ['标题', 'fld_status'] }
+} })
 ```
 
 ## 3. JSON 写法

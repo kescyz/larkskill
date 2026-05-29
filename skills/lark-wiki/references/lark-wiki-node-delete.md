@@ -2,36 +2,32 @@
 
 Delete a wiki node (or pull a cloud doc out of Wiki). OpenAPI: `DELETE /open-apis/wiki/v2/spaces/:space_id/nodes/:node_token`.
 
-> ⚠️ **High-risk write & irreversible** — deletes the node and (by default) its whole subtree. Requires explicit `--yes`; without it the CLI returns a `confirmation_required` error and nothing is deleted.
+> ⚠️ **High-risk write & irreversible** — deletes the node and (by default) its whole subtree. Requires explicit confirmation; without it the call returns a `confirmation_required` error and nothing is deleted.
 
 - **Sync / async**: an empty `task_id` means the delete completed synchronously (`ready=true`). A non-empty `task_id` triggers bounded polling; if the window elapses the output carries `timed_out=true` and a `next_command`:
-  `lark-cli drive +task_result --scenario wiki_delete_node --task-id <TASK_ID> --as <user|bot>`
+  `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_node', task_id: '<TASK_ID>', as: '<user|bot>' } })`
 
 ## Usage
 
-```bash
-lark-cli wiki +node-delete \
-  --node-token <node_token | obj_token | Lark URL> \
-  [--obj-type <wiki|doc|docx|sheet|bitable|mindnote|slides|file>] \
-  [--space-id <space_id>] \
-  [--include-children=true|false] \
-  --yes \
-  [--as user|bot]
-
-# Preview the call chain without deleting
-lark-cli wiki +node-delete --node-token <token> --obj-type wiki --dry-run
+```js
+lark_api({ tool: 'wiki', op: 'node-delete', args: {
+  node_token: '<node_token | obj_token | Lark URL>',
+  // obj_type: '<wiki|doc|docx|sheet|bitable|mindnote|slides|file>',
+  // space_id: '<space_id>',
+  // include_children: true,
+  as: 'user'
+} })
 ```
 
 ## Flags
 
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `--node-token` | string | **Yes** | — | `node_token`, cloud-doc `obj_token`, or a Lark URL embedding one; URL paths also imply `--obj-type` |
-| `--obj-type` | enum | Conditional | — | Required for a raw token (URL inputs auto-infer). `wiki` = the token is a `node_token`; otherwise the cloud-doc type |
-| `--space-id` | string | No | — | Auto-resolved via `get_node` when omitted (extra lookup; pass it to skip) |
-| `--include-children` | bool | No | `true` | Cascade-delete the subtree (default). `--include-children=false` lifts direct children up to the parent |
-| `--yes` | bool | Yes (real delete) | — | Confirm the high-risk operation. Without it the CLI returns `confirmation_required` |
-| `--as` | enum | No | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `--as user` |
+| `node_token` | string | **Yes** | — | `node_token`, cloud-doc `obj_token`, or a Lark URL embedding one; URL paths also imply `obj_type` |
+| `obj_type` | enum | Conditional | — | Required for a raw token (URL inputs auto-infer). `wiki` = the token is a `node_token`; otherwise the cloud-doc type |
+| `space_id` | string | No | — | Auto-resolved via `get_node` when omitted (extra lookup; pass it to skip) |
+| `include_children` | bool | No | `true` | Cascade-delete the subtree (default). `include_children: false` lifts direct children up to the parent |
+| `as` | enum | No | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `as: 'user'` |
 
 ## Output
 
@@ -59,4 +55,4 @@ Async/timeout adds `task_id`, `timed_out`, and `next_command`.
 
 ## Required Scope
 
-`wiki:node:create` (the delete endpoint declares this scope). Auto-resolving `space_id` additionally needs `wiki:node:retrieve`; pass `--space-id` to avoid that lookup.
+`wiki:node:create` (the delete endpoint declares this scope). Auto-resolving `space_id` additionally needs `wiki:node:retrieve`; pass `space_id` to avoid that lookup.

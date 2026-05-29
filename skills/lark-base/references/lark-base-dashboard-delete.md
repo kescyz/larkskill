@@ -6,19 +6,19 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +dashboard-delete \
-  --base-token VwGhb**************fMnod \
-  --dashboard-id blkxxxxxxx
+```js
+lark_api({ tool: 'base', op: 'dashboard-delete', args: {
+  base_token: 'VwGhb**************fMnod',
+  dashboard_id: 'blkxxxxxxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--dashboard-id <id>` | 是 | 仪表盘 ID |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `dashboard_id` | 是 | 仪表盘 ID |
 
 ## 返回示例
 

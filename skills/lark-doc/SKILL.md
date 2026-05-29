@@ -1,7 +1,7 @@
 ---
 name: lark-doc
 version: 2.0.0
-description: "Lark Docs / Docx / Wiki (v2): create, read, update, summarize, and edit document content via LarkSkill MCP. Use when given a Lark doc URL/token or when the user asks to view, fetch, create, append, replace, or insert media in a document. Always carry api_version v2; defaults to DocxXML, Markdown also supported."
+description: "Lark Docs / Docx / Wiki (v2): create, read, update, summarize, and edit document content via LarkSkill MCP. Use when given a Lark doc URL/token (route doubao.com /docx/ and /wiki/ URLs by path, not domain) or asked to fetch, append, replace, move, or insert/download media. Always carry api_version v2; DocxXML default."
 metadata:
   requires:
     mcp: "larkskill"
@@ -26,20 +26,25 @@ lark_api({ tool: 'docs', op: 'update', args: { doc: '<doc URL or token>', api_ve
 2. **Reading a document (`docs fetch --api-version v2`)** → MUST read [`lark-doc-fetch.md`](references/lark-doc-fetch.md) (`--scope` / `--detail` selection, partial read strategy, `<fragment>` / `<excerpt>` output structure)
 3. **Creating or editing document content** → MUST read [`lark-doc-xml.md`](references/lark-doc-xml.md) (XML syntax rules; only read [`lark-doc-md.md`](references/lark-doc-md.md) when the user explicitly requests Markdown); for creating from scratch also read [`lark-doc-create-workflow.md`](references/style/lark-doc-create-workflow.md); for editing an existing document also read [`lark-doc-update-workflow.md`](references/style/lark-doc-update-workflow.md)
 
-**Executing the corresponding operation without reading the above files will result in incorrect parameter selection, format errors, or substandard styling.**
+**Executing the corresponding operation without first reading the above files will result in incorrect parameter selection, format errors, or substandard styling.**
 
 > **Format selection rules (global):**
 > - **Create / import scenarios** (`docs create`, or whole-block writes via `docs update` with `command: "append"/"overwrite"`): XML and Markdown are both supported. When the user provides a local `.md` file or explicitly says "import Markdown", use Markdown directly; otherwise default to XML (supports callout, grid, checkbox and other rich blocks).
 > - **Precise edit scenarios** (`docs update` with `str_replace` / `block_insert_after` / `block_replace` / `block_delete` / `block_move_after` and similar targeted commands): prefer XML (`doc_format: "xml"`, which is the default). XML reliably expresses block structure and styles, giving more control for targeted edits; do not switch to Markdown just because it seems simpler.
 
 ## Quick decisions
+- When the user needs a "direct link / anchor link to a specific block": return `<doc base URL>#block_id`. If you currently have only the document URL and no block_id, first use `lark_api({ tool: 'docs', op: 'fetch', args: { doc: '<token>', api_version: 'v2', detail: 'with-ids' } })` to obtain the target block's id
+- Example:
+  - Known document URL = `https://xxx.feishu.cn/docx/doxcn123`
+  - Known block_id = `blkcn456`
+  - Should return `https://xxx.feishu.cn/docx/doxcn123#blkcn456`
 - When the user needs to **create, copy, or move** resource blocks in a document (whiteboards, Sheets, Base, etc.), MUST first read the "III. Resource Blocks" section of [`lark-doc-xml.md`](references/lark-doc-xml.md)
 - When writing documents, important information (core workflows, architecture, comparisons, risks, roadmaps, key metrics, causal relationships) should be planned as whiteboards first — do not rely only on text or tables
 - New whiteboards MUST be isolated to a SubAgent: simple diagrams have the SubAgent insert `<whiteboard type="svg">full SVG</whiteboard>` directly without reading `lark-whiteboard`; only complex diagrams have the main Agent first create `<whiteboard type="blank"></whiteboard>`, then launch a SubAgent to read `lark-whiteboard` and write into it
 - User says "view images/attachments/media in the document" or "preview media" → use `lark_api({ tool: 'docs', op: 'media-preview', args: { doc: '<token>' } })`
 - User explicitly says "download media" → use `lark_api({ tool: 'docs', op: 'media-download', args: { ... } })`
 - If the target is a whiteboard/whiteboard thumbnail → MUST use `lark_api({ tool: 'docs', op: 'media-download', args: { type: 'whiteboard', token: '<whiteboard_token>' } })` (do NOT use `media-preview`)
-- User says "find a table", "search spreadsheet by name", "find a report", "recently opened spreadsheet", "recently edited xxx" → use `lark_api({ tool: 'drive', op: 'search', args: { ... } })` directly (see [`lark-drive`](../lark-drive/references/lark-drive-search.md)). **The old `docs search` is in maintenance mode and will be retired; do not add new dependencies on it.**
+- User says "find a table", "search a spreadsheet by name", "find a report", "recently opened spreadsheet", "recently edited xxx" → use `lark_api({ tool: 'drive', op: 'search', args: { ... } })` directly (see [`lark-drive`](../lark-drive/references/lark-drive-search.md)). **The old `docs search` is in maintenance mode and will be retired; do not add new dependencies on it.**
 - `drive search` results directly return `SHEET` / `Base` / `FOLDER` and other Drive objects — it is the unified entry point for resource discovery
 - After obtaining a spreadsheet URL/token → switch to `lark-sheets` for in-object operations
 - User says "add a comment to the document", "view comments", "reply to a comment", "add/remove an emoji reaction on a comment" → switch to `lark-drive` to handle
@@ -65,6 +70,7 @@ Shortcuts are high-level wrappers for common operations via the LarkSkill MCP to
 | [`create`](references/lark-doc-create.md) | `lark_api({ tool: 'docs', op: 'create', args: { api_version: 'v2', ... } })` — Create a Lark document (XML / Markdown) |
 | [`fetch`](references/lark-doc-fetch.md) | `lark_api({ tool: 'docs', op: 'fetch', args: { doc: '<token>', api_version: 'v2', ... } })` — Fetch Lark document content (XML / Markdown) |
 | [`update`](references/lark-doc-update.md) | `lark_api({ tool: 'docs', op: 'update', args: { doc: '<token>', api_version: 'v2', ... } })` — Update a Lark document (str_replace / block_insert_after / block_replace / ...) |
-| [`media-insert`](references/lark-doc-media-insert.md) | `lark_api({ tool: 'docs', op: 'media-insert', args: { ... } })` — Insert a local image or file at the end of a Lark document (4-step orchestration + auto-rollback). Prefer `from_clipboard: true` when the image is already on the system clipboard; use `file: '<path>'` only for on-disk sources. |
+| [`media-insert`](references/lark-doc-media-insert.md) | `lark_api({ tool: 'docs', op: 'media-insert', args: { ... } })` — Insert a local image or file at the end of a Lark document (4-step orchestration + auto-rollback). Prefer `from_clipboard: true` when the image is already on the system clipboard (screenshots, copy from Lark/browser); use `file: '<path>'` only for on-disk sources. |
 | [`media-download`](references/lark-doc-media-download.md) | `lark_api({ tool: 'docs', op: 'media-download', args: { ... } })` — Download document media or whiteboard thumbnail (auto-detects extension) |
+| [`media-preview`](references/lark-doc-media-preview.md) | `lark_api({ tool: 'docs', op: 'media-preview', args: { ... } })` — Preview document media file (auto-detects extension) |
 | [`whiteboard-update`](../lark-whiteboard/references/lark-whiteboard-update.md) | `lark_api({ tool: 'whiteboard', op: 'update', args: { ... } })` — Update an existing whiteboard with DSL, Mermaid or PlantUML. Refer to lark-whiteboard skill for details. |

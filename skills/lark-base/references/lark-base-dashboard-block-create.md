@@ -13,30 +13,33 @@
 
 ## 推荐命令
 
-```bash
-# 简单示例：创建一个指标卡（统计记录数）
-lark-cli base +dashboard-block-create \
-  --base-token xxx \
-  --dashboard-id blk_xxx \
-  --name "总记录数" \
-  --type statistics \
-  --data-config '{"table_name":"订单表","count_all":true}'
+```js
+// 简单示例：创建一个指标卡（统计记录数）
+lark_api({ tool: 'base', op: 'dashboard-block-create', args: {
+  base_token: 'xxx',
+  dashboard_id: 'blk_xxx',
+  name: '总记录数',
+  type: 'statistics',
+  data_config: {"table_name":"订单表","count_all":true}
+} })
 
-# 文本组件示例（Markdown 富文本）
-lark-cli base +dashboard-block-create \
-  --base-token xxx \
-  --dashboard-id blk_xxx \
-  --name "说明文字" \
-  --type text \
-  --data-config '{"text":"# 标题\n## 副标题\n**加粗** *斜体* ~~删除~~\n1. 列表1\n2. 列表2"}'
+// 文本组件示例（Markdown 富文本）
+lark_api({ tool: 'base', op: 'dashboard-block-create', args: {
+  base_token: 'xxx',
+  dashboard_id: 'blk_xxx',
+  name: '说明文字',
+  type: 'text',
+  data_config: {"text":"# 标题\n## 副标题\n**加粗** *斜体* ~~删除~~\n1. 列表1\n2. 列表2"}
+} })
 
-# 复杂配置用文件传入
-lark-cli base +dashboard-block-create \
-  --base-token xxx \
-  --dashboard-id blk_xxx \
-  --name "销售额趋势" \
-  --type line \
-  --data-config @config.json
+// 复杂配置用文件传入
+lark_api({ tool: 'base', op: 'dashboard-block-create', args: {
+  base_token: 'xxx',
+  dashboard_id: 'blk_xxx',
+  name: '销售额趋势',
+  type: 'line',
+  data_config: '@config.json'
+} })
 ```
 
 完整流程参考 [lark-base-dashboard.md](lark-base-dashboard.md) 的「场景 1：从 0 到 1 创建仪表盘」
@@ -45,13 +48,12 @@ lark-cli base +dashboard-block-create \
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--dashboard-id <id>` | 是 | 仪表盘 ID（从 `+dashboard-list/get` 获取） |
-| `--name <name>` | **是** | 组件名称（允许重名） |
-| `--type <type>` | **是** | 组件类型，见下方枚举值。**不同 type 对应不同的 data_config 结构**，常用：`column`(柱状图)、`line`(折线图)、`pie`(饼图)、`statistics`(指标卡)、`text`(文本) |
-| `--data-config <json>` | 否 | 数据配置 JSON，**结构随 type 变化**。**⚠️ 必须阅读 [dashboard-block-data-config.md](dashboard-block-data-config.md) 了解如何构造**。创建时会做本地校验，更新时由后端校验 |
-| `--user-id-type <type>` | 否 | 用户 ID 类型，filter 涉及人员字段时使用 |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `dashboard_id` | 是 | 仪表盘 ID（从 `dashboard-list/get` 获取） |
+| `name` | **是** | 组件名称（允许重名） |
+| `type` | **是** | 组件类型，见下方枚举值。**不同 type 对应不同的 data_config 结构**，常用：`column`(柱状图)、`line`(折线图)、`pie`(饼图)、`statistics`(指标卡)、`text`(文本) |
+| `data_config` | 否 | 数据配置 JSON，**结构随 type 变化**。**⚠️ 必须阅读 [dashboard-block-data-config.md](dashboard-block-data-config.md) 了解如何构造**。创建时会做本地校验，更新时由后端校验 |
+| `user_id_type` | 否 | 用户 ID 类型，filter 涉及人员字段时使用 |
 
 ### type 枚举值
 

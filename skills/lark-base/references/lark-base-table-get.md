@@ -6,18 +6,19 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +table-get \
-  --base-token app_xxx \
-  --table-id tbl_xxx
+```js
+lark_api({ tool: 'base', op: 'table-get', args: {
+  base_token: 'app_xxx',
+  table_id: 'tbl_xxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID（`id` 必须以 `tbl` 开头）或表名 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID（`id` 必须以 `tbl` 开头）或表名 |
 
 ## API 入参详情
 
@@ -27,7 +28,7 @@ lark-cli base +table-get \
 GET /open-apis/base/v3/bases/:base_token/tables/:table_id
 ```
 
-- CLI 内部还会继续查询 `/fields` 和 `/views`，并聚合输出。
+- 内部还会继续查询 `/fields` 和 `/views`，并聚合输出。
 
 ## 返回重点
 
@@ -36,8 +37,8 @@ GET /open-apis/base/v3/bases/:base_token/tables/:table_id
 
 ## 坑点
 
-- ⚠️ 如果 `--table-id` 传的是 `id`，必须是 `tbl` 开头；不是的话先询问用户具体是哪张表，或先用 `+table-list` 查表列表再确认。
-- ⚠️ `--table-id` 支持传表名，但重名场景下建议优先传 `tbl_xxx`。
+- ⚠️ 如果 `table_id` 传的是 `id`，必须是 `tbl` 开头；不是的话先询问用户具体是哪张表，或先用 `table-list` 查表列表再确认。
+- ⚠️ `table_id` 支持传表名，但重名场景下建议优先传 `tbl_xxx`。
 
 ## 参考
 

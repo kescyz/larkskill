@@ -6,18 +6,19 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +workflow-disable \
-  --base-token BascXxxxxx \
-  --workflow-id wkfxxxxxx
+```js
+lark_api({ tool: 'base', op: 'workflow-disable', args: {
+  base_token: 'BascXxxxxx',
+  workflow_id: 'wkfxxxxxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | 多维表格 Base Token（`Basc` 开头） |
-| `--workflow-id <id>` | 是 | 工作流 ID（`wkf` 开头） |
+| `base_token` | 是 | 多维表格 Base Token（`Basc` 开头） |
+| `workflow_id` | 是 | 工作流 ID（`wkf` 开头） |
 
 ## 如何从链接中提取参数
 
@@ -27,8 +28,8 @@ lark-cli base +workflow-disable \
 https://example.feishu.cn/base/<base_token>?table=<table_or_workflow_id>
 ```
 
-- `--base-token`：取 `/base/` 后面的字符串（`Basc` 开头）
-- `--workflow-id`：取 `?table=` 后面的值，当其以 `wkf` 开头时即为 workflow_id
+- `base_token`：取 `/base/` 后面的字符串（`Basc` 开头）
+- `workflow_id`：取 `?table=` 后面的值，当其以 `wkf` 开头时即为 workflow_id
 
 > ⚠️ **注意区分 ID 前缀**：table_id 以 `tbl` 开头，workflow_id 以 `wkf` 开头，两者在 URL 的 `?table=` 参数里都会出现，需要根据前缀判断。
 
@@ -75,8 +76,8 @@ PATCH /open-apis/base/v3/bases/:base_token/workflows/:workflow_id/disable
 > [!CAUTION]
 > 这是**写入操作** — 执行前必须向用户确认。
 
-1. 向用户确认 `--base-token` 和 `--workflow-id`
-2. 执行命令
+1. 向用户确认 `base_token` 和 `workflow_id`
+2. 执行操作
 3. 报告返回的 `status` 字段，确认值为 `disabled`
 
 ## 坑点

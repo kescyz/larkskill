@@ -7,54 +7,46 @@
 
 ## 用法
 
-```bash
-# 默认：收件箱邮件（默认 20 条，默认table 格式）
-lark-cli mail +triage
+```js
+// 默认：收件箱邮件（默认 20 条）
+lark_api({ tool: 'mail', op: 'triage', args: {} })
 
-# 查看收件箱未读
-lark-cli mail +triage --filter '{"folder":"inbox","is_unread":true}'
+// 查看收件箱未读
+lark_api({ tool: 'mail', op: 'triage', args: { filter: { folder: 'inbox', is_unread: true } } })
 
-# 全文搜索
-lark-cli mail +triage --query "合同审批"
+// 全文搜索
+lark_api({ tool: 'mail', op: 'triage', args: { query: '合同审批' } })
 
-# 按发件人 / 主题搜索
-lark-cli mail +triage --filter '{"from":["boss@example.com"],"subject":"季度报告"}'
+// 按发件人 / 主题搜索
+lark_api({ tool: 'mail', op: 'triage', args: { filter: { from: ['boss@example.com'], subject: '季度报告' } } })
 
-# 按时间范围搜索（如"上周的邮件"）
-lark-cli mail +triage --query "项目评审" --filter '{"time_range":{"start_time":"2026-03-16T00:00:00+08:00","end_time":"2026-03-22T23:59:59+08:00"}}'
+// 按时间范围搜索（如"上周的邮件"）
+lark_api({ tool: 'mail', op: 'triage', args: { query: '项目评审', filter: { time_range: { start_time: '2026-03-16T00:00:00+08:00', end_time: '2026-03-22T23:59:59+08:00' } } } })
 
-# 指定文件夹
-lark-cli mail +triage --filter '{"folder":"sent"}'
+// 指定文件夹
+lark_api({ tool: 'mail', op: 'triage', args: { filter: { folder: 'sent' } } })
 
-# 系统标签（可通过 folder 或 label 传入，搜索时自动转为 folder）
-lark-cli mail +triage --filter '{"folder":"flagged"}'
-lark-cli mail +triage --filter '{"label":"important"}'
-lark-cli mail +triage --filter '{"label":"重要邮件"}'
+// 系统标签（可通过 folder 或 label 传入，搜索时自动转为 folder）
+lark_api({ tool: 'mail', op: 'triage', args: { filter: { folder: 'flagged' } } })
+lark_api({ tool: 'mail', op: 'triage', args: { filter: { label: 'important' } } })
+lark_api({ tool: 'mail', op: 'triage', args: { filter: { label: '重要邮件' } } })
 
-# json/data 格式可配合 jq 处理
-lark-cli mail +triage --format json | jq '.messages[].subject'
-
-# 分页：先取 10 条，再用 page_token 翻页
-lark-cli mail +triage --max 10 --format json
-# 输出中包含 page_token，传入下一次请求
-lark-cli mail +triage --page-token 'list:FfccvoqPd...' --max 10 --format json
-
-# --page-size 是 --max 的别名
-lark-cli mail +triage --page-size 10
+// 分页：先取 10 条，再用 page_token 翻页
+lark_api({ tool: 'mail', op: 'triage', args: { max: 10 } })
+// 输出中包含 page_token，传入下一次请求
+lark_api({ tool: 'mail', op: 'triage', args: { page_token: 'list:FfccvoqPd...', max: 10 } })
 ```
 
 ## 参数
 
 | 参数 | 默认 | 说明 |
 |------|------|------|
-| `--filter <json>` | — | 筛选条件（见下方字段说明） |
-| `--query <text>` | — | 全文搜索关键词 |
-| `--format <mode>` | `table` | `table` / `json` / `data`（`json` 和 `data` 均输出含分页信息的对象） |
-| `--max <n>` | `20` | 最大返回条数（1-400），内部自动分页拉取 |
-| `--page-size <n>` | — | `--max` 的别名，两者含义相同；同时指定时 `--page-size` 优先 |
-| `--page-token <token>` | — | 上一次响应返回的分页令牌，传入后从该位置继续拉取。令牌带 `search:` 或 `list:` 前缀，标识来源路径，不可混用 |
-| `--labels` | — | table 格式时额外显示 labels 列 |
-| `--mailbox <id>` | `me` | 邮箱地址 |
+| `filter` | — | 筛选条件（见下方字段说明） |
+| `query` | — | 全文搜索关键词 |
+| `max` | `20` | 最大返回条数（1-400），内部自动分页拉取 |
+| `page_token` | — | 上一次响应返回的分页令牌，传入后从该位置继续拉取。令牌带 `search:` 或 `list:` 前缀，标识来源路径，不可混用 |
+| `labels` | — | 额外显示 labels 信息 |
+| `mailbox` | `me` | 邮箱地址 |
 
 ### `--filter` 支持的字段
 
@@ -74,13 +66,11 @@ lark-cli mail +triage --page-size 10
 > **系统标签说明**：`IMPORTANT`/`FLAGGED`/`OTHER` 可通过 `folder` 或 `label` 传入（也支持中文别名 `重要邮件`/`已加旗标`/`其他邮件`、搜索名 `priority`/`flagged`/`other`）。搜索时自动转为 folder 字段，列表时自动转为 label_id。label list 接口不返回这三个系统标签。
 >
 > **⚠️ 注意**：查询未读请用 `"is_unread":true`。
-可运行 `mail +triage --print-filter-schema` 查看完整字段说明。
+可通过 `lark_api_search({ query: 'mail triage filter schema' })` 查看完整字段说明。
 
 ## 输出
 
-### `--format json` / `--format data`
-
-两者输出格式相同，均为含分页信息的对象：
+返回为含分页信息的对象：
 
 ```json
 {
@@ -100,17 +90,12 @@ lark-cli mail +triage --page-size 10
 ```
 
 - `has_more`：是否还有下一页
-- `page_token`：传入 `--page-token` 可获取下一页；为空字符串表示已到末尾
+- `page_token`：传入 `page_token` 可获取下一页；为空字符串表示已到末尾
 - token 前缀 `search:` / `list:` 标识来源 API 路径，不可混用
 
-### `table` 格式
+### 续页提示
 
-`page_token` 信息输出在 stderr，自动携带 `--query`/`--filter` 参数方便续页：
-```text
-15 message(s)
-next page: mail +triage --query '合同审批' --page-token 'search:abc123...'
-tip: use mail +message --message-id <id> to read full content
-```
+`has_more: true` 时，把返回的 `page_token` 传回 `lark_api({ tool: 'mail', op: 'triage', args: { page_token: '...', ... } })`（保持 `query`/`filter` 参数一致）即可获取下一页。拿到 `message_id` 后用 `lark_api({ tool: 'mail', op: 'message', args: { message_id: '<id>' } })` 读取完整内容。
 
 ### 搜索分页注意事项
 

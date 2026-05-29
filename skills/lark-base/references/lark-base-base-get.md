@@ -6,16 +6,17 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +base-get \
-  --base-token app_xxx
+```js
+lark_api({ tool: 'base', op: 'base-get', args: {
+  base_token: 'app_xxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
+| `base_token` | 是 | Base Token |
 
 ## API 入参详情
 
@@ -32,7 +33,7 @@ GET /open-apis/base/v3/bases/:base_token
 ## 坑点
 
 - ⚠️ 先确认传入的是 `base_token`，不是 `workspace_token`。
-- ⚠️ 如果最初输入来自 `/wiki/...`，不要直接把 `wiki_token` 当 `--base-token`；若报 `param baseToken is invalid` / `base_token invalid`，先用 `lark-cli wiki spaces get_node` 取 `node.obj_token`，再重试 `+base-get`。
+- ⚠️ 如果最初输入来自 `/wiki/...`，不要直接把 `wiki_token` 当 `base_token`；若报 `param baseToken is invalid` / `base_token invalid`，先用 `lark_api({ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: '<wiki_url_or_token>' } })` 取 `node.obj_token`，再重试 `base-get`。
 
 ## 参考
 

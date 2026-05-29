@@ -16,14 +16,14 @@ This skill guides you on how to operate Lark resources via the LarkSkill MCP too
 
 On first use, run `lark_auth_login` to complete the app authorization flow.
 
-When you help the user initialize configuration, use `lark_auth_login` to start the authorization flow; once started, read the output, extract the authorization URL from it, and send it to the user.
+When you help the user initialize the configuration, use `lark_auth_login` to start the authorization flow; once started, read the output, extract the authorization URL from it, and send it to the user.
 
-**URL forwarding rule**: When the tool outputs `verification_url`, `verification_uri_complete`, `console_url`, or similar URL fields, you MUST forward the URL exactly as returned to the user and treat it as an immutable opaque string — do NOT URL-encode/decode it, do NOT append `%20`, spaces, or punctuation, do NOT re-assemble the query string, do NOT rewrite it as a Markdown link text. Recommended: output the raw URL in its own code block.
+**URL forwarding rule**: When the tool outputs URL fields such as `verification_url`, `verification_uri_complete`, or `console_url`, you MUST forward the URL exactly as returned to the user and treat it as an immutable opaque string — do NOT URL-encode/decode it, do NOT append `%20`, spaces, or punctuation, do NOT re-assemble the query string, and do NOT rewrite it as Markdown link text. Recommended: output the raw URL alone in its own code block.
 
 ```javascript
-// Start authorization flow
+// Start the authorization flow
 lark_auth_login({ domain: '<domain>' })
-// or with specific scope
+// or with a specific scope
 lark_auth_login({ scope: 'calendar:calendar:readonly' })
 ```
 
@@ -35,8 +35,8 @@ Two identity types, toggled via the active profile:
 
 | Identity | Identifier | How to obtain | Applicable scenarios |
 |------|------|---------|---------|
-| User identity | `as: "user"` | `lark_auth_login` + `lark_auth_poll` | Access user's own resources (calendar, Drive, etc.) |
-| Bot identity | `as: "bot"` | Automatic — only needs appId + appSecret | App-level operations, accessing bot's own resources |
+| User identity | `as: "user"` | `lark_auth_login` + `lark_auth_poll` | Access the user's own resources (calendar, Drive, etc.) |
+| Bot identity | `as: "bot"` | Automatic — only needs appId + appSecret | App-level operations, accessing the bot's own resources |
 
 ### Identity Selection Principles
 
@@ -44,34 +44,35 @@ The `[identity: bot/user]` in the output represents the current identity. Bot an
 
 - **Bot cannot see user resources**: Cannot access the user's calendar, Drive documents, mailbox, or other personal resources. For example, bot identity querying events returns the bot's own (empty) calendar.
 - **Bot cannot act on behalf of the user**: Messages are sent under the app name; documents created are owned by the bot.
-- **Bot permissions**: Only requires enabling scopes in the Lark Developer Console — no `lark_auth_login` needed.
-- **User permissions**: Both enabling scopes in the console AND user authorization via `lark_auth_login` + `lark_auth_poll` are required.
+- **Bot permissions**: Only requires enabling the scope in the Lark Developer Console — no `lark_auth_login` needed.
+- **User permissions**: Both enabling the scope in the console AND user authorization via `lark_auth_login` + `lark_auth_poll` are required — both layers must be satisfied.
+
 
 ### Handling Insufficient Permissions
 
 When you encounter permission-related errors, **take different remediation steps based on the current identity type**.
 
 The error response contains key information:
-- `permission_violations`: lists missing scopes (pick N)
+- `permission_violations`: lists missing scopes (pick 1 of N)
 - `console_url`: link to the Lark Developer Console permission configuration
 - `hint`: suggested fix command
 
 #### Bot identity
 
-Provide the `console_url` from the error verbatim to the user, guiding them to enable the scope in the console. **DO NOT** run `lark_auth_login` for bot identity.
+Provide the `console_url` from the error verbatim to the user, guiding them to enable the scope in the console. It is **forbidden** to run `lark_auth_login` for bot identity.
 
 #### User identity
 
 ```javascript
 lark_auth_login({ domain: '<domain>' })           // Authorize by business domain
-lark_auth_login({ scope: '<missing_scope>' })     // Authorize by specific scope (recommended — follows least-privilege principle)
+lark_auth_login({ scope: '<missing_scope>' })     // Authorize by specific scope (recommended — follows the least-privilege principle)
 ```
 
-**Rule**: `lark_auth_login` MUST specify a scope (`domain` or `scope`). Multiple logins accumulate scopes (incremental authorization). After calling `lark_auth_login`, call `lark_auth_poll` to complete the device flow.
+**Rule**: `lark_auth_login` MUST specify a scope (`domain` or `scope`). Scopes from multiple logins accumulate (incremental authorization). After calling `lark_auth_login`, call `lark_auth_poll` to complete the device flow.
 
 #### Agent-initiated authentication (recommended)
 
-When you as an AI agent need to help the user complete authentication, prefer the split-flow to avoid blocking and waiting for user authorization within the same conversation turn:
+When you, as an AI agent, need to help the user complete authentication, prefer the split-flow to avoid blocking and waiting for user authorization within the same conversation turn:
 
 ```javascript
 // Step 1: Initiate authorization (returns device_code and verification_url immediately)
@@ -102,6 +103,13 @@ Use `lark_whoami` to confirm the current identity and authorization status:
 lark_whoami({})
 ```
 
+Use `lark_auth_status` to check the current authorization state, and `lark_auth_logout` to clear stored credentials:
+
+```javascript
+lark_auth_status({})
+lark_auth_logout({})
+```
+
 Use `lark_enable_domain` to enable a business domain for the current user profile:
 
 ```javascript
@@ -115,25 +123,25 @@ After a LarkSkill MCP tool call, if a new version is detected, the JSON output w
 **When you see `_notice.update` in the output, after completing the user's current request, proactively offer to help the user update**:
 
 1. Inform the user of the current version and the latest version number.
-2. Offer to run the update (updates both CLI and Skills):
+2. Offer to run the update (updates both the CLI and Skills):
    ```bash
    lark-cli update
    ```
 3. After the update completes, remind the user: **exit and reopen the AI Agent** to load the latest Skills.
 
-**Important**: Always use `lark-cli update` to update — it updates both the CLI and AI Skills simultaneously.
+**Important**: Always use `lark-cli update` to update — it updates both the CLI and the AI Skills simultaneously.
 
 **Rule**: Do not silently ignore update notices. Even if the current task is unrelated to updating, notify the user after completing their request.
 
 ## Security Rules
 
 - **DO NOT output secrets** (appSecret, accessToken) as plaintext to the terminal.
-- **Confirm user intent before write/delete operations**.
+- **Confirm user intent before any write/delete operation.**
 - Use dry-run mode where available to preview dangerous requests.
 
 ## High-Risk Operation Approval Protocol
 
-The LarkSkill MCP enforces a mandatory confirmation gate for high-risk write operations. When you call such tools without explicit confirmation, the tool will return an error of type `confirmation_required` with a structured envelope:
+The LarkSkill MCP enforces a mandatory confirmation gate for high-risk write operations (`risk: "high-risk-write"`). When you call such a tool without explicit confirmation, the tool returns an error of type `confirmation_required` with the following structured envelope:
 
 ```json
 {
@@ -152,17 +160,17 @@ The LarkSkill MCP enforces a mandatory confirmation gate for high-risk write ope
 
 **Do NOT treat this as an ordinary error and give up.** Handle it with the following flow:
 
-1. **Identify**: error type is `confirmation_required`
-2. **Confirm with the user**: display `error.risk.action` and key parameters to the user, clearly stating "this is a high-risk operation", and wait for explicit user consent
-3. **User consents** → add `yes: true` to the args and retry
-4. **User refuses** → terminate the flow; do not arbitrarily rewrite parameters or bypass the gate
+1. **Identify**: the error type is `confirmation_required`.
+2. **Confirm with the user**: display `error.risk.action` and the key parameters to the user, clearly stating "this is a high-risk operation", and wait for explicit user consent.
+3. **User consents** → add `yes: true` to the args and retry.
+4. **User refuses** → terminate the flow; do not arbitrarily rewrite parameters or bypass the gate.
 
 **Strictly prohibited**:
-- Silently adding `yes: true` and retrying on seeing `confirmation_required` (this disables the gate)
-- Treating `confirmation_required` as a network error or permission error
-- Adding `yes: true` and retrying without explicit user consent
+- Silently adding `yes: true` and retrying on seeing `confirmation_required` (this disables the gate).
+- Treating `confirmation_required` as a network error or permission error.
+- Adding `yes: true` and retrying without explicit user consent.
 
-Plan ahead: to let the user review the details of a dangerous request before it runs, use dry-run mode where available — it does not trigger the gate and prints the complete request details; you can show this preview to the user before executing for real.
+Plan ahead: to let the user review the specifics of a dangerous request before it runs, use dry-run mode where available — it does not trigger the gate and prints the full request details (URL / body / params), so you can show this preview to the user before actually executing.
 
 ### How to identify a high-risk operation
 

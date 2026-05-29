@@ -6,20 +6,21 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +field-get \
-  --base-token app_xxx \
-  --table-id tbl_xxx \
-  --field-id fld_xxx
+```js
+lark_api({ tool: 'base', op: 'field-get', args: {
+  base_token: 'app_xxx',
+  table_id: 'tbl_xxx',
+  field_id: 'fld_xxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
-| `--field-id <id_or_name>` | 是 | 字段 ID 或字段名 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID 或表名 |
+| `field_id` | 是 | 字段 ID 或字段名 |
 
 ## API 入参详情
 

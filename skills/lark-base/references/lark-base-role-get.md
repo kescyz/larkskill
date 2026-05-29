@@ -8,19 +8,19 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +role-get \
-  --base-token VwGhb**************fMnod \
-  --role-id rolxxxxxx4
+```js
+lark_api({ tool: 'base', op: 'role-get', args: {
+  base_token: 'VwGhb**************fMnod',
+  role_id: 'rolxxxxxx4'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token，27 位字母数字字符串 |
-| `--role-id <id>` | 是 | 角色 ID，格式 `rol` + 8 位字母数字 |
-| `--format <fmt>` | 否 | 输出格式：json / pretty / table / csv / ndjson |
+| `base_token` | 是 | Base Token，27 位字母数字字符串 |
+| `role_id` | 是 | 角色 ID，格式 `rol` + 8 位字母数字 |
 
 ## API 入参详情
 
@@ -77,7 +77,7 @@ GET /open-apis/base/v3/bases/:base_token/roles/:role_id
 
 ## 坑点
 
-- ⚠️ **与 +role-list 的区别**：`+role-list` 只返回摘要（role_id/name/type），`+role-get` 返回完整的权限配置
+- ⚠️ **与 role-list 的区别**：`lark_api({ tool: 'base', op: 'role-list' })` 只返回摘要（role_id/name/type），`lark_api({ tool: 'base', op: 'role-get' })` 返回完整的权限配置
 - ⚠️ **data 是 JSON 字符串**：响应 `data` 是 string 类型，需要双重解析
 - ⚠️ **角色不存在时**：data 为空字符串，不会报错
 

@@ -1,14 +1,20 @@
 # Slide XML 模板
 
-可直接复制使用的 slide XML 模板。纯文本/形状模板可使用 `jq` 包装后传给 `xml_presentation.slide.create`：
+可直接复制使用的 slide XML 模板。纯文本/形状模板可把整段 XML 作为 `slide.content` 传给 `xml_presentation.slide.create`：
 
-```bash
-lark-cli slides xml_presentation.slide create --as user \
-  --params '{"xml_presentation_id":"YOUR_ID"}' \
-  --data "$(jq -n --arg content 'PASTE_XML_HERE' '{slide:{content:$content}}')"
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'YOUR_ID',
+    slide: { content: 'PASTE_XML_HERE' }
+  },
+  as: 'user'
+})
 ```
 
-> **带图模板不要直接按上面的命令提交。** 新建 PPT 时可在 `+create --slides` 中使用 `src="@./local.png"`，CLI 会自动上传并替换为 `file_token`；给已有 PPT 添加或修改图片时，必须先用 `slides +media-upload` 拿到 `file_token`，再写进 `<img src="...">`。
+> **带图模板不要直接按上面的命令提交。** 新建 PPT 时可在 `create` 的 `slides` 数组中使用 `src="@./local.png"`，会自动上传并替换为 `file_token`；给已有 PPT 添加或修改图片时，必须先用 `lark_api({ tool: 'slides', op: 'media-upload' })` 拿到 `file_token`，再写进 `<img src="...">`。
 
 ## 深色封面页
 
@@ -83,7 +89,7 @@ lark-cli slides xml_presentation.slide create --as user \
 
 ## 带图版式
 
-> **关键提醒**：`<img>` 的 `width:height` = 原图比例时才不会被裁剪。每个模板都标注了图框比例和建议原图比例，**选模板前先对照你的素材比例**，不要硬塞（如把横图放进竖框，会被左右裁掉大半）。把 `@./your-image.jpg` 替换为实际路径（仅 `+create --slides` 支持 `@` 占位符；其他场景需先用 `slides +media-upload` 拿 `file_token`）。
+> **关键提醒**：`<img>` 的 `width:height` = 原图比例时才不会被裁剪。每个模板都标注了图框比例和建议原图比例，**选模板前先对照你的素材比例**，不要硬塞（如把横图放进竖框，会被左右裁掉大半）。把 `@./your-image.jpg` 替换为实际路径（仅 `create` 的 `slides` 数组支持 `@` 占位符；其他场景需先用 `lark_api({ tool: 'slides', op: 'media-upload' })` 拿 `file_token`）。
 
 ### 封面右图（左字右图）
 

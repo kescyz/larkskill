@@ -6,20 +6,21 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +table-update \
-  --base-token app_xxx \
-  --table-id tbl_xxx \
-  --name "重点客户名单"
+```js
+lark_api({ tool: 'base', op: 'table-update', args: {
+  base_token: 'app_xxx',
+  table_id: 'tbl_xxx',
+  name: '重点客户名单'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
-| `--name <name>` | 是 | 新表名 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID 或表名 |
+| `name` | 是 | 新表名 |
 
 ## API 入参详情
 
@@ -37,7 +38,7 @@ PATCH /open-apis/base/v3/bases/:base_token/tables/:table_id
 ## 工作流
 
 
-1. 建议先用 `+table-get` 确认目标表。
+1. 建议先用 `table-get` 确认目标表。
 
 ## 坑点
 

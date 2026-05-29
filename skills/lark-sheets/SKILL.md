@@ -1,7 +1,7 @@
 ---
 name: lark-sheets
 version: 2.0.0
-description: "Use this skill when operating Lark Sheets via LarkSkill MCP: create spreadsheets, manage sheets, read/write cells, append rows, find content, and export files. To search for spreadsheet files by name or keyword, use the docs search operation first."
+description: "Use this skill when operating Lark Sheets via LarkSkill MCP: create spreadsheets, manage sheets, read/write cells, append rows, find content, and export files. To search Drive for spreadsheet files by name or keyword, use the Lark Drive search operation first to locate the resource. When the user provides a doubao.com `/sheets/` URL/token, also use this skill directly — routing is based on the URL path pattern and the token, not the domain."
 metadata:
   requires:
     mcp: "larkskill"
@@ -10,15 +10,16 @@ metadata:
 
 # sheets
 
-> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first.
+> **Prerequisite:** Read [`../lark-shared/SKILL.md`](../lark-shared/SKILL.md) first — it covers authentication and permission handling.
 > **Mandatory before execution:** Before invoking any `sheets` operation, read the corresponding command reference doc, then call the operation via `lark_api`.
 > **Naming convention:** Sheets operations call `lark_api({ tool: 'sheets', op: '<op>', args: {...} })`; if a Wiki link must be resolved first, call `lark_api` with the HTTP form `{ method: 'GET', path: '/open-apis/wiki/v2/spaces/get_node', params: { token: '<wiki_token>' } }` first.
 
 ## Quick Decision
 
-- To find spreadsheet files in Drive by title or keyword, use `lark_api({ tool: 'docs', op: 'search', args: {...} })` first.
-- `docs search` returns `SHEET` results directly — do not assume it only searches docs or Wikis.
-- Once you have a spreadsheet URL or token, proceed to internal object operations such as `lark_api({ tool: 'sheets', op: 'info', args: {...} })`, `lark_api({ tool: 'sheets', op: 'read', args: {...} })`, `lark_api({ tool: 'sheets', op: 'find', args: {...} })`, etc.
+- To find spreadsheet files in Drive by title or keyword, use `lark_api({ tool: 'drive', op: 'search', args: {...} })` first.
+- Lark Drive search returns spreadsheet (`sheet`) results directly — do not assume it only locates folders or other file types.
+- When the user provides a doubao.com `/sheets/` URL/token, use this skill directly — do not fall back to WebFetch just because the domain is not Lark; routing is based on the URL path pattern and the token, not the domain.
+- Once you have a spreadsheet URL or token, proceed to object-internal operations such as `lark_api({ tool: 'sheets', op: 'info', args: {...} })`, `lark_api({ tool: 'sheets', op: 'read', args: {...} })`, `lark_api({ tool: 'sheets', op: 'find', args: {...} })`, etc.
 
 ## Core Concepts
 
@@ -38,7 +39,7 @@ In the Lark open platform, different document types have different URL formats a
 
 ### Wiki Link Special Handling (Critical!)
 
-Wiki links (`/wiki/TOKEN`) may point to different document types: Docs, Sheets, Base, etc. **Do not assume the token in the URL is the `file_token`** — you must query the actual type and real token first.
+Wiki links (`/wiki/TOKEN`) may be backed by different document types: Docs, Sheets, Base, etc. **Do not assume the token in the URL is the `file_token`** — you must first query the actual type and the real token.
 
 #### Handling Flow
 
@@ -112,7 +113,7 @@ Drive Folder
    - If a filter already exists, calling create again overwrites the entire filter
 
 2. **update** — Update filter
-   - Used to add/update conditions on an existing filter for a specified column
+   - Used to add/update conditions for a specified column on an existing filter
    - Only specify col and condition; no range needed
 
 3. **delete** — Delete filter
@@ -124,7 +125,7 @@ Drive Folder
 Create a dual filter on media name (column B) and sentiment analysis (column E):
 
 ```
-// Use lark_api_search to discover exact parameter shapes for each step:
+// Use lark_api_search to discover the exact parameter shapes for each step:
 
 // Step 1 — delete existing filter
 // lark_api_search("sheets spreadsheet.sheet.filters delete")
@@ -140,7 +141,7 @@ Create a dual filter on media name (column B) and sentiment analysis (column E):
 ```
 
 **Common errors:**
-- `Wrong Filter Value`: filter already exists — delete then re-create
+- `Wrong Filter Value`: a filter already exists — you must delete then re-create
 - `Excess Limit`: update added the same column condition again
 
 ### Cell Data Types
@@ -151,19 +152,19 @@ In shortcuts that accept a 2D array (`write`/`append` `values`, `create` `data`)
 |------|-------------|---------|
 | String | `"text"` | `"hello"` |
 | Number | `number` | `123`, `3.14` |
-| Date | `number` (days since 1899-12-30; set cell date format first) | `42101` |
+| Date | `number` (days since 1899-12-30; set the cell date format first) | `42101` |
 | Link (URL only) | `"URL string"` | `"https://example.com"` |
 | Link (with text) | `{"type":"url","text":"display text","link":"URL"}` | `{"type":"url","text":"Lark","link":"https://www.feishu.cn"}` |
 | Email | `"email string"` | `"user@example.com"` |
 | **Formula** | `{"type":"formula","text":"=formula"}` | `{"type":"formula","text":"=SUM(A1:A10)"}` |
-| @mention (person) | `{"type":"mention","text":"identifier","textType":"email\|openId\|unionId","notify":false}` | `{"type":"mention","text":"user@example.com","textType":"email","notify":false}` (notify optional, default false; set true only when user explicitly requests notification) |
+| @mention (person) | `{"type":"mention","text":"identifier","textType":"email\|openId\|unionId","notify":false}` | `{"type":"mention","text":"user@example.com","textType":"email","notify":false}` (notify optional, default false; set true only when the user explicitly requests notification) |
 | @mention (doc) | `{"type":"mention","textType":"fileToken","text":"token","objType":"type"}` | `{"type":"mention","textType":"fileToken","text":"shtXXX","objType":"sheet"}` |
 | Dropdown | `{"type":"multipleValue","values":[val1,val2]}` | `{"type":"multipleValue","values":["Option A","Option B"]}` |
 
 **Writing a formula — example:**
 
 ```javascript
-// Correct: use object format
+// Correct: use the object format
 lark_api({ tool: 'sheets', op: 'write', args: {
   url: 'URL',
   sheet_id: 'sheetId',
@@ -171,7 +172,7 @@ lark_api({ tool: 'sheets', op: 'write', args: {
   values: [[{ type: 'formula', text: '=SUM(C2:C5)' }]]
 }})
 
-// Wrong: passing a string stores as plain text
+// Wrong: passing a plain string stores it as plain text
 // values: [['=SUM(C2:C5)']]
 ```
 
@@ -180,7 +181,7 @@ lark_api({ tool: 'sheets', op: 'write', args: {
 **Limitations:**
 - Formulas support IMPORTRANGE cross-sheet references (max 5 levels of nesting, max 100 references per sheet)
 - @mentions only support users in the same tenant; max 50 per call
-- Dropdowns require **pre-configured dropdown options**; otherwise `multipleValue` writes are stored as plain text. See [`references/lark-sheets-dropdown.md#set-dropdown`](references/lark-sheets-dropdown.md#set-dropdown) for setup. Values must not contain commas.
+- Dropdowns require **pre-configured dropdown options**; otherwise `multipleValue` writes are stored as plain text. See [`references/lark-sheets-dropdown.md#set-dropdown`](references/lark-sheets-dropdown.md#set-dropdown) for the setup method. Values in a string must not contain commas.
 
 ## Operations (use via LarkSkill MCP)
 
@@ -193,7 +194,7 @@ Reference doc: [spreadsheet-management](references/lark-sheets-spreadsheet-manag
 | Operation | Description |
 |-----------|-------------|
 | `lark_api({ tool: 'sheets', op: 'create', args: {...} })` | Create a spreadsheet (optional header row and initial data) |
-| `lark_api({ tool: 'sheets', op: 'info', args: {...} })` | View spreadsheet and sheet information |
+| `lark_api({ tool: 'sheets', op: 'info', args: {...} })` | View spreadsheet metadata and sheet information |
 | `lark_api({ tool: 'sheets', op: 'export', args: {...} })` | Export a spreadsheet (async task polling + optional download) |
 
 ### Sheet Management
@@ -261,10 +262,11 @@ Reference doc: [filter-views](references/lark-sheets-filter-views.md)
 | `lark_api({ tool: 'sheets', op: 'list-filter-views', args: {...} })` | List all filter views in a sheet |
 | `lark_api({ tool: 'sheets', op: 'get-filter-view', args: {...} })` | Get a filter view by ID |
 | `lark_api({ tool: 'sheets', op: 'delete-filter-view', args: {...} })` | Delete a filter view |
+| `lark_api({ tool: 'sheets', op: 'create-filter-view-condition', args: {...} })` | Create a filter condition on a filter view |
+| `lark_api({ tool: 'sheets', op: 'update-filter-view-condition', args: {...} })` | Update a filter condition |
 | `lark_api({ tool: 'sheets', op: 'list-filter-view-conditions', args: {...} })` | List all filter conditions of a filter view |
 | `lark_api({ tool: 'sheets', op: 'get-filter-view-condition', args: {...} })` | Get a filter condition by column |
-
-> **Note**: `create-filter-view-condition`, `update-filter-view-condition`, and `delete-filter-view-condition` are not available as MCP shortcut ops. Use the raw `spreadsheet.sheet.filters` API operations (create/update/delete) to manage filter conditions on sheets directly.
+| `lark_api({ tool: 'sheets', op: 'delete-filter-view-condition', args: {...} })` | Delete a filter condition |
 
 ### Dropdown
 
@@ -272,10 +274,10 @@ Reference doc: [dropdown](references/lark-sheets-dropdown.md)
 
 | Operation | Description |
 |-----------|-------------|
-| `lark_api({ tool: 'sheets', op: 'set-dropdown', args: {...} })` | Set dropdown options (prerequisite step for `multipleValue` writes) |
+| `lark_api({ tool: 'sheets', op: 'set-dropdown', args: {...} })` | Set the dropdown options (prerequisite step for `multipleValue` writes) |
 | `lark_api({ tool: 'sheets', op: 'update-dropdown', args: {...} })` | Update dropdown options |
 | `lark_api({ tool: 'sheets', op: 'get-dropdown', args: {...} })` | Query dropdown configuration |
-| `lark_api({ tool: 'sheets', op: 'delete-dropdown', args: {...} })` | Delete dropdown |
+| `lark_api({ tool: 'sheets', op: 'delete-dropdown', args: {...} })` | Delete the dropdown |
 
 ### Float Images
 

@@ -6,22 +6,19 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +dashboard-block-list \
-  --base-token bascn***************CtadY \
-  --dashboard-id blkxxx
+```js
+lark_api({ tool: 'base', op: 'dashboard-block-list', args: {
+  base_token: 'bascn***************CtadY',
+  dashboard_id: 'blkxxx'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--dashboard-id <id>` | 是 | 仪表盘 ID |
-| `--page-size <n>` | 否 | 每页数量，默认 20，最大 100 |
-| `--page-token <token>` | 否 | 分页标记 |
-| `--format <fmt>` | 否 | 输出格式：json / pretty / table / csv / ndjson |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `dashboard_id` | 是 | 仪表盘 ID |
 
 ## 返回示例
 
@@ -46,7 +43,7 @@ lark-cli base +dashboard-block-list \
 
 ## 坑点
 
-- `+dashboard-block-list` 禁止并发调用；批量执行时只能串行。
+- `dashboard-block-list` 禁止并发调用；批量执行时只能串行。
 
 ## 参考
 

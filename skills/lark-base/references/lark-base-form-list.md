@@ -6,35 +6,28 @@
 
 ## 命令
 
-```bash
-# 列出指定数据表的所有表单
-lark-cli base +form-list \
-  --base-token <base_token> \
-  --table-id <table_id>
+```js
+// 列出指定数据表的所有表单
+lark_api({ tool: 'base', op: 'form-list', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>'
+} })
 
-# 以表格形式展示
-lark-cli base +form-list \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --format table
-
-# 使用应用身份（bot）
-lark-cli base +form-list \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --as bot
+// 使用应用身份（bot）
+lark_api({ tool: 'base', op: 'form-list', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  as: 'bot'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token（base_token） |
-| `--table-id <id>` | 是 | 数据表 ID |
-| `--page-size <n>` | 否 | 每次请求的分页大小，默认 100，最大 100 |
-| `--format` | 否 | 输出格式：json（默认）\| pretty \| table \| ndjson \| csv |
-| `--as` | 否 | 身份：user（默认）\| bot |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token（base_token） |
+| `table_id` | 是 | 数据表 ID |
+| `as` | 否 | 身份：user（默认）\| bot |
 
 ## 输出格式
 
@@ -46,7 +39,7 @@ lark-cli base +form-list \
 | `name` | 表单名称 |
 | `description` | 表单描述 |
 
-JSON 输出示例（`--format json`，默认）：
+JSON 输出示例（默认）：
 
 ```json
 {
@@ -64,7 +57,7 @@ JSON 输出示例（`--format json`，默认）：
 ## 提示
 
 - `base_token` 在多维表格 URL 中可找到（形如 `bascnXXXX`）
-- `table_id` 可通过 `lark-cli base +table-list --base-token <base_token>` 获取
+- `table_id` 可通过 `lark_api({ tool: 'base', op: 'table-list', args: { base_token: '<base_token>' } })` 获取
 - 如无表单，输出 `forms: []`
 
 ## 参考

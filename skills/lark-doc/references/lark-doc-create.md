@@ -14,18 +14,18 @@
 
 ## 命令
 
-```bash
-# 创建 XML 文档（默认格式，推荐）
-lark-cli docs +create --api-version v2 --content '<title>项目计划</title><h1>目标</h1><ul><li>目标 1</li><li>目标 2</li></ul>'
+```js
+// 创建 XML 文档（默认格式，推荐）
+lark_api({ tool: 'docs', op: 'create', args: { api_version: 'v2', content: '<title>项目计划</title><h1>目标</h1><ul><li>目标 1</li><li>目标 2</li></ul>' } })
 
-# 创建到指定文件夹（XML）
-lark-cli docs +create --api-version v2 --parent-token fldcnXXXX --content '<title>标题</title><p>首段内容</p>'
+// 创建到指定文件夹（XML）
+lark_api({ tool: 'docs', op: 'create', args: { api_version: 'v2', parent_token: 'fldcnXXXX', content: '<title>标题</title><p>首段内容</p>' } })
 
-# 创建到个人知识库（XML）
-lark-cli docs +create --api-version v2 --parent-position my_library --content '<title>标题</title><p>内容</p>'
+// 创建到个人知识库（XML）
+lark_api({ tool: 'docs', op: 'create', args: { api_version: 'v2', parent_position: 'my_library', content: '<title>标题</title><p>内容</p>' } })
 
-# 仅当用户明确要求时才使用 Markdown
-lark-cli docs +create --api-version v2 --doc-format markdown --content $'# 项目计划\n\n## 目标\n\n- 目标 1\n- 目标 2'
+// 仅当用户明确要求时才使用 Markdown
+lark_api({ tool: 'docs', op: 'create', args: { api_version: 'v2', doc_format: 'markdown', content: '# 项目计划\n\n## 目标\n\n- 目标 1\n- 目标 2' } })
 ```
 
 ## 返回值
@@ -47,14 +47,14 @@ lark-cli docs +create --api-version v2 --doc-format markdown --content $'# 项�
 }
 ```
 
-- **`document.new_blocks`**：本次操作新增的 block 列表（如画板）。`block_id` 可用于 `docs +update` 的 `--block-id` 做精确编辑；`block_token` 是资源块（如画板）的 token，可交给 `lark-whiteboard` 等 skill 继续操作
+- **`document.new_blocks`**：本次操作新增的 block 列表（如画板）。`block_id` 可用于 `lark_api({ tool: 'docs', op: 'update' })` 的 `block_id` 做精确编辑；`block_token` 是资源块（如画板）的 token，可交给 `lark-whiteboard` 等 skill 继续操作
 
 > \[!IMPORTANT]
-> 如果文档是**以应用身份（bot）创建**的，如 `lark-cli docs +create --as bot` 在文档创建成功后，CLI 会**尝试为当前 CLI 用户自动授予该文档的 `full_access`（可管理权限）**。
+> 如果文档是**以应用身份（bot）创建**的，如 `lark_api({ tool: 'docs', op: 'create', args: { as: 'bot' } })` 在文档创建成功后，CLI 会**尝试为当前 CLI 用户自动授予该文档的 `full_access`（可管理权限）**。
 >
 > 以应用身份创建时，结果里会额外返回 `permission_grant` 字段，明确说明授权结果：
 > - `status = granted`：当前 CLI 用户已获得该文档的可管理权限
-> - `status = skipped`：本地没有可用的当前用户 `open_id`，因此不会自动授权；可提示用户先完成 `lark-cli auth login`，再让 AI / agent 继续使用应用身份（bot）授予当前用户权限
+> - `status = skipped`：本地没有可用的当前用户 `open_id`，因此不会自动授权；可提示用户先完成 `lark_auth_login`，再让 AI / agent 继续使用应用身份（bot）授予当前用户权限
 > - `status = failed`：文档已创建成功，但自动授权用户失败；会带上失败原因，并提示稍后重试或继续使用 bot 身份处理该文档
 >
 > `permission_grant.perm = full_access` 表示该资源已授予”可管理权限”。
@@ -65,16 +65,16 @@ lark-cli docs +create --api-version v2 --doc-format markdown --content $'# 项�
 
 | 参数                  | 必填 | 说明                                          |
 | ------------------- | -- |---------------------------------------------|
-| `--api-version`     | 是  | 固定传 `v2`                                    |
-| `--content`         | 是  | 文档内容（XML 或 Markdown 格式）                     |
-| `--doc-format`      | 否  | 内容格式：`xml`（默认，始终优先使用）\| `markdown`（仅用户明确要求时） |
-| `--parent-token`    | 否  | 父文件夹或知识库节点 token（与 `--parent-position` 互斥）  |
-| `--parent-position` | 否  | 父节点位置，如 `my_library`（与 `--parent-token` 互斥） |
+| `api_version`     | 是  | 固定传 `v2`                                    |
+| `content`         | 是  | 文档内容（XML 或 Markdown 格式）                     |
+| `doc_format`      | 否  | 内容格式：`xml`（默认，始终优先使用）\| `markdown`（仅用户明确要求时） |
+| `parent_token`    | 否  | 父文件夹或知识库节点 token（与 `parent_position` 互斥）  |
+| `parent_position` | 否  | 父节点位置，如 `my_library`（与 `parent_token` 互斥） |
 
 ## 最佳实践
 
 - 文档标题从内容中自动提取（XML `<title>` 或 Markdown `#`），不要在内容开头重复写标题
-- **创建较长的文档时只建骨架**：`--content` 仅传标题 + 各级 heading + 简短占位摘要；正文留给后续 `docs +update --command append` 或 `block_insert_after` 分段追加。一次性塞超长 `--content` 既容易触发参数限制，调试也更难。
+- **创建较长的文档时只建骨架**：`content` 仅传标题 + 各级 heading + 简短占位摘要；正文留给后续 `lark_api({ tool: 'docs', op: 'update', args: { command: 'append' } })` 或 `block_insert_after` 分段追加。一次性塞超长 `content` 既容易触发参数限制，调试也更难。
 - **视觉丰富度**：必须遵循 [`lark-doc-style.md`](style/lark-doc-style.md) 中的样式指南，主动使用结构化 block 丰富文档
 
 ## 参考
@@ -86,4 +86,3 @@ lark-cli docs +create --api-version v2 --doc-format markdown --content $'# 项�
 - [`lark-doc-update.md`](lark-doc-update.md) — 更新文档
 - [`lark-doc-media-insert.md`](lark-doc-media-insert.md) — 插入图片/文件到文档
 - [`../../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) — 认证和全局参数
-

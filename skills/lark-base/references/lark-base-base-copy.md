@@ -6,28 +6,30 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +base-copy \
-  --base-token app_xxx \
-  --name "Copied Base"
+```js
+lark_api({ tool: 'base', op: 'base-copy', args: {
+  base_token: 'app_xxx',
+  name: 'Copied Base'
+} })
 
-lark-cli base +base-copy \
-  --base-token app_xxx \
-  --name "Copied Base" \
-  --folder-token fld_xxx \
-  --time-zone Asia/Shanghai \
-  --without-content
+lark_api({ tool: 'base', op: 'base-copy', args: {
+  base_token: 'app_xxx',
+  name: 'Copied Base',
+  folder_token: 'fld_xxx',
+  time_zone: 'Asia/Shanghai',
+  without_content: true
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | 源 Base Token |
-| `--name <name>` | 否 | 新 Base 名称 |
-| `--folder-token <token>` | 否 | 目标文件夹 token |
-| `--time-zone <tz>` | 否 | 时区，如 `Asia/Shanghai` |
-| `--without-content` | 否 | 只复制结构，不复制内容 |
+| `base_token` | 是 | 源 Base Token |
+| `name` | 否 | 新 Base 名称 |
+| `folder_token` | 否 | 目标文件夹 token |
+| `time_zone` | 否 | 时区，如 `Asia/Shanghai` |
+| `without_content` | 否 | 只复制结构，不复制内容 |
 
 ## API 入参详情
 
@@ -64,8 +66,8 @@ POST /open-apis/base/v3/bases/:base_token/copy
 > 这是**写入操作** — 执行前必须向用户确认。
 
 1. 先确认源 Base Token。
-2. `--name`、`--folder-token`、`--time-zone` 都是可选项；用户没要求时不要为这些可选参数额外追问。
-3. 只要结构时，显式传 `--without-content`。
+2. `name`、`folder_token`、`time_zone` 都是可选项；用户没要求时不要为这些可选参数额外追问。
+3. 只要结构时，显式传 `without_content: true`。
 4. 复制成功后，整理并返回：新 Base 名称、token，以及响应中已有的可访问链接。
 
 ## 参考

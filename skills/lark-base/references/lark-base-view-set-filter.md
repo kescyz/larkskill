@@ -30,13 +30,23 @@
 
 ## 3. value 写法
 
-### `text` / `location`
+### `text`
 
 用字符串：
 
 ```json
 ["标题", "intersects", "发布"]
 ```
+
+### `location`
+
+location 筛选只按 `full_address` 字符串匹配，不能直接按经纬度筛选；优先使用 `intersects` 做包含匹配，例如查深圳：
+
+```json
+["位置", "intersects", "深圳"]
+```
+
+不推荐写 `["位置", "==", "深圳"]` 这类精确匹配，除非确保筛选值与完整 `full_address` 完全一致。
 
 ### `number` / `auto_number`
 
@@ -58,7 +68,7 @@
 
 用对象数组：
 
-> **人员筛选：不要猜 ID。** 不知道 `open_id` 时，先用 `lark-contact` 查 id：`lark-cli contact +search-user --query "<姓名/邮箱/手机号>" --as user`。
+> **人员筛选：不要猜 ID。** 不知道 `open_id` 时，先用 `lark-contact` 查 id：`lark_api({ tool: 'contact', op: 'search-user', args: { query: '<姓名/邮箱/手机号>', as: 'user' } })`。
 
 ```json
 ["负责人", "intersects", [{ "id": "ou_xxx" }]]
@@ -68,7 +78,7 @@
 
 用对象数组：
 
-> **群组筛选：不要猜 ID。** 不知道 `chat_id` 时，先用 `lark-im` 搜群：`lark-cli im +chat-search --query "<群名关键词>" --as user`；取结果里的 `oc_xxx`。
+> **群组筛选：不要猜 ID。** 不知道 `chat_id` 时，先用 `lark-im` 搜群：`lark_api({ tool: 'im', op: 'chat-search', args: { query: '<群名关键词>', as: 'user' } })`；取结果里的 `oc_xxx`。
 
 ```json
 ["负责群", "intersects", [{ "id": "oc_xxx" }]]
@@ -131,12 +141,13 @@
 
 ## 4. 推荐命令
 
-```bash
-lark-cli base +view-set-filter \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id> \
-  --json '{"logic":"and","conditions":[["状态","intersects",["Doing"]],["负责人","intersects",[{"id":"ou_xxx"}]],["截止时间","empty"]]}'
+```js
+lark_api({ tool: 'base', op: 'view-set-filter', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>',
+  json: { logic: 'and', conditions: [['状态', 'intersects', ['Doing']], ['负责人', 'intersects', [{ id: 'ou_xxx' }]], ['截止时间', 'empty']] }
+} })
 ```
 
 ## 5. JSON 写法

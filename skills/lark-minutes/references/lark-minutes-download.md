@@ -5,45 +5,41 @@
 
 下载妙记的音视频媒体文件到本地，或获取有效期 1 天的下载链接。只读操作。
 
-本 skill 对应 shortcut：`lark-cli minutes +download`。
+本 skill 对应 shortcut：`lark_api({ tool: 'minutes', op: 'download' })`。
 
 ## 命令
 
-```bash
-# 下载妙记（默认布局，落到 ./minutes/{minute_token}/<server-filename>）
-lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx
+```js
+// 下载妙记（默认布局，落到 ./minutes/{minute_token}/<server-filename>）
+lark_api({ tool: 'minutes', op: 'download', args: { minute_tokens: 'obcnxxxxxxxxxxxxxxxxxxxx' } })
 
-# 指定输出文件（单 token，文件路径）
-lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx --output ./meeting.mp4
+// 指定输出文件（单 token，文件路径）
+lark_api({ tool: 'minutes', op: 'download', args: { minute_tokens: 'obcnxxxxxxxxxxxxxxxxxxxx', output: './meeting.mp4' } })
 
-# 指定输出目录（单/批量均可，目录路径）
-lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx --output-dir ./downloads
+// 指定输出目录（单/批量均可，目录路径）
+lark_api({ tool: 'minutes', op: 'download', args: { minute_tokens: 'obcnxxxxxxxxxxxxxxxxxxxx', output_dir: './downloads' } })
 
-# 仅获取下载链接（有效期 1 天），不下载文件
-lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx --url-only
+// 仅获取下载链接（有效期 1 天），不下载文件
+lark_api({ tool: 'minutes', op: 'download', args: { minute_tokens: 'obcnxxxxxxxxxxxxxxxxxxxx', url_only: true } })
 
-# 批量下载多个妙记（默认布局，逐个落到 ./minutes/{minute_token}/）
-lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx,obcnyyyyyyyyyyyyyyyyyyyy
+// 批量下载多个妙记（默认布局，逐个落到 ./minutes/{minute_token}/）
+lark_api({ tool: 'minutes', op: 'download', args: { minute_tokens: 'obcnxxxxxxxxxxxxxxxxxxxx,obcnyyyyyyyyyyyyyyyyyyyy' } })
 
-# 批量下载到同一指定目录
-lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx,obcnyyyyyyyyyyyyyyyyyyyy --output-dir ./downloads
-
-# 预览 API 调用
-lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx --dry-run
+// 批量下载到同一指定目录
+lark_api({ tool: 'minutes', op: 'download', args: { minute_tokens: 'obcnxxxxxxxxxxxxxxxxxxxx,obcnyyyyyyyyyyyyyyyyyyyy', output_dir: './downloads' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--minute-tokens <tokens>` | 是 | 妙记 Token，逗号分隔支持批量（最多 50 个） |
-| `--output <path>` | 否 | 输出文件路径（单 token）。若传入的是已存在目录，等价于 `--output-dir`。与 `--output-dir` 互斥 |
-| `--output-dir <dir>` | 否 | 输出目录（单/批量均可）。与 `--output` 互斥 |
-| `--overwrite` | 否 | 覆盖已存在的输出文件 |
-| `--url-only` | 否 | 仅返回下载链接，不下载文件 |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `minute_tokens` | 是 | 妙记 Token，逗号分隔支持批量（最多 50 个） |
+| `output` | 否 | 输出文件路径（单 token）。若传入的是已存在目录，等价于 `output_dir`。与 `output_dir` 互斥 |
+| `output_dir` | 否 | 输出目录（单/批量均可）。与 `output` 互斥 |
+| `overwrite` | 否 | 覆盖已存在的输出文件 |
+| `url_only` | 否 | 仅返回下载链接，不下载文件 |
 
-> **默认落点**：未指定 `--output` / `--output-dir` 时，文件落到 `./minutes/{minute_token}/<server-filename>`。文件名沿用服务端 Content-Disposition / Content-Type 推断，Agent 可从 `saved_path` 字段读取实际路径。同一 minute_token 的录像和 `vc +notes` 的逐字稿默认会落在**同一目录**下，方便聚合。
+> **默认落点**：未指定 `output` / `output_dir` 时，文件落到 `./minutes/{minute_token}/<server-filename>`。文件名沿用服务端 Content-Disposition / Content-Type 推断，Agent 可从 `saved_path` 字段读取实际路径。同一 minute_token 的录像和 `lark_api({ tool: 'vc', op: 'notes' })` 的逐字稿默认会落在**同一目录**下，方便聚合。
 
 ## 核心约束
 
@@ -53,7 +49,7 @@ lark-cli minutes +download --minute-tokens obcnxxxxxxxxxxxxxxxxxxxx --dry-run
 
 ### 2. 下载链接有效期 1 天
 
-`--url-only` 返回的链接有效期为 1 天，过期后需重新获取。
+`url_only` 返回的链接有效期为 1 天，过期后需重新获取。
 
 ### 3. 频率限制
 
@@ -85,11 +81,11 @@ API 限流 5 次/秒，批量下载时需注意控制频率。
 | 字段 | 说明 |
 |------|------|
 | `minute_token` | 妙记 Token（用于 Agent 索引） |
-| `artifact_type` | 固定为 `"recording"`（与 `vc +notes` 的 `"transcript"` 区分） |
+| `artifact_type` | 固定为 `"recording"`（与 `lark_api({ tool: 'vc', op: 'notes' })` 的 `"transcript"` 区分） |
 | `saved_path` | 文件保存的本地路径（绝对路径） |
 | `size_bytes` | 文件大小（字节） |
 
-### URL 模式（--url-only）
+### URL 模式（url_only）
 
 ```json
 {
@@ -108,8 +104,8 @@ API 限流 5 次/秒，批量下载时需注意控制频率。
 | 来源 | 获取方式 |
 |------|---------|
 | 妙记 URL | 从 URL 末尾提取，如 `https://sample.feishu.cn/minutes/obcnxxxxxxxxxxxxxxxxxxxx` → `obcnxxxxxxxxxxxxxxxxxxxx` |
-| 妙记元信息查询 | `lark-cli minutes minutes get --params '{"minute_token": "obcn..."}'` |
-| 会议录制查询 | `lark-cli vc +recording --meeting-ids <id>` 或 `lark-cli vc +recording --calendar-event-ids <event_id>` |
+| 妙记元信息查询 | `lark_api({ tool: 'minutes', op: 'minutes.get', args: { minute_token: 'obcn...' } })` |
+| 会议录制查询 | `lark_api({ tool: 'vc', op: 'recording', args: { meeting_ids: '<id>' } })` 或 `lark_api({ tool: 'vc', op: 'recording', args: { calendar_event_ids: '<event_id>' } })` |
 
 ## 常见错误与排查
 
@@ -120,14 +116,14 @@ API 限流 5 次/秒，批量下载时需注意控制频率。
 | 妙记尚未准备好 | 2091003 | 转写未完成 | 等待转写完成后重试 |
 | 资源已删除 | 2091004 | 妙记已被删除 | 确认妙记文件仍然存在 |
 | 权限不足 | 2091005 | 无阅读权限 | 检查是否有该妙记的访问权限 |
-| `missing required scope(s)` | — | 应用缺少权限 | 运行 `auth login --scope "minutes:minutes.media:export"` |
+| `missing required scope(s)` | — | 应用缺少权限 | 运行 `lark_auth_login`（scope `minutes:minutes.media:export`） |
 
 ## 提示
 
 - 音视频文件可能较大，下载无固定超时限制（由用户 Ctrl+C 控制取消）。
-- 默认落点 `./minutes/{minute_token}/` 与 `vc +notes` 的逐字稿共享同一目录，方便 Agent 聚合同一会议的所有产物。
-- 单 token 模式下 `--output` 若传入已存在目录（如 `--output ./existing-dir`），等价于 `--output-dir`，文件落入该目录（cp 语义）。
-- 批量模式下 `--output` 不接受已存在的文件路径（会报错），应改用 `--output-dir`。
+- 默认落点 `./minutes/{minute_token}/` 与 `lark_api({ tool: 'vc', op: 'notes' })` 的逐字稿共享同一目录，方便 Agent 聚合同一会议的所有产物。
+- 单 token 模式下 `output` 若传入已存在目录（如 `output: './existing-dir'`），等价于 `output_dir`，文件落入该目录（cp 语义）。
+- 批量模式下 `output` 不接受已存在的文件路径（会报错），应改用 `output_dir`。
 - 如需获取妙记的纪要内容（逐字稿、AI 总结等），请使用 [vc +notes](../../lark-vc/references/lark-vc-notes.md)。
 
 ## 参考

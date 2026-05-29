@@ -6,38 +6,31 @@
 
 ## 命令
 
-```bash
-# 获取表单详情
-lark-cli base +form-get \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --form-id <form_id>
+```js
+// 获取表单详情
+lark_api({ tool: 'base', op: 'form-get', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  form_id: '<form_id>'
+} })
 
-# 以 pretty 格式展示
-lark-cli base +form-get \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --form-id <form_id> \
-  --format pretty
-
-# 使用应用身份（bot）
-lark-cli base +form-get \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --form-id <form_id> \
-  --as bot
+// 使用应用身份（bot）
+lark_api({ tool: 'base', op: 'form-get', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  form_id: '<form_id>',
+  as: 'bot'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token（base_token） |
-| `--table-id <id>` | 是 | 数据表 ID |
-| `--form-id <id>` | 是 | 表单 ID |
-| `--format` | 否 | 输出格式：json（默认）\| pretty \| table \| ndjson \| csv |
-| `--as` | 否 | 身份：user（默认）\| bot |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token（base_token） |
+| `table_id` | 是 | 数据表 ID |
+| `form_id` | 是 | 表单 ID |
+| `as` | 否 | 身份：user（默认）\| bot |
 
 ## 输出格式
 
@@ -60,7 +53,7 @@ lark-cli base +form-get \
 
 ## 提示
 
-- `form_id` 可通过 `lark-cli base +form-list --base-token <token> --table-id <id>` 获取
+- `form_id` 可通过 `lark_api({ tool: 'base', op: 'form-list', args: { base_token: '<token>', table_id: '<id>' } })` 获取
 
 ## 参考
 

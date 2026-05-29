@@ -10,27 +10,28 @@
 
 ## 推荐命令
 
-```bash
-# 创建仪表盘
-lark-cli base +dashboard-create \
-  --base-token VwGhb**************fMnod \
-  --name "销售报表"
+```js
+// 创建仪表盘
+lark_api({ tool: 'base', op: 'dashboard-create', args: {
+  base_token: 'VwGhb**************fMnod',
+  name: '销售报表'
+} })
 
-# 创建仪表盘（指定主题）
-lark-cli base +dashboard-create \
-  --base-token VwGhb**************fMnod \
-  --name "销售报表" \
-  --theme-style default
+// 创建仪表盘（指定主题）
+lark_api({ tool: 'base', op: 'dashboard-create', args: {
+  base_token: 'VwGhb**************fMnod',
+  name: '销售报表',
+  theme_style: 'default'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--name <name>` | 是 | 仪表盘名称 |
-| `--theme-style <style>` | 否 | 主题风格（见下方枚举） |
-| `--dry-run` | 否 | 预览 API 调用，不执行 |
+| `base_token` | 是 | Base Token |
+| `name` | 是 | 仪表盘名称 |
+| `theme_style` | 否 | 主题风格（见下方枚举） |
 
 ### theme-style 枚举
 

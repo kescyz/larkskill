@@ -7,65 +7,65 @@
 - ✅ 已知姓名 / 邮箱 / 「聊过的人」想找出 open_id
 - ✅ 已知一组 open_id 想批量校验或回填字段(`--user-ids`,最多 100,支持 `me`)
 - ✅ 按聊天关系 / 在职状态 / 租户边界 / 企业邮箱等维度筛选员工
-- ❌ 已知 open_id 想拿完整 profile → 用 `+get-user --as bot`
+- ❌ 已知 open_id 想拿完整 profile → 用 `lark_api({ tool: 'contact', op: 'get-user', args: { as: 'bot' } })`
 - ❌ 已知 open_id 想发消息 → 直接走 `lark-im`,不经过本命令
 
 ## 关键 flag
 
-`--query` / `--queries` / `--user-ids` / bool filter 至少传一个。bool filter 显式传 `=false` 会报错——不传等于不过滤。
+`query` / `queries` / `user_ids` / bool filter 至少传一个。bool filter 显式传 `=false` 会报错——不传等于不过滤。
 
 | Flag | 作用 |
 |---|---|
-| `--query <text>` | 关键词(姓名 / 邮箱 / 手机号),≤ 50 rune |
-| `--queries <csv>` | 多个关键词并行搜,**最多 20 条**;与 `--query` / `--user-ids` 互斥;输出新 shape(见下) |
-| `--user-ids <csv>` | open_id 列表,≤ 100;支持 `me` 表示自己;与 `--query` 同传时把搜索范围限定在该集合 |
-| `--has-chatted` | 仅搜聊过天的 |
-| `--has-enterprise-email` | 仅搜有企业邮箱的 |
-| `--exclude-external-users` | 仅搜同租户(排除外部联系人) |
-| `--left-organization` | 仅搜已离职的 |
-| `--lang <locale>` | 覆盖 `localized_name` 的语种(如 `zh_cn` / `en_us` / `ja_jp`) |
-| `--page-size <n>` | 单页大小 1-30,默认 20 |
+| `query` | 关键词(姓名 / 邮箱 / 手机号),≤ 50 rune |
+| `queries` | 多个关键词并行搜,**最多 20 条**;与 `query` / `user_ids` 互斥;输出新 shape(见下) |
+| `user_ids` | open_id 列表,≤ 100;支持 `me` 表示自己;与 `query` 同传时把搜索范围限定在该集合 |
+| `has_chatted` | 仅搜聊过天的 |
+| `has_enterprise_email` | 仅搜有企业邮箱的 |
+| `exclude_external_users` | 仅搜同租户(排除外部联系人) |
+| `left_organization` | 仅搜已离职的 |
+| `lang` | 覆盖 `localized_name` 的语种(如 `zh_cn` / `en_us` / `ja_jp`) |
+| `page_size` | 单页大小 1-30,默认 20 |
 
 ## 常用例子
 
-```bash
-# 按姓名搜,看候选确认是哪个张三
-lark-cli contact +search-user --query "张三" --has-chatted
+```js
+// 按姓名搜,看候选确认是哪个张三
+lark_api({ tool: 'contact', op: 'search-user', args: { query: '张三', has_chatted: true } })
 
-# 按完整邮箱搜(命中通常唯一,适合作后续命令的输入)
-lark-cli contact +search-user --query "alice@example.com"
+// 按完整邮箱搜(命中通常唯一,适合作后续命令的输入)
+lark_api({ tool: 'contact', op: 'search-user', args: { query: 'alice@example.com' } })
 
-# 查看自己
-lark-cli contact +search-user --user-ids me
+// 查看自己
+lark_api({ tool: 'contact', op: 'search-user', args: { user_ids: 'me' } })
 
-# 批量回填:已知一组 open_id,取姓名 / 邮箱 / 部门
-lark-cli contact +search-user --user-ids "ou_a,ou_b,ou_c" --format json
+// 批量回填:已知一组 open_id,取姓名 / 邮箱 / 部门
+lark_api({ tool: 'contact', op: 'search-user', args: { user_ids: 'ou_a,ou_b,ou_c' } })
 
-# 多 filter 组合:同租户的、有企业邮箱的「王」姓员工
-lark-cli contact +search-user --query "王" --exclude-external-users --has-enterprise-email
+// 多 filter 组合:同租户的、有企业邮箱的「王」姓员工
+lark_api({ tool: 'contact', op: 'search-user', args: { query: '王', exclude_external_users: true, has_enterprise_email: true } })
 
-# filter-only 枚举:列出所有"聊过天的离职同事"(无关键词)
-lark-cli contact +search-user --has-chatted --left-organization
+// filter-only 枚举:列出所有"聊过天的离职同事"(无关键词)
+lark_api({ tool: 'contact', op: 'search-user', args: { has_chatted: true, left_organization: true } })
 ```
 
 ## 批量并行查询 (fanout)
 
 一次查多个名字:
 
-```bash
-lark-cli contact +search-user --queries "Alice,Bob,张三"
+```js
+lark_api({ tool: 'contact', op: 'search-user', args: { queries: 'Alice,Bob,张三' } })
 ```
 
 - 每行 user 带 `matched_query`,标识来自哪个 query
 - `queries[]` 每个输入一条 `{query, error?, has_more}`,失败的有 `error`
 - 部分失败不影响其它 query;全部失败才 exit 非 0
 
-```bash
-# bool filter 对每个 query 都生效
-lark-cli contact +search-user --queries "Alice,Bob" --has-chatted
+```js
+// bool filter 对每个 query 都生效
+lark_api({ tool: 'contact', op: 'search-user', args: { queries: 'Alice,Bob', has_chatted: true } })
 
-# 与 --query / --user-ids 互斥
-lark-cli contact +search-user --queries "a" --query "b"   # ❌ exit 2
+// 与 query / user_ids 互斥
+lark_api({ tool: 'contact', op: 'search-user', args: { queries: 'a', query: 'b' } })   // ❌ exit 2
 ```
 
 约束:
@@ -78,17 +78,11 @@ lark-cli contact +search-user --queries "a" --query "b"   # ❌ exit 2
 
 筛选信号(可信度从高到低):`chat_recency_hint`(近期联系过) > `enterprise_email` 前缀 > `department` 关键词。`localized_name` 同名时无区分作用。
 
-```bash
-# 用 jq 按部门精筛
-lark-cli contact +search-user --query "张三" \
-  --jq '.data.users[] | select(.department | contains("<部门关键词>"))'
-```
-
 ## 注意事项
 
 - **不会自动翻页**。`has_more=true` 表示需要 refine query。
-- **`--lang` 只影响输出展示名**,不影响匹配字段。
-- **`--query` 与 `--user-ids` 同时设**:`--user-ids` 限定搜索范围,`--query` 在该集合内匹配。
+- **`lang` 只影响输出展示名**,不影响匹配字段。
+- **`query` 与 `user_ids` 同时设**:`user_ids` 限定搜索范围,`query` 在该集合内匹配。
 
 ## 输出字段 contract
 
@@ -109,7 +103,7 @@ lark-cli contact +search-user --query "张三" \
 | `chat_recency_hint` | string | 最近联系的提示文案,仅供展示 | 可能为空 |
 | `match_segments` | string[] | 关键词命中的字符串片段,用于高亮展示;无命中则为空数组 | — |
 
-### `--queries` 模式额外字段
+### `queries` 模式额外字段
 
 `data.users[]` 每条多 `matched_query` (string),指明本行来自哪个 query。
 

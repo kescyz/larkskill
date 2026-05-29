@@ -11,11 +11,12 @@
 
 ## 2. 推荐命令
 
-```bash
-lark-cli base +view-get-visible-fields \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --view-id <view_id>
+```js
+lark_api({ tool: 'base', op: 'view-get-visible-fields', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  view_id: '<view_id>'
+} })
 ```
 
 ## 3. 返回重点

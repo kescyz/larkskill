@@ -2,22 +2,19 @@
 
 ## 用途
 
-在指定的 XML 演示文稿中创建新的幻灯片页面，通常用于给 `slides +create` 创建出的空白 PPT 逐页补充内容。
+在指定的 XML 演示文稿中创建新的幻灯片页面，通常用于给 `lark_api({ tool: 'slides', op: 'create' })` 创建出的空白 PPT 逐页补充内容。
 
 ## 命令
 
-```bash
-lark-cli slides xml_presentation.slide create --as user --params '<json_params>' --data '<json_data>'
+```js
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.create', args: { /* ...params + data 字段 */ }, as: 'user' })
 ```
 
 ## 参数说明
 
-| 参数 | 类型 | 必需 | 说明 |
-|------|------|------|------|
-| `--params` | JSON string | 是 | 路径参数与查询参数 |
-| `--data` | JSON string | 是 | 请求体，包含新页面内容 |
+`args` 同时包含路径/查询参数（`xml_presentation_id`、`revision_id`、`tid`）和请求体字段（`slide`、`before_slide_id`）。
 
-### params JSON 结构
+### 路径/查询参数字段
 
 ```json
 {
@@ -33,7 +30,7 @@ lark-cli slides xml_presentation.slide create --as user --params '<json_params>'
 | `revision_id` | integer | 否 | 演示文稿版本号，`-1` 表示最新版本 |
 | `tid` | string | 否 | 锁的事务 ID |
 
-### data JSON 结构
+### 请求体字段
 
 ```json
 {
@@ -73,66 +70,69 @@ lark-cli slides xml_presentation.slide create --as user --params '<json_params>'
 
 ### 在末尾添加幻灯片
 
-```bash
-lark-cli slides xml_presentation.slide create --as user --params '{
-  "xml_presentation_id": "slides_example_presentation_id"
-}' --data '{
-  "slide": {
-    "content": "<slide xmlns=\"http://www.larkoffice.com/sml/2.0\"><data><shape type=\"text\" topLeftX=\"80\" topLeftY=\"80\" width=\"800\" height=\"120\"><content textType=\"title\"><p>新页面标题</p></content></shape><shape type=\"text\" topLeftX=\"80\" topLeftY=\"200\" width=\"800\" height=\"180\"><content textType=\"body\"><p>内容文本</p></content></shape></data></slide>"
-  }
-}'
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: {
+      content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新页面标题</p></content></shape><shape type="text" topLeftX="80" topLeftY="200" width="800" height="180"><content textType="body"><p>内容文本</p></content></shape></data></slide>'
+    }
+  },
+  as: 'user'
+})
 ```
 
 ### 在指定页面前插入幻灯片
 
-```bash
-lark-cli slides xml_presentation.slide create --as user --params '{
-  "xml_presentation_id": "slides_example_presentation_id"
-}' --data '{
-  "slide": {
-    "content": "<slide xmlns=\"http://www.larkoffice.com/sml/2.0\"><data><shape type=\"text\" topLeftX=\"80\" topLeftY=\"80\" width=\"800\" height=\"120\"><content textType=\"title\"><p>插入的标题页</p></content></shape></data></slide>"
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: {
+      content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>插入的标题页</p></content></shape></data></slide>'
+    },
+    before_slide_id: 'slide_before_target'
   },
-  "before_slide_id": "slide_before_target"
-}'
+  as: 'user'
+})
 ```
 
 ### 带图形元素的幻灯片
 
-```bash
-lark-cli slides xml_presentation.slide create --as user --params '{
-  "xml_presentation_id": "slides_example_presentation_id"
-}' --data '{
-  "slide": {
-    "content": "<slide xmlns=\"http://www.larkoffice.com/sml/2.0\"><data><shape type=\"text\" topLeftX=\"80\" topLeftY=\"80\" width=\"520\" height=\"120\"><content textType=\"title\"><p>数据展示</p></content></shape><shape type=\"rect\" topLeftX=\"700\" topLeftY=\"100\" width=\"200\" height=\"150\"><fill><fillColor color=\"rgb(100, 149, 237)\"/></fill></shape></data></slide>"
-  }
-}'
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: {
+      content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="520" height="120"><content textType="title"><p>数据展示</p></content></shape><shape type="rect" topLeftX="700" topLeftY="100" width="200" height="150"><fill><fillColor color="rgb(100, 149, 237)"/></fill></shape></data></slide>'
+    }
+  },
+  as: 'user'
+})
 ```
 
-### 从文件读取 XML
+### 把整段 XML 作为 slide.content
 
-```bash
-# 先创建 slide.xml 文件
-cat > slide.xml << 'EOF'
-<slide xmlns="http://www.larkoffice.com/sml/2.0">
-  <data>
-    <shape type="text" topLeftX="80" topLeftY="80" width="800" height="120">
-      <content textType="title">
-        <p>从文件加载</p>
-      </content>
-    </shape>
-    <shape type="text" topLeftX="80" topLeftY="200" width="800" height="180">
-      <content textType="body">
-        <p>这是从文件读取的幻灯片内容</p>
-      </content>
-    </shape>
-  </data>
-</slide>
-EOF
+把完整 `<slide>` XML 作为 `slide.content` 字符串传入：
 
-# 然后创建幻灯片
-lark-cli slides xml_presentation.slide create --as user \
-  --params '{"xml_presentation_id":"slides_example_presentation_id"}' \
-  --data "$(jq -n --arg content "$(cat slide.xml)" '{slide:{content:$content}}')"
+```js
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: {
+      content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>从文件加载</p></content></shape><shape type="text" topLeftX="80" topLeftY="200" width="800" height="180"><content textType="body"><p>这是从文件读取的幻灯片内容</p></content></shape></data></slide>'
+    }
+  },
+  as: 'user'
+})
 ```
 
 ## 返回值
@@ -166,9 +166,9 @@ lark-cli slides xml_presentation.slide create --as user \
 | `<note>` | 演讲者备注 |
 
 > [!IMPORTANT]
-> **本地图片必须先上传**：`xml_presentation.slide.create` 不识别 `@./local.png` 占位符（那是 `+create --slides` 的语法糖）。直接调本接口添加带图新页时，必须先用 [`slides +media-upload`](lark-slides-media-upload.md) 拿到 `file_token`，再写进 `<img src="<file_token>">`。
+> **本地图片必须先上传**：`xml_presentation.slide.create` 不识别 `@./local.png` 占位符（那是 `create` 的 `slides` 数组的语法糖）。直接调本接口添加带图新页时，必须先用 [`media-upload`](lark-slides-media-upload.md) 拿到 `file_token`，再写进 `<img src="<file_token>">`。
 >
-> 如果是从零开始建带图 PPT，**强烈建议改用 [`slides +create --slides '[...]'`](lark-slides-create.md#本地图片path-占位符)** 一步搞定（自动上传 + 替换 token）。
+> 如果是从零开始建带图 PPT，**强烈建议改用 [`lark_api({ tool: 'slides', op: 'create', args: { slides: [...] } })`](lark-slides-create.md#本地图片path-占位符)** 一步搞定（自动上传 + 替换 token）。
 
 ## 常见错误
 
@@ -182,7 +182,7 @@ lark-cli slides xml_presentation.slide create --as user \
 
 ## 注意事项
 
-1. **执行前必做**: 使用 `lark-cli schema slides.xml_presentation.slide.create` 查看最新的参数结构
+1. **执行前必做**: 使用 `lark_api_search({ query: 'slides xml_presentation.slide.create' })` 查看最新的参数结构
 2. **slide.content 格式**: 必须是完整的 `<slide>` 元素，不是整个 presentation
 3. **命名空间建议**: 协议标准写法应带 `xmlns`，例如 `<slide xmlns="http://www.larkoffice.com/sml/2.0">`；当前服务端实现可能兼容不带 `xmlns` 的输入，但不作为协议保证
 4. **fill / border 写法**: 颜色填充使用 `<fill><fillColor color="..."/></fill>`，边框常用 `<border color="..." width="2"/>`
@@ -194,26 +194,46 @@ lark-cli slides xml_presentation.slide create --as user \
 
 如果需要添加多张幻灯片，建议先明确每一页的 `before_slide_id`，或直接按最终顺序逐页追加：
 
-```bash
-#!/bin/bash
+逐页调用，每页把一段 `<slide>` XML 作为 `slide.content` 传入（页面 1 / 2 / 3 同理）：
 
-PRESENTATION_ID="slides_example_presentation_id"
+```js
+// 页面 1
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 1</p></content></shape></data></slide>' }
+  },
+  as: 'user'
+})
 
-declare -a slides=(
-  '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 1</p></content></shape></data></slide>'
-  '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 2</p></content></shape></data></slide>'
-  '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 3</p></content></shape></data></slide>'
-)
+// 页面 2
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 2</p></content></shape></data></slide>' }
+  },
+  as: 'user'
+})
 
-for slide_xml in "${slides[@]}"; do
-  payload=$(jq -n --arg content "$slide_xml" '{slide:{content:$content}}')
-  lark-cli slides xml_presentation.slide create --as user --params "{\"xml_presentation_id\":\"$PRESENTATION_ID\"}" --data "$payload"
-done
+// 页面 3
+lark_api({
+  tool: 'slides',
+  op: 'xml_presentation.slide.create',
+  args: {
+    xml_presentation_id: 'slides_example_presentation_id',
+    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 3</p></content></shape></data></slide>' }
+  },
+  as: 'user'
+})
 ```
 
 ## 相关命令
 
-- [slides +create](lark-slides-create.md) - 创建空白 PPT
+- [create](lark-slides-create.md) - 创建空白 PPT
 - [xml_presentations get](lark-slides-xml-presentations-get.md) - 读取 PPT 内容
 - [xml_presentation.slide delete](lark-slides-xml-presentation-slide-delete.md) - 删除幻灯片页面
 - [xml-format-guide.md](xml-format-guide.md) - XML 格式详细规范

@@ -6,33 +6,35 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +field-update \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --field-id <field_id> \
-  --json '{"name":"状态","type":"select","multiple":false,"options":[{"name":"Todo","hue":"Blue","lightness":"Lighter"},{"name":"Doing","hue":"Orange","lightness":"Light"},{"name":"Done","hue":"Green","lightness":"Light"}]}' \
-  --yes
+```js
+lark_api({ tool: 'base', op: 'field-update', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  field_id: '<field_id>',
+  json: {"name":"状态","type":"select","multiple":false,"options":[{"name":"Todo","hue":"Blue","lightness":"Lighter"},{"name":"Doing","hue":"Orange","lightness":"Light"},{"name":"Done","hue":"Green","lightness":"Light"}]},
+  yes: true
+} })
 
-lark-cli base +field-update \
-  --base-token <base_token> \
-  --table-id <table_id> \
-  --field-id <field_id> \
-  --json '{"name":"负责人","type":"user","multiple":false,"description":"用于标记记录的直接负责人"}' \
-  --yes
+lark_api({ tool: 'base', op: 'field-update', args: {
+  base_token: '<base_token>',
+  table_id: '<table_id>',
+  field_id: '<field_id>',
+  json: {"name":"负责人","type":"user","multiple":false,"description":"用于标记记录的直接负责人"},
+  yes: true
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--base-token <token>` | 是 | Base Token |
-| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
-| `--field-id <id_or_name>` | 是 | 字段 ID 或字段名 |
-| `--json <body>` | 是 | 字段属性 JSON 对象 |
-| `--yes` | 是 | 确认执行高风险字段更新 |
+| `base_token` | 是 | Base Token |
+| `table_id` | 是 | 表 ID 或表名 |
+| `field_id` | 是 | 字段 ID 或字段名 |
+| `json` | 是 | 字段属性 JSON 对象 |
+| `yes` | 是 | 确认执行高风险字段更新 |
 
-> 这是**高风险写入操作**。`+field-update` 使用 `PUT` 全量字段定义语义；改变字段类型或关键配置可能影响整列已有数据的解释、展示或可用性。CLI 层要求显式传 `--yes`；如果用户已经明确目标和期望更新，可直接执行并带上 `--yes`。
+> 这是**高风险写入操作**。`field-update` 使用 `PUT` 全量字段定义语义；改变字段类型或关键配置可能影响整列已有数据的解释、展示或可用性。需显式传 `yes: true`；如果用户已经明确目标和期望更新，可直接执行并带上 `yes: true`。
 
 ## API 入参详情
 
@@ -44,7 +46,7 @@ PUT /open-apis/base/v3/bases/:base_token/tables/:table_id/fields/:field_id
 
 ## JSON 值规范
 
-- `--json` 必须是 **JSON 对象**，顶层直接传字段定义。
+- `json` 必须是 **JSON 对象**，顶层直接传字段定义。
 - 更新语义是 `PUT`（全量字段配置更新），不要只传零散片段；至少显式包含 `name`、`type`，并补齐该类型所需关键配置。
 - 所有字段类型都支持可选 `description`；支持纯文本，也支持 Markdown 链接。
 - `select` 更新时：`options` 仍按对象数组传，避免混入无效字段。
@@ -85,7 +87,7 @@ PUT /open-apis/base/v3/bases/:base_token/tables/:table_id/fields/:field_id
 ## 工作流
 
 
-1. 建议先用 `+field-get` 拉现状，再做最小化修改。
+1. 建议先用 `field-get` 拉现状，再做最小化修改。
 2. `formula/lookup` 类型更新前先阅读对应指南。
 3. 如果这次更新会改变字段 `type` 先按下方“字段类型变更规则”判断能否执行。如果不修改 `type`，大多数场景都相对安全。
 
@@ -95,13 +97,13 @@ PUT /open-apis/base/v3/bases/:base_token/tables/:table_id/fields/:field_id
 
 ### 允许直接转换 type
 
-先 `+field-get` / `+field-list` 看结构，再抽样读值；只有命中以下规则时，转换才是比较安全的。
+先 `field-get` / `field-list` 看结构，再抽样读值；只有命中以下规则时，转换才是比较安全的。
 
 #### 相对安全
 
 | 目标类型 | 允许的源类型 | 说明 |
 |------|------|------|
-| `text` | `number`、`select`、`datetime`、`created_at`、`updated_at`、`location`、`auto_number`、`checkbox` | 保留字符串表示；丢失原类型语义和结构化能力 |
+| `text` | `number`、`select`、`datetime`、`created_at`、`updated_at`、`location`（只保留 `full_address`）、`auto_number`、`checkbox` | 保留字符串表示；丢失原类型语义和结构化能力 |
 | `number` | `text`、`number`、`datetime`、`created_at`、`updated_at`、`checkbox` | 保留可解析的数字值；无法解析的值会变空，原文本格式会丢失 |
 | `datetime` | `text`、`number`、`datetime`、`created_at`、`updated_at` | 保留可解析的时间字符串和时间戳；无法解析的值会变空，原文本格式会丢失 |
 | `select` | `text -> select`、`number -> select`、`single select -> multi select` | 只有完全匹配目标选项名的值会转成对应选项；没匹配上的值会被丢弃 |
@@ -160,7 +162,7 @@ PUT /open-apis/base/v3/bases/:base_token/tables/:table_id/fields/:field_id
 ## 坑点
 
 - ⚠️ 这是全量字段属性更新语义，不是 patch。
-- ⚠️ 这是高风险写入操作，执行时必须带 `--yes`。
+- ⚠️ 这是高风险写入操作，执行时必须带 `yes: true`。
 - ⚠️ 当 `type` 是 `formula` 或 `lookup` 时，先阅读对应指南再执行。
 
 ## 参考

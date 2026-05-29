@@ -3,12 +3,12 @@
 
 > **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-本 skill 对应 shortcut：`lark-cli drive +apply-permission`。
+本 skill 对应：`lark_api({ tool: 'drive', op: 'apply-permission' })`。
 
 向云文档 **Owner** 发起 `view` 或 `edit` 权限申请。申请会以卡片形式推送给 Owner，由 Owner 决定是否通过。
 
 > [!CAUTION]
-> 这是**写入操作** —— 会给 Owner 发推送通知，不要批量或自动化调用。可以先用 `--dry-run` 预览。
+> 这是**写入操作** —— 会给 Owner 发推送通知，不要批量或自动化调用。
 
 ## 身份要求
 
@@ -17,28 +17,32 @@
 
 ## 命令
 
-```bash
-# 通过 URL 申请（type 自动从 URL 推断）
-lark-cli drive +apply-permission \
-  --token "https://example.larksuite.com/docx/doxcnxxxxxxxxx" \
-  --perm view \
-  --remark "安全评估：需查看需求文档内容" --as user
+```js
+// 通过 URL 申请（type 自动从 URL 推断）
+lark_api({ tool: 'drive', op: 'apply-permission', args: {
+  token: 'https://example.larksuite.com/docx/doxcnxxxxxxxxx',
+  perm: 'view',
+  remark: '安全评估：需查看需求文档内容',
+  as: 'user'
+} })
 
-# 通过 bare token + 显式 --type
-lark-cli drive +apply-permission \
-  --token "doxcnxxxxxxxxx" --type docx \
-  --perm edit --as user
+// 通过 bare token + 显式 type
+lark_api({ tool: 'drive', op: 'apply-permission', args: {
+  token: 'doxcnxxxxxxxxx',
+  type: 'docx',
+  perm: 'edit',
+  as: 'user'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--token` | 是 | 目标文档 token 或完整 URL（`/docx/`、`/sheets/`、`/base/`、`/bitable/`、`/file/`、`/wiki/`、`/doc/`、`/mindnote/`、`/slides/` 路径里的 token 会被自动提取） |
-| `--type` | 否 | 目标类型，可选值 `doc` / `sheet` / `file` / `wiki` / `bitable` / `docx` / `mindnote` / `slides`。传 URL 时可由 shortcut 自动推断；bare token 必须显式传 |
-| `--perm` | 是 | 申请的权限，仅支持 `view` 或 `edit`（**不支持 `full_access`**，CLI 侧会直接拒绝） |
-| `--remark` | 否 | 备注，会显示在权限申请卡片上 |
-| `--dry-run` | 否 | 仅打印请求内容，不实际发送 |
+| `token` | 是 | 目标文档 token 或完整 URL（`/docx/`、`/sheets/`、`/base/`、`/bitable/`、`/file/`、`/wiki/`、`/doc/`、`/mindnote/`、`/slides/` 路径里的 token 会被自动提取） |
+| `type` | 否 | 目标类型，可选值 `doc` / `sheet` / `file` / `wiki` / `bitable` / `docx` / `mindnote` / `slides`。传 URL 时可自动推断；bare token 必须显式传 |
+| `perm` | 是 | 申请的权限，仅支持 `view` 或 `edit`（**不支持 `full_access`**，CLI 侧会直接拒绝） |
+| `remark` | 否 | 备注，会显示在权限申请卡片上 |
 
 ## 输出
 
@@ -70,7 +74,7 @@ API 成功时返回空 `data`（仅 `code: 0, msg: "success"`），对应 CLI �
 
 ## 与 wiki URL 的关系
 
-传入 `/wiki/<node_token>` 时，shortcut 会直接用 `node_token` 作为路径参数并以 `type=wiki` 调用接口。如果需要先把 wiki 节点解析成 `obj_token`（例如想显式对底层 docx 申请），自行先调 `wiki spaces get_node` 拿 `obj_token + obj_type`，再用 bare token + `--type docx` 调本命令。
+传入 `/wiki/<node_token>` 时，shortcut 会直接用 `node_token` 作为路径参数并以 `type=wiki` 调用接口。如果需要先把 wiki 节点解析成 `obj_token`（例如想显式对底层 docx 申请），自行先调 `lark_api({ tool: 'wiki', op: 'spaces.get_node' })` 拿 `obj_token + obj_type`，再用 bare token + `type: 'docx'` 调本命令。
 
 ## 参考
 

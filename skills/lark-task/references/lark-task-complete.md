@@ -6,16 +6,16 @@ Mark a task as completed.
 
 ## Recommended Commands
 
-```bash
-# Complete a task
-lark-cli task +complete --task-id "<task_guid>"
+```js
+// Complete a task
+lark_api({ tool: 'task', op: 'complete', args: { task_id: '<task_guid>' } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `--task-id <guid>` | Yes | The task GUID to complete. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
+| `task_id` | Yes | The task GUID to complete. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
 
 ## Workflow
 

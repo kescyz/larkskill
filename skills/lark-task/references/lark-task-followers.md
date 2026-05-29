@@ -6,24 +6,24 @@ Manage task followers. Add or remove followers from an existing task.
 
 ## Recommended Commands
 
-```bash
-# Add a follower
-lark-cli task +followers --task-id "<task_guid>" --add "ou_aaa"
+```js
+// Add a follower
+lark_api({ tool: 'task', op: 'followers', args: { task_id: '<task_guid>', add: 'ou_aaa' } })
 
-# Add an app follower
-lark-cli task +followers --task-id "<task_guid>" --add "cli_xxx"
+// Add an app follower
+lark_api({ tool: 'task', op: 'followers', args: { task_id: '<task_guid>', add: 'cli_xxx' } })
 
-# Remove a follower
-lark-cli task +followers --task-id "<task_guid>" --remove "ou_aaa"
+// Remove a follower
+lark_api({ tool: 'task', op: 'followers', args: { task_id: '<task_guid>', remove: 'ou_aaa' } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `--task-id <guid>` | Yes | The task GUID to modify. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
-| `--add <ids>` | No | Comma-separated follower IDs. Use user `open_id`s like `ou_xxx` for people, or app IDs like `cli_xxx` for apps. |
-| `--remove <ids>` | No | Comma-separated follower IDs. Use user `open_id`s like `ou_xxx` for people, or app IDs like `cli_xxx` for apps. |
+| `task_id` | Yes | The task GUID to modify. For Feishu task applinks, use the `guid` query parameter, not the `suite_entity_num` / display task ID like `t104121`. |
+| `add` | No | Comma-separated follower IDs. Use user `open_id`s like `ou_xxx` for people, or app IDs like `cli_xxx` for apps. |
+| `remove` | No | Comma-separated follower IDs. Use user `open_id`s like `ou_xxx` for people, or app IDs like `cli_xxx` for apps. |
 
 ## Workflow
 

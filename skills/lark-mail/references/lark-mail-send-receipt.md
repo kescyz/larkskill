@@ -4,37 +4,32 @@
 
 响应收到的已读回执请求。**本命令仅在对方邮件请求了已读回执（`READ_RECEIPT_REQUEST` 标签，系统 ID `-607`）时使用**，用于向原发件人发送一封短回复以告知"已阅读"。
 
-本 skill 对应 shortcut：`lark-cli mail +send-receipt`。
+本 skill 对应 shortcut：`lark_api({ tool: 'mail', op: 'send-receipt' })`。
 
 ## CRITICAL — 工作流与安全规则
 
 1. **触发条件严格**：仅当拉信（`+message` / `+messages` / `+thread`）看到 `label_ids` 里有 `READ_RECEIPT_REQUEST` 时，才应该问用户是否发回执。对普通邮件**绝不**调用此命令。
 2. **必须先问用户**：发回执之前**必须**向用户展示原邮件摘要（发件人、主题）并请求确认；用户明确同意后才执行。**不要替用户自动回执**——这会造成隐私泄露（告诉对方"我读了"）。
-3. **`--yes` 不省略**：本命令被标记为 `high-risk-write`，框架要求 `--yes` 才执行（无 `--confirm-send` flag）。仅在用户确认后附上。
+3. **高危写操作**：本命令被标记为 `high-risk-write`。仅在用户明确确认后才执行。
 4. **失败安全**：若原邮件没有 `READ_RECEIPT_REQUEST` 标签，命令会拒绝执行并报错——这是防御，不要通过其他方式绕过。
 
 ## 命令
 
-```bash
-# 标准用法：对指定 message-id 发回执
-lark-cli mail +send-receipt --message-id <message-id> --yes
+```js
+// 标准用法：对指定 message-id 发回执
+lark_api({ tool: 'mail', op: 'send-receipt', args: { message_id: '<message-id>' } })
 
-# 指定邮箱（公共邮箱场景）
-lark-cli mail +send-receipt --mailbox shared@example.com --message-id <message-id> --yes
-
-# Dry Run（不真发）
-lark-cli mail +send-receipt --message-id <message-id> --dry-run
+// 指定邮箱（公共邮箱场景）
+lark_api({ tool: 'mail', op: 'send-receipt', args: { mailbox: 'shared@example.com', message_id: '<message-id>' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 默认 | 说明 |
 |------|------|------|------|
-| `--message-id <id>` | 是 | — | 请求了已读回执的原邮件 message ID |
-| `--mailbox <email>` | 否 | `me` | 回执邮件归属的邮箱 |
-| `--from <email>` | 否 | 邮箱主地址 | 回执 From 头 |
-| `--yes` | 是 | — | 确认高危写操作。仅在用户明确同意发回执后附上 |
-| `--dry-run` | 否 | — | 仅打印请求，不执行 |
+| `message_id` | 是 | — | 请求了已读回执的原邮件 message ID |
+| `mailbox` | 否 | `me` | 回执邮件归属的邮箱 |
+| `from` | 否 | 邮箱主地址 | 回执 From 头 |
 
 > **没有 `--body` 参数**：回执正文**由命令自动生成**（见下方"行为细节"），对齐业界惯例（Outlook / Thunderbird / Lark 客户端等均不支持逐封自定义回执正文）。若真需要自由回复，请改用 `mail +reply`——那本来就是"自由回复"的命令，不该与"已读回执"混用。
 
@@ -76,34 +71,33 @@ lark-cli mail +send-receipt --message-id <message-id> --dry-run
 
 ### 场景 1：用户在拉信时看到 `-607` 标签
 
-```bash
-# 1. 拉信
-lark-cli mail +message --message-id msg-1 --format json | jq '.data.label_ids'
-# 输出 ["UNREAD", "READ_RECEIPT_REQUEST"] → 原邮件请求了已读回执
+```js
+// 1. 拉信，检查 .data.label_ids
+lark_api({ tool: 'mail', op: 'message', args: { message_id: 'msg-1' } })
+// 输出 ["UNREAD", "READ_RECEIPT_REQUEST"] → 原邮件请求了已读回执
 
-# 2. 向用户提示：
-#    "这封来自 alice@example.com 的邮件请求已读回执。主题：《周报》。
-#     要不要回一封告诉对方你已阅读？"
+// 2. 向用户提示：
+//    "这封来自 alice@example.com 的邮件请求已读回执。主题：《周报》。
+//     要不要回一封告诉对方你已阅读？"
 
-# 3. 用户确认后发回执
-lark-cli mail +send-receipt --message-id msg-1 --yes
+// 3. 用户确认后发回执
+lark_api({ tool: 'mail', op: 'send-receipt', args: { message_id: 'msg-1' } })
 ```
 
 ### 场景 2：批量拉信中发现多封请求回执
 
-```bash
-# 1. 筛出带 -607 标签的邮件
-lark-cli mail +triage --folder INBOX --format json \
-  | jq '.data.messages[] | select(.label_ids | index("READ_RECEIPT_REQUEST")) | {message_id, subject, from}'
+```js
+// 1. 拉收件箱，筛出 .data.messages[] 中 label_ids 含 READ_RECEIPT_REQUEST 的邮件
+lark_api({ tool: 'mail', op: 'triage', args: { folder: 'INBOX' } })
 
-# 2. 对每封分别问用户 → 用户确认后再发
+// 2. 对每封分别问用户 → 用户确认后再发
 ```
 
 ### 场景 3：公共邮箱的回执
 
-```bash
-# 公共邮箱收到的回执请求，用 --mailbox 指定
-lark-cli mail +send-receipt --mailbox support@example.com --message-id <id> --yes
+```js
+// 公共邮箱收到的回执请求，用 mailbox 指定
+lark_api({ tool: 'mail', op: 'send-receipt', args: { mailbox: 'support@example.com', message_id: '<id>' } })
 ```
 
 ## 不要这样做
@@ -115,6 +109,6 @@ lark-cli mail +send-receipt --mailbox support@example.com --message-id <id> --ye
 
 ## 相关命令
 
-- `lark-cli mail +message` — 拉单封邮件（在 `label_ids` 里检查 `READ_RECEIPT_REQUEST`）
-- `lark-cli mail +send --request-receipt` — 反向：**请求**别人回执
-- `lark-cli mail user_mailbox.messages send_status` — 查询回执邮件的投递状态
+- `lark_api({ tool: 'mail', op: 'message' })` — 拉单封邮件（在 `label_ids` 里检查 `READ_RECEIPT_REQUEST`）
+- `lark_api({ tool: 'mail', op: 'send', args: { request_receipt: true } })` — 反向：**请求**别人回执
+- `lark_api({ tool: 'mail', op: 'user_mailbox.messages.send_status' })` — 查询回执邮件的投递状态

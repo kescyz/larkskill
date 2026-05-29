@@ -6,23 +6,25 @@
 
 ## 推荐命令
 
-```bash
-lark-cli base +base-create \
-  --name "New Base"
+```js
+lark_api({ tool: 'base', op: 'base-create', args: {
+  name: 'New Base'
+} })
 
-lark-cli base +base-create \
-  --name "项目管理" \
-  --folder-token fld_xxx \
-  --time-zone Asia/Shanghai
+lark_api({ tool: 'base', op: 'base-create', args: {
+  name: '项目管理',
+  folder_token: 'fld_xxx',
+  time_zone: 'Asia/Shanghai'
+} })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `--name <name>` | 是 | 新 Base 名称 |
-| `--folder-token <token>` | 否 | 目标文件夹 token |
-| `--time-zone <tz>` | 否 | 时区，如 `Asia/Shanghai` |
+| `name` | 是 | 新 Base 名称 |
+| `folder_token` | 否 | 目标文件夹 token |
+| `time_zone` | 否 | 时区，如 `Asia/Shanghai` |
 
 ## API 入参详情
 
@@ -59,7 +61,7 @@ POST /open-apis/base/v3/bases
 > 这是**写入操作** — 执行前必须向用户确认。
 
 1. 先确认 Base 名称。
-2. `--folder-token`、`--time-zone` 都是可选项；用户没要求时不要为此额外追问。
+2. `folder_token`、`time_zone` 都是可选项；用户没要求时不要为此额外追问。
 3. 创建成功后，整理并返回：Base 名称、token，以及响应中已有的可访问链接。
 
 ## 参考
