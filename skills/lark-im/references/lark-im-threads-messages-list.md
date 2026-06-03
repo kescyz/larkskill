@@ -2,38 +2,56 @@
 
 > **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand authentication, global parameters, and safety rules.
 
-Fetch the reply message list inside a thread. When `chat-messages-list` returns messages that include a `thread_id` field, use this command to inspect all replies in that thread.
+Fetch the reply message list inside a thread. When `im +chat-messages-list` returns messages that include a `thread_id` field, use this command to inspect all replies in that thread.
 
-By default each reply also carries a `reactions` block (counts + details from `im.reactions.batch_query`) when the server has reactions for it, and `update_time` for messages that were actually edited. Pass `no_reactions: true` to skip the extra round-trip. See [message enrichment](lark-im-message-enrichment.md) for the full contract.
+By default each reply also carries a `reactions` block (counts + details from `im.reactions.batch_query`) when the server has reactions for it, and `update_time` for messages that were actually edited. Pass `--no-reactions` to skip the extra round-trip. See [message enrichment](lark-im-message-enrichment.md) for the full contract.
 
 This skill maps to the shortcut: `lark_api({ tool: 'im', op: 'threads-messages-list' })` (internally calls `GET /open-apis/im/v1/messages` with `container_id_type=thread` to fetch thread messages).
 
 ## Commands
 
-```js
-// Get thread replies (ascending by time by default)
+```javascript
+// Get thread replies (ascending by time by default, table output)
 lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx' } })
 
 // Reverse chronological order (latest first)
 lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', sort: 'desc' } })
 
+// Control page size
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', pageSize: 20 } })
+
+// Pagination
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', pageToken: '<PAGE_TOKEN>' } })
+
+// Output format options
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', format: 'pretty' } })
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', format: 'table' } })
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', format: 'csv' } })
+
 // View as a bot
 lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', as: 'bot' } })
+
+// Preview the request without executing it
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', dryRun: true } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Description |
 |------|------|------|
-| `thread` | Yes | Thread ID (`om_xxx` or `omt_xxx` format) |
-| `sort` | No | Sort order: `asc` (default) / `desc` |
-| `as` | No | Identity type: `user` (default) / `bot` |
+| `--thread <id>` | Yes | Thread ID (`om_xxx` or `omt_xxx` format) |
+| `--sort <order>` | No | Sort order: `asc` (default) / `desc` |
+| `--page-size <n>` | No | Number of items per page (default 50, range 1-500) |
+| `--page-token <token>` | No | Pagination token for the next page |
+| `--format <fmt>` | No | Output format: `json` (default) / `pretty` / `table` / `ndjson` / `csv` |
+| `--as <identity>` | No | Identity type: `user` (default) / `bot` |
+| `--dry-run` | No | Print the request only, do not execute it |
 
 ## Core Constraints
 
 ### 1. Source of `thread_id`
 
-`thread_id` (`omt_xxx` or `om_xxx`) comes from the `thread_id` field in results returned by `chat-messages-list` or `messages-search`. Do not guess a thread ID. Fetch messages first and use the returned value.
+`thread_id` (`omt_xxx` or `om_xxx`) comes from the `thread_id` field in results returned by `im +chat-messages-list` or `im +messages-search`. Do not guess a thread ID. Fetch messages first and use the returned value.
 
 ### 2. No time filtering support
 
@@ -48,17 +66,17 @@ Thread messages do not support `start_time` / `end_time` filtering because of Fe
 
 | Scenario | Recommended Parameters |
 |------|---------|
-| Quickly inspect recent replies | `sort: 'desc'` |
-| Read the full thread in chronological order | `sort: 'asc'`, then paginate as needed |
-| Just confirm whether replies exist | `sort: 'desc'` |
+| Quickly inspect recent replies | `--sort desc --page-size 10` |
+| Read the full thread in chronological order | `--sort asc --page-size 50`, then paginate as needed |
+| Just confirm whether replies exist | `--sort desc --page-size 1` |
 
 ## Usage Scenarios
 
 ### Scenario 1: Expand a thread discovered in group messages
 
-```js
+```javascript
 // Step 1: Fetch group messages and find one that contains thread_id
-lark_api({ tool: 'im', op: 'chat-messages-list', args: { chat_id: 'oc_xxx' } })
+lark_api({ tool: 'im', op: 'chat-messages-list', args: { chatId: 'oc_xxx' } })
 
 // Step 2: Extract thread_id from the JSON output and fetch thread replies
 lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx' } })
@@ -66,26 +84,26 @@ lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx' } 
 
 ### Scenario 2: Paginate through a long thread
 
-```js
+```javascript
 // First page
 lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx' } })
 
 // If has_more=true is returned, continue with page_token
-lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', page_token: '<PAGE_TOKEN>' } })
+lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: 'omt_xxx', pageToken: '<PAGE_TOKEN>' } })
 ```
 
 ## Resource Rendering
 
 Thread replies are rendered into human-readable text. Image messages appear as placeholders such as `[Image: img_xxx]`; resource binaries are **not** downloaded automatically.
 
-Other resource types (files, audio, video) still need to be downloaded manually through `messages-resources-download`. See [lark-im-messages-resources-download](lark-im-messages-resources-download.md).
+Other resource types (files, audio, video) still need to be downloaded manually through `im +messages-resources-download`. See [lark-im-messages-resources-download](lark-im-messages-resources-download.md).
 
 ## Common Errors and Troubleshooting
 
 | Symptom | Root Cause | Solution |
 |---------|---------|---------|
 | "Invalid thread ID format" | `thread_id` does not start with `om_` or `omt_` | Use a valid `om_xxx` or `omt_xxx` value |
-| Empty thread result | Wrong thread_id or no replies in the thread | Confirm the thread_id came from `chat-messages-list` output |
+| Empty thread result | Wrong thread_id or no replies in the thread | Confirm the thread_id came from `im +chat-messages-list` output |
 | Permission denied | The user is not authorized or is not a conversation member | Make sure OAuth authorization is complete and the identity is a chat member |
 
 ## References
