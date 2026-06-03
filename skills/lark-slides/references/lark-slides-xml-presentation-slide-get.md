@@ -6,15 +6,17 @@
 
 ## 命令
 
-```js
-lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { /* ...路径参数 */ }, as: 'user' })
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: '<xml_presentation_id>', slide_id: '<slide_id>', as: 'user' } })
 ```
 
 ## 参数说明
 
-`args` 包含路径参数与查询参数。
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `--params` | JSON string | 是 | 路径参数与查询参数 |
 
-### args 字段结构
+### params JSON 结构
 
 ```json
 {
@@ -34,44 +36,21 @@ lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { /* ...路�
 
 ### 读最新版本
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.get',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide_id: 'slide_example_id'
-  },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id', as: 'user' } })
 ```
 
 ### 只提取 XML 内容
 
-XML 内容在返回的 `data.slide.content` 字段中：
-
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.get',
-  args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id' },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id', as: 'user' } })
+// extract: response.data.slide.content
 ```
 
 ### 读指定历史版本
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.get',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide_id: 'slide_example_id',
-    revision_id: 42
-  },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id', revision_id: 42, as: 'user' } })
 ```
 
 ## 返回值
@@ -107,20 +86,16 @@ lark_api({
 ## 注意事项
 
 1. **执行前必做**：`lark_api_search({ query: 'slides xml_presentation.slide.get' })` 查看最新参数结构
-2. **block_id 提取**：返回 XML 里每个顶层块（shape、img、table 等）的 `id` 属性即为 `block_id`，通常是 3 字符短码，例如 `<shape id="bUn" ...>`。从下面调用返回的 `data.slide.content` XML 里读出每个顶层块的 `id` 属性即可：
+2. **block_id 提取**：返回 XML 里每个顶层块（shape、img、table 等）的 `id` 属性即为 `block_id`，通常是 3 字符短码，例如 `<shape id="bUn" ...>`。用以下命令列出当前页所有 block_id：
 
-   ```js
-   lark_api({
-     tool: 'slides',
-     op: 'xml_presentation.slide.get',
-     args: { xml_presentation_id: 'PID', slide_id: 'SID' },
-     as: 'user'
-   })
+   ```javascript
+   lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: PID, slide_id: SID, as: 'user' } })
+   // parse response.data.slide.content XML; each top-level block's id attribute is the block_id
    ```
 
 ## 相关命令
 
-- [replace-slide](lark-slides-replace-slide.md) — 块级替换 shortcut（推荐）
+- [slides +replace-slide](lark-slides-replace-slide.md) — 块级替换 shortcut（推荐）
 - [xml_presentation.slide replace](lark-slides-xml-presentation-slide-replace.md) — 底层 replace API 参考
 - [xml_presentations get](lark-slides-xml-presentations-get.md) — 读整个 PPT
 - [lark-slides-edit-workflows.md](lark-slides-edit-workflows.md) — 读-改-写闭环

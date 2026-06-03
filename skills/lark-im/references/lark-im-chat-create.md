@@ -2,16 +2,16 @@
 
 > **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand authentication, global parameters, and safety rules.
 
-Create a group chat. Supports both user identity (`as: 'user'`) and bot identity (`as: 'bot'`). You can specify the group name, description, members (users/bots), owner, chat type (private/public), and group mode. Set `chat_mode: 'topic'` to create a topic chat.
+Create a group chat. Supports both user identity (`--as user`) and bot identity (`--as bot`). You can specify the group name, description, members (users/bots), owner, chat type (private/public), and group mode. Set `--chat-mode topic` to create a topic chat.
 
 This skill maps to the shortcut: `lark_api({ tool: 'im', op: 'chat-create' })` (internally calls `POST /open-apis/im/v1/chats`).
 
-- `as: 'bot'` requires the `im:chat:create` scope.
-- `as: 'user'` requires the `im:chat:create_by_user` scope.
+- `--as bot` requires the `im:chat:create` scope.
+- `--as user` requires the `im:chat:create_by_user` scope.
 
 ## Commands
 
-```js
+```javascript
 // Create a private group (default)
 lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group' } })
 
@@ -19,7 +19,7 @@ lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group' } })
 lark_api({ tool: 'im', op: 'chat-create', args: { name: 'Public Group', type: 'public' } })
 
 // Create a topic chat
-lark_api({ tool: 'im', op: 'chat-create', args: { name: 'Topic Group', chat_mode: 'topic' } })
+lark_api({ tool: 'im', op: 'chat-create', args: { name: 'Topic Group', chatMode: 'topic' } })
 
 // Specify the group owner
 lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', owner: 'ou_xxx' } })
@@ -34,69 +34,69 @@ lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', bots: 'cli_a
 lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', users: 'ou_aaa', bots: 'cli_aaa' } })
 
 // Make the creating bot a group manager (bot identity only)
-lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', set_bot_manager: true, as: 'bot' } })
+lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', setBotManager: true, as: 'bot' } })
+
+// JSON output
+lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', format: 'json' } })
 
 // Create a group with bot identity
 lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', users: 'ou_aaa', as: 'bot' } })
 
 // Create a group with user identity
 lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', users: 'ou_aaa,ou_bbb', as: 'user' } })
+
+// Preview the request without creating anything
+lark_api({ tool: 'im', op: 'chat-create', args: { name: 'My Group', dryRun: true } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Limits | Description |
 |------|------|------|------|
-| `name` | Required for public groups | Max 60 characters; at least 2 characters for public groups | Group name (`"(no subject)"` for private groups if omitted) |
-| `description` | No | Max 100 characters | Group description |
-| `users` | No | Up to 50, format `ou_xxx` | Comma-separated user open_ids |
-| `bots` | No | Up to 5, format `cli_xxx` | Comma-separated bot app IDs |
-| `owner` | No | Format `ou_xxx` | Owner open_id (defaults to the bot when using `as: 'bot'`, or the authorized user when using `as: 'user'`) |
-| `type` | No | `private` (default) or `public` | Group type. Default to `private`; pass `public` only when the user explicitly asks for a discoverable/public group. |
-| `chat_mode` | No | `group` (default) or `topic` | Group mode; `topic` creates a topic chat (not the same as `group_message_type=thread`). When the user asks for a topic chat, pass `topic` explicitly — do not rely on the default. |
-| `set_bot_manager` | No | - | Set the creating bot as a group manager (only effective with `as: 'bot'`) |
-| `as` | No | `bot` or `user` | Identity type |
+| `--name <name>` | Required for public groups | Max 60 characters; at least 2 characters for public groups | Group name (`"(no subject)"` for private groups if omitted) |
+| `--description <text>` | No | Max 100 characters | Group description |
+| `--users <ids>` | No | Up to 50, format `ou_xxx` | Comma-separated user open_ids |
+| `--bots <ids>` | No | Up to 5, format `cli_xxx` | Comma-separated bot app IDs |
+| `--owner <open_id>` | No | Format `ou_xxx` | Owner open_id (defaults to the bot when using `--as bot`, or the authorized user when using `--as user`) |
+| `--type <type>` | No | `private` (default) or `public` | Group type. Default to `private`; pass `public` only when the user explicitly asks for a discoverable/public group. |
+| `--chat-mode <mode>` | No | `group` (default) or `topic` | Group mode; `topic` creates a topic chat (not the same as `group_message_type=thread`). When the user asks for a topic chat, pass `topic` explicitly — do not rely on the default. |
+| `--set-bot-manager` | No | - | Set the creating bot as a group manager (only effective with `--as bot`) |
+| `--format json` | No | - | Output as JSON |
+| `--as <identity>` | No | `bot` or `user` | Identity type |
+| `--dry-run` | No | - | Preview the request without executing it |
 
-> **`chat_mode: 'topic'` vs "normal group with topic-message mode"**: `chat_mode: 'topic'` here creates a 话题群 — the entire group is a topic chat. This is different from "normal group (`chat_mode=group`) + topic-message mode (`group_message_type=thread`)". This CLI exposes only `chat_mode`; `group_message_type` is intentionally not surfaced.
+> **`--chat-mode topic` vs "normal group with topic-message mode"**: `--chat-mode topic` here creates a 话题群 — the entire group is a topic chat. This is different from "normal group (`chat_mode=group`) + topic-message mode (`group_message_type=thread`)". This CLI exposes only `chat_mode`; `group_message_type` is intentionally not surfaced.
 
 ## AI Usage Guidance
 
-### When using `as: 'bot'`
+### When using `--as bot`
 
-Bot may fail to invite users who are mutually invisible to it during group creation (error 232043). To avoid this, use the **two-step flow** below instead of passing other users' open_ids in `users`.
+Bot may fail to invite users who are mutually invisible to it during group creation (error 232043). To avoid this, use the **two-step flow** below instead of passing other users' open_ids in `--users`.
 
 1. **Get the current user's open_id:** Run `lark_api({ tool: 'contact', op: 'search-user', args: { query: '<name or email>' } })` to retrieve it.
 2. **Create the group — by default include the current user:**
 
-   ```js
-   lark_api({ tool: 'im', op: 'chat-create', args: {
-     name: '<group name>',
-     users: '<current user open_id>',
-     as: 'bot'
-   } })
+   ```javascript
+   lark_api({ tool: 'im', op: 'chat-create', args: { name: '<group name>', users: '<current user open_id>', as: 'bot' } })
    ```
 
    **Default behavior:** Always add the current user to the group, unless the user explicitly says "do not add me" or "bot-only group" — only then omit `users`.
 
 3. **Add other members via user identity** (requires the current user to be in the group):
 
-   ```js
-   lark_api({ tool: 'im', op: 'chat.members.create', args: {
-     params: { chat_id: '<chat_id from step 2>', member_id_type: 'open_id', succeed_type: 1 },
-     data: { id_list: ['ou_aaa', 'ou_bbb'] },
-     as: 'user'
-   } })
+   ```javascript
+   lark_api({ tool: 'im', op: 'chat.members.create', args: { params: '{"chat_id":"<chat_id from step 2>","member_id_type":"open_id","succeed_type":1}', data: '{"id_list":["ou_aaa","ou_bbb"]}', as: 'user' } })
    ```
 
    `succeed_type=1` ensures reachable users are added successfully; unreachable ones are returned in `invalid_id_list` instead of failing the whole request.
 
 4. **Check `invalid_id_list`** in the response. If non-empty, report to the user which members could not be added.
 
-### When using `as: 'user'`
+### When using `--as user`
 
 User identity does not have the bot visibility limitation, so you can create the group and invite members in one step:
 
-```js
+```javascript
 lark_api({ tool: 'im', op: 'chat-create', args: { name: '<group name>', users: 'ou_aaa,ou_bbb', as: 'user' } })
 ```
 
@@ -109,7 +109,7 @@ The authorized user is automatically the group creator and member.
 | `chat_id` | The new group's ID (`oc_xxx` format) |
 | `name` | Group name |
 | `chat_type` | Group type (`private` / `public`) |
-| `owner_id` | Owner ID (may be empty when a bot creates the group and `owner` is not specified) |
+| `owner_id` | Owner ID (may be empty when a bot creates the group and `--owner` is not specified) |
 | `external` | Whether the group is external |
 | `share_link` | Group share link (omitted if retrieval fails) |
 
@@ -117,27 +117,23 @@ The authorized user is automatically the group creator and member.
 
 ### Scenario 1: Create a group and specify the owner
 
-```js
+```javascript
 lark_api({ tool: 'im', op: 'chat-create', args: { name: 'Project Discussion Group', owner: 'ou_xxx' } })
 ```
 
 ### Scenario 2: Create a group and invite users and a bot
 
-```js
-lark_api({ tool: 'im', op: 'chat-create', args: {
-  name: 'Project Discussion Group',
-  owner: 'ou_xxx',
-  users: 'ou_aaa,ou_bbb',
-  bots: 'cli_aaa'
-} })
+```javascript
+lark_api({ tool: 'im', op: 'chat-create', args: { name: 'Project Discussion Group', owner: 'ou_xxx', users: 'ou_aaa,ou_bbb', bots: 'cli_aaa' } })
 ```
 
 ### Scenario 3: Create a group and send a welcome message
 
-```js
-// Read chat_id from the chat-create response, then send a welcome message to it
-lark_api({ tool: 'im', op: 'chat-create', args: { name: 'New Group' } })
-lark_api({ tool: 'im', op: 'messages-send', args: { chat_id: '<chat_id from response>', text: 'Welcome, everyone!' } })
+```javascript
+// Step 1: create the group and capture chat_id from the returned data
+lark_api({ tool: 'im', op: 'chat-create', args: { name: 'New Group', format: 'json' } })
+// Step 2: use the returned chat_id to send a welcome message
+lark_api({ tool: 'im', op: 'messages-send', args: { chatId: '<chat_id>', text: 'Welcome, everyone!' } })
 ```
 
 ## Common Errors and Troubleshooting
@@ -145,15 +141,15 @@ lark_api({ tool: 'im', op: 'messages-send', args: { chat_id: '<chat_id from resp
 | Symptom | Root Cause | Solution |
 |---------|---------|---------|
 | Permission denied (99991672) | The app does not have `im:chat:create` (bot) or `im:chat:create_by_user` (user) permission enabled | Enable the required permission for the app in the Open Platform console |
-| `name is required for public groups and must be at least 2 characters` | A public group was created without a name or with a name shorter than 2 characters | Provide a name with at least 2 characters |
-| `name exceeds the maximum of 60 characters` | The group name is too long | Shorten the name to 60 characters or fewer |
-| `description exceeds the maximum of 100 characters` | The group description is too long | Shorten the description to 100 characters or fewer |
-| `users exceeds the maximum of 50` | Too many user members were provided | Split the operation into batches and add more members later |
-| `bots exceeds the maximum of 5` | Too many bot members were provided | Invite at most 5 bots at once |
+| `--name is required for public groups and must be at least 2 characters` | A public group was created without a name or with a name shorter than 2 characters | Provide a name with at least 2 characters |
+| `--name exceeds the maximum of 60 characters` | The group name is too long | Shorten the name to 60 characters or fewer |
+| `--description exceeds the maximum of 100 characters` | The group description is too long | Shorten the description to 100 characters or fewer |
+| `--users exceeds the maximum of 50` | Too many user members were provided | Split the operation into batches and add more members later |
+| `--bots exceeds the maximum of 5` | Too many bot members were provided | Invite at most 5 bots at once |
 | `invalid user id: expected open_id (ou_xxx)` | Invalid user ID format | Use the `ou_xxx` format for users |
 | `invalid bot id: expected app ID (cli_xxx)` | Invalid bot ID format | Use the `cli_xxx` format for bots |
-| `invalid owner: expected open_id (ou_xxx)` | Invalid owner ID format | Use the `ou_xxx` format for the owner |
-| `bot is invisible to user` (232043) | The bot and target users are mutually invisible | Follow the two-step flow in AI Usage Guidance above — do not pass other users in `users` during creation |
+| `invalid --owner: expected open_id (ou_xxx)` | Invalid owner ID format | Use the `ou_xxx` format for the owner |
+| `bot is invisible to user` (232043) | The bot and target users are mutually invisible | Follow the two-step flow in AI Usage Guidance above — do not pass other users in `--users` during creation |
 
 ## References
 

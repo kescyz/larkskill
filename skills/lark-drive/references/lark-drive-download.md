@@ -7,7 +7,7 @@
 
 ## 命令
 
-```js
+```javascript
 // 下载到指定路径
 lark_api({ tool: 'drive', op: 'download', args: { file_token: 'boxbc_xxx', output: './report.pdf' } })
 

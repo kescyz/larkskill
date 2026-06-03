@@ -7,7 +7,7 @@
 
 ## 命令
 
-```js
+```javascript
 // 检视一个 docx URL
 lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/docx/doxcnXXX' } })
 
@@ -17,8 +17,8 @@ lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/wik
 // bare token 需要指定 type
 lark_api({ tool: 'drive', op: 'inspect', args: { url: 'doxcnXXX', type: 'docx' } })
 
-// 检视一个 base URL
-lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/base/bascnXXX' } })
+// 格式化输出
+lark_api({ tool: 'drive', op: 'inspect', args: { url: 'https://xxx.feishu.cn/base/bascnXXX', format: 'pretty' } })
 ```
 
 ## 输出
@@ -44,6 +44,7 @@ JSON 输出包含以下字段：
 
 ## 注意事项
 
-- `url` 为必填参数
-- 当 `url` 是 bare token（非完整 URL）时，`type` 也是必填的
+- `--url` 为必填参数
+- 当 `--url` 是 bare token（非完整 URL）时，`--type` 也是必填的
 - wiki URL 会自动调用 `get_node` API 解包，输出中 `type` 和 `token` 是底层文档的类型和 token
+- 支持 `--dry-run` 查看将调用的 API 步骤

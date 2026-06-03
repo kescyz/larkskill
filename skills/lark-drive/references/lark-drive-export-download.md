@@ -3,11 +3,11 @@
 
 > **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-根据导出任务产物的 `file_token` 下载本地文件。通常与 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'export' } })` 配合使用。
+根据导出任务产物的 `file_token` 下载本地文件。通常与 `drive +task_result --scenario export` 配合使用。
 
 ## 命令
 
-```js
+```javascript
 // 使用服务端返回的文件名下载到当前目录
 lark_api({ tool: 'drive', op: 'export-download', args: {
   file_token: '<EXPORTED_FILE_TOKEN>'
@@ -37,16 +37,16 @@ lark_api({ tool: 'drive', op: 'export-download', args: {
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `file_token` | 是 | 导出完成后的产物 token |
-| `file_name` | 否 | 覆盖默认文件名 |
-| `output_dir` | 否 | 本地输出目录，默认当前目录 |
-| `overwrite` | 否 | 覆盖已存在文件 |
+| `--file-token` | 是 | 导出完成后的产物 token |
+| `--file-name` | 否 | 覆盖默认文件名 |
+| `--output-dir` | 否 | 本地输出目录，默认当前目录 |
+| `--overwrite` | 否 | 覆盖已存在文件 |
 
 ## 使用顺序
 
-1. 用 `lark_api({ tool: 'drive', op: 'export' })` 发起导出
-2. 如果返回 `ticket` / `next_command`，用 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'export', ticket: '<ticket>', file_token: '<source_token>' } })` 继续查
-3. 查到 `file_token` 后，用 `lark_api({ tool: 'drive', op: 'export-download' })` 下载
+1. 用 `drive +export` 发起导出
+2. 如果返回 `ticket` / `next_command`，用 `drive +task_result --scenario export --ticket <ticket> --file-token <source_token>` 继续查
+3. 查到 `file_token` 后，用 `drive +export-download` 下载
 
 ## 参考
 

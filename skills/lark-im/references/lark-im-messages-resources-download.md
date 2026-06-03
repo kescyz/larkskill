@@ -2,7 +2,7 @@
 
 > **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand authentication, global parameters, and safety rules.
 
-Download image or file resources from a message. Supports **automatic chunked download for large files** using HTTP Range requests. Resources are identified by the combination of `message_id` + `file_key`, both of which come directly from message content returned by `chat-messages-list`.
+Download image or file resources from a message. Supports **automatic chunked download for large files** using HTTP Range requests. Resources are identified by the combination of `message_id` + `file_key`, both of which come directly from message content returned by `im +chat-messages-list`.
 
 > **Note:** read-only message commands render resource keys in message content, but they do not download binaries automatically. Use this command whenever you need to fetch the actual image/file bytes or save them to a specific path.
 
@@ -10,29 +10,33 @@ This skill maps to the shortcut: `lark_api({ tool: 'im', op: 'messages-resources
 
 ## Commands
 
-```js
+```javascript
 // Download an image (save to the current directory)
-lark_api({ tool: 'im', op: 'messages-resources-download', args: { message_id: 'om_xxx', file_key: 'img_v3_xxx', type: 'image' } })
+lark_api({ tool: 'im', op: 'messages-resources-download', args: { messageId: 'om_xxx', fileKey: 'img_v3_xxx', type: 'image' } })
 
 // Download a file
-lark_api({ tool: 'im', op: 'messages-resources-download', args: { message_id: 'om_xxx', file_key: 'file_v3_xxx', type: 'file' } })
+lark_api({ tool: 'im', op: 'messages-resources-download', args: { messageId: 'om_xxx', fileKey: 'file_v3_xxx', type: 'file' } })
 
 // Specify the output path
-lark_api({ tool: 'im', op: 'messages-resources-download', args: { message_id: 'om_xxx', file_key: 'img_v3_xxx', type: 'image', output: './photo.png' } })
+lark_api({ tool: 'im', op: 'messages-resources-download', args: { messageId: 'om_xxx', fileKey: 'img_v3_xxx', type: 'image', output: './photo.png' } })
 
 // Download as a bot
-lark_api({ tool: 'im', op: 'messages-resources-download', args: { message_id: 'om_xxx', file_key: 'img_v3_xxx', type: 'image', as: 'bot' } })
+lark_api({ tool: 'im', op: 'messages-resources-download', args: { messageId: 'om_xxx', fileKey: 'img_v3_xxx', type: 'image', as: 'bot' } })
+
+// Preview the request without executing it
+lark_api({ tool: 'im', op: 'messages-resources-download', args: { messageId: 'om_xxx', fileKey: 'img_v3_xxx', type: 'image', dryRun: true } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Description |
 |------|------|------|
-| `message_id` | Yes | Message ID (`om_xxx` format) |
-| `file_key` | Yes | Resource key (`img_xxx` or `file_xxx`) |
-| `type` | Yes | Resource type: `image` or `file` |
-| `output` | No | Output path (relative paths only; `..` traversal is not allowed). When omitted, the server's original filename from `Content-Disposition` is used if available; otherwise defaults to `file_key`. File extension is automatically inferred from `Content-Disposition` or `Content-Type` if not provided |
-| `as` | No | Identity type: `user` (default) or `bot` |
+| `--message-id <id>` | Yes | Message ID (`om_xxx` format) |
+| `--file-key <key>` | Yes | Resource key (`img_xxx` or `file_xxx`) |
+| `--type <type>` | Yes | Resource type: `image` or `file` |
+| `--output <path>` | No | Output path (relative paths only; `..` traversal is not allowed). When omitted, the server's original filename from `Content-Disposition` is used if available; otherwise defaults to `file_key`. File extension is automatically inferred from `Content-Disposition` or `Content-Type` if not provided |
+| `--as <identity>` | No | Identity type: `user` (default) or `bot` |
+| `--dry-run` | No | Print the request only, do not execute it |
 
 ## Large File Download (Auto Chunking)
 
@@ -54,7 +58,7 @@ When downloading large files, the command automatically uses **HTTP Range reques
 
 Different resource markers in message content correspond to different `file_key` and `type` values:
 
-| Message Type | Marker in Content | `file_key` Format | `type` |
+| Message Type | Marker in Content | `file_key` Format | `--type` |
 |---------|-------------|---------------|--------|
 | Image | `img_xxx` | `img_xxx` | `image` |
 | File | `file_xxx` | `file_xxx` | `file` |
@@ -65,13 +69,13 @@ Different resource markers in message content correspond to different `file_key`
 
 ### Scenario: Extract and download an image from a message
 
-```js
+```javascript
 // Step 1: Fetch messages and find one containing an image
-lark_api({ tool: 'im', op: 'chat-messages-list', args: { chat_id: 'oc_xxx' } })
+lark_api({ tool: 'im', op: 'chat-messages-list', args: { chatId: 'oc_xxx' } })
 // In the response you see: { "msg_type": "image", "content": "{\"image_key\":\"img_v3_xxx\"}" }
 
 // Step 2: Download the image
-lark_api({ tool: 'im', op: 'messages-resources-download', args: { message_id: 'om_xxx', file_key: 'img_v3_xxx', type: 'image' } })
+lark_api({ tool: 'im', op: 'messages-resources-download', args: { messageId: 'om_xxx', fileKey: 'img_v3_xxx', type: 'image' } })
 ```
 
 ## Common Errors and Troubleshooting
@@ -80,7 +84,7 @@ lark_api({ tool: 'im', op: 'messages-resources-download', args: { message_id: 'o
 |---------|---------|---------|
 | Download failed | `file_key` does not match the `message_id` | Make sure the `file_key` came from that message's content |
 | Hit error code 234002 or 14005 | No permission, **not** missing API scope | no access to this chat or file was deleted — do not retry, return the error to the user |
-| Permission denied | `im:message:readonly` is not authorized | Run `lark_auth_login({ scope: 'im:message:readonly' })` |
+| Permission denied | `im:message:readonly` is not authorized | Run `auth login --scope "im:message:readonly"` |
 | File size mismatch | Chunked download integrity check failed | Network instability during download; retry the command |
 | Content-Range error | Server returned invalid range header | Transient API issue; retry the command |
 

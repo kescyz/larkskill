@@ -2,11 +2,11 @@
 
 ## Mandatory Read Acknowledgement
 
-When creating or updating a formula field with `lark_api({ tool: 'base', op: 'field-create' | 'field-update', args: { json: ... } })` and `type` is `formula`, you should read this guide first and only then add `i_have_read_guide: true` to the args.
+When creating or updating a formula field with `lark_api({ tool: 'base', op: 'field-create' })` / `lark_api({ tool: 'base', op: 'field-update' })` and `type` is `formula`, you should read this guide first and only then add `i_have_read_guide: true` to `args`.
 
-Do **not** proactively add `i_have_read_guide: true` before reading this guide. Without it, the call will fail fast and direct you back to this guide.
+Do **not** proactively add `--i-have-read-guide` before reading this guide. Without it, the CLI will fail fast and direct you back to this guide.
 
-When using `field-update`, also pass `yes: true`: field update is a high-risk `PUT` operation because changing a field definition can affect the whole column.
+When using `field-update`, also pass `yes: true` in `args`: field update is a high-risk `PUT` operation because changing a field definition can affect the whole column.
 
 ## Default strategy
 
@@ -25,7 +25,7 @@ When creating a formula field, the Agent should:
 **Key constraints**:
 
 - The JSON must include `"type": "formula"` — this field is required
-- Table names and field names in the formula must **exactly match** those returned by `table-list` / `table-get`
+- Table names and field names in the formula must **exactly match** those returned by `+table-list` / `+table-get`
 - The `expression` value is a string containing the formula expression; double quotes inside the expression must be properly escaped in JSON (e.g. `\"text\"`)
 
 ---
@@ -218,7 +218,7 @@ After the result column, it's recommended to flatten with `.LISTCOMBINE()` first
 
 2. **Function whitelist**: Only use functions listed in Section 8. No unlisted functions.
 
-3. **Exact name matching**: Table names and field names in formulas must **exactly match** those returned by `table-get` — no renaming or adding spaces.
+3. **Exact name matching**: Table names and field names in formulas must **exactly match** those returned by `+table-get` — no renaming or adding spaces.
 
 4. **Operator whitelist**: Only use operators listed in Section 4.
 
@@ -616,7 +616,7 @@ Reason: NOW, TODAY, PI and other zero-argument functions must include parenthese
 
 ### Example 1: Employee sales summary
 
-**Table structure** (from `table-get`):
+**Table structure** (from `+table-get`):
 
 - Employees: EmployeeID (Text), Name (Text), Department (Text)
 - Sales: ContractID (Number), SalespersonID (Text), Quantity (Number), Total (Number)
@@ -730,7 +730,7 @@ When the user describes their formula need in natural language, follow these rul
 - Only use functions and operators listed in this document
 - FILTER/SUMIF/COUNTIF/MAP must not be nested inside each other's conditions (chained calls are not nesting)
 - Do not use LOOKUP — use FILTER exclusively
-- Table and field names must exactly match `table-get` output
+- Table and field names must exactly match `+table-get` output
 - Strings must use double quotes `"`
 - Format dates with TEXT before concatenating, to control output format
 - SORTBY can only be chained and must include an output column

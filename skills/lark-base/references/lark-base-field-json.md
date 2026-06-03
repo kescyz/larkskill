@@ -1,12 +1,12 @@
-# base shortcut field JSON 规范（lark-base-shortcut-field-properties）
+# Base field JSON SSOT
 
 > 适用命令：`lark_api({ tool: 'base', op: 'field-create' })`、`lark_api({ tool: 'base', op: 'field-update' })`
 
-本文件定义 **shortcut 写字段** 时 `json` 的推荐格式，是字段类型与字段 JSON 结构的 source of truth。目标不是复刻完整 schema，而是让 agent 稳定产出正确 payload。
+本文档定义 `+field-create` / `+field-update` 写字段时 `--json` 的推荐格式，是字段类型与字段 JSON 结构的 source of truth。目标不是复刻完整 schema，而是让 agent 稳定产出正确 payload。
 
 ## 1. 顶层规则（必须遵守）
 
-- `json` 必须是 JSON 对象。
+- `--json` 必须是 JSON 对象。
 - 顶层统一使用：`type` + `name` + 类型特有字段。
 - 所有字段类型都支持可选 `description`；支持纯文本，也支持 Markdown 链接。
 - 不要使用旧结构：`field_name`、`property`、`ui_type`、数字枚举 `type`。

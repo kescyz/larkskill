@@ -15,7 +15,7 @@
 
 ## 命令示例
 
-```js
+```javascript
 lark_api({ tool: 'minutes', op: 'speaker-replace', args: {
   minute_token: 'obcnxxxxxxxxxxxxxxxxxxxx',
   from_user_id: 'ou_old_speaker_open_id',
@@ -27,11 +27,11 @@ lark_api({ tool: 'minutes', op: 'speaker-replace', args: {
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `minute_token` | 是 | 妙记的唯一标识，可从妙记 URL 末尾路径提取 |
-| `from_user_id` | 是 | 被替换的原说话人，**必须是 `ou_` 开头的 open_id**，不支持用户名 |
-| `to_user_id` | 是 | 新的说话人，**必须是 `ou_` 开头的 open_id**，不支持用户名 |
+| `--minute-token <token>` | 是 | 妙记的唯一标识，可从妙记 URL 末尾路径提取 |
+| `--from-user-id <ou_xxx>` | 是 | 被替换的原说话人，**必须是 `ou_` 开头的 open_id**，不支持用户名 |
+| `--to-user-id <ou_xxx>` | 是 | 新的说话人，**必须是 `ou_` 开头的 open_id**，不支持用户名 |
 
-> **重要**：`from_user_id` 和 `to_user_id` 仅支持 `ou_` 开头的用户 ID，**不支持直接传姓名**。如果用户只给了姓名，请先用 [lark-contact](../../lark-contact/SKILL.md) 把姓名解析成 `open_id`，再调用本命令。
+> **重要**：`--from-user-id` 和 `--to-user-id` 仅支持 `ou_` 开头的用户 ID，**不支持直接传姓名**。如果用户只给了姓名，请先用 [lark-contact](../../lark-contact/SKILL.md) 把姓名解析成 `open_id`，再调用本命令。
 
 ## 认证与权限
 
@@ -41,9 +41,9 @@ lark_api({ tool: 'minutes', op: 'speaker-replace', args: {
 
 | 字段 | 说明 |
 |------|------|
-| `minute_token` | 被修改的妙记 Token，与输入的 `minute_token` 一致 |
-| `from_user_id` | 被替换的原说话人 open_id，与输入的 `from_user_id` 一致；必须是妙记逐字稿中已存在的说话人 |
-| `to_user_id` | 替换后的新说话人 open_id，与输入的 `to_user_id` 一致 |
+| `minute_token` | 被修改的妙记 Token，与输入的 `--minute-token` 一致 |
+| `from_user_id` | 被替换的原说话人 open_id，与输入的 `--from-user-id` 一致；必须是妙记逐字稿中已存在的说话人 |
+| `to_user_id` | 替换后的新说话人 open_id，与输入的 `--to-user-id` 一致 |
 
 ## 参考
 

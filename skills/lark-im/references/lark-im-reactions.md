@@ -2,7 +2,7 @@
 
 > **Prerequisite:** Read [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) first to understand authentication, global parameters, and safety rules.
 
-> **Heads-up — don't reach for `batch_query` by default.** The four message-pulling shortcuts (`messages-mget`, `chat-messages-list`, `messages-search`, `threads-messages-list`) already call `im.reactions.batch_query` automatically and attach the result as a `reactions` block on each message (replies inside `thread_replies` included). Use those shortcuts for any "read reactions of messages I'm already pulling" task. Reach for the raw `batch_query` API only when you have a standalone `message_id` outside that pull flow. See the main [message enrichment](lark-im-message-enrichment.md) for the contract.
+> **Heads-up — don't reach for `batch_query` by default.** The four message-pulling shortcuts (`+messages-mget`, `+chat-messages-list`, `+messages-search`, `+threads-messages-list`) already call `im.reactions.batch_query` automatically and attach the result as a `reactions` block on each message (replies inside `thread_replies` included). Use those shortcuts for any "read reactions of messages I'm already pulling" task. Reach for the raw `batch_query` API only when you have a standalone `message_id` outside that pull flow. See the main [message enrichment](lark-im-message-enrichment.md) for the contract.
 
 This reference is the shared annotation target for the IM reaction APIs:
 
@@ -17,7 +17,7 @@ It focuses on:
 - The request/response shape you need when calling the raw API commands
 - The complete `emoji_type` list used in reaction payloads and filters
 
-> **Important:** These raw API commands accept structured input through `params` and `data` (JSON objects). They do not expose typed flags such as `message_id` or `reaction_type` directly.
+> **Important:** These raw API commands accept structured input through `--params '<json>'` and `--data '<json>'`. They do not expose typed flags such as `--message-id` or `--reaction-type` directly.
 
 ## Command Overview
 
@@ -38,34 +38,31 @@ It focuses on:
 
 ## Inspect Schema
 
-```js
-lark_api_search({ query: 'im.reactions' })
-lark_api_search({ query: 'im.reactions.create' })
-lark_api_search({ query: 'im.reactions.list' })
-lark_api_search({ query: 'im.reactions.delete' })
+```javascript
+lark_api_search({ query: 'im reactions' })
+lark_api_search({ query: 'im reactions.create' })
+lark_api_search({ query: 'im reactions.list' })
+lark_api_search({ query: 'im reactions.delete' })
 ```
 
-If your local build has already exposed the batch API, also check:
+If the batch API is available in the catalog, also check:
 
-```js
-lark_api_search({ query: 'im.reactions.batch_query' })
+```javascript
+lark_api_search({ query: 'im reactions.batch_query' })
 ```
 
 ## create
 
 Add a reaction to one message.
 
-```js
-lark_api({ tool: 'im', op: 'reactions.create', args: {
-  params: { message_id: 'om_xxx' },
-  data: { reaction_type: { emoji_type: 'SMILE' } }
-} })
+```javascript
+lark_api({ tool: 'im', op: 'reactions.create', args: { params: '{"message_id":"om_xxx"}', data: '{"reaction_type":{"emoji_type":"SMILE"}}' } })
 ```
 
 ### Request
 
-- `params.message_id`: required message ID
-- `data.reaction_type.emoji_type`: required emoji type
+- `--params.message_id`: required message ID
+- `--data.reaction_type.emoji_type`: required emoji type
 
 ### Response
 
@@ -87,15 +84,15 @@ lark_api({ tool: 'im', op: 'reactions.create', args: {
 
 List reaction records on one message.
 
-```js
-lark_api({ tool: 'im', op: 'reactions.list', args: { params: { message_id: 'om_xxx' } } })
-lark_api({ tool: 'im', op: 'reactions.list', args: { params: { message_id: 'om_xxx', reaction_type: 'SMILE' } } })
-lark_api({ tool: 'im', op: 'reactions.list', args: { params: { message_id: 'om_xxx', page_size: 50 } } })
-lark_api({ tool: 'im', op: 'reactions.list', args: { params: { message_id: 'om_xxx', page_token: '<PAGE_TOKEN>' } } })
-lark_api({ tool: 'im', op: 'reactions.list', args: { params: { message_id: 'om_xxx', user_id_type: 'open_id' } } })
+```javascript
+lark_api({ tool: 'im', op: 'reactions.list', args: { params: '{"message_id":"om_xxx"}' } })
+lark_api({ tool: 'im', op: 'reactions.list', args: { params: '{"message_id":"om_xxx","reaction_type":"SMILE"}' } })
+lark_api({ tool: 'im', op: 'reactions.list', args: { params: '{"message_id":"om_xxx","page_size":50}' } })
+lark_api({ tool: 'im', op: 'reactions.list', args: { params: '{"message_id":"om_xxx","page_token":"<PAGE_TOKEN>"}' } })
+lark_api({ tool: 'im', op: 'reactions.list', args: { params: '{"message_id":"om_xxx","user_id_type":"open_id"}' } })
 ```
 
-### Request Parameters (`params`)
+### Request Parameters (`--params`)
 
 | Parameter | Required | Description |
 |---|---|---|
@@ -155,16 +152,14 @@ lark_api({ tool: 'im', op: 'reactions.list', args: { params: { message_id: 'om_x
 
 Delete one specific reaction record from one message.
 
-```js
-lark_api({ tool: 'im', op: 'reactions.delete', args: {
-  params: { message_id: 'om_xxx', reaction_id: 'ZCaCIjUBVVWSrm5L-3ZTw_xxx' }
-} })
+```javascript
+lark_api({ tool: 'im', op: 'reactions.delete', args: { params: '{"message_id":"om_xxx","reaction_id":"ZCaCIjUBVVWSrm5L-3ZTw_xxx"}' } })
 ```
 
 ### Request
 
-- `params.message_id`: required message ID
-- `params.reaction_id`: required reaction record ID
+- `--params.message_id`: required message ID
+- `--params.reaction_id`: required reaction record ID
 
 ### Response
 
@@ -179,29 +174,19 @@ The response shape is similar to `create`, and usually echoes:
 
 Query reactions for multiple messages in one request.
 
-```js
-lark_api({ tool: 'im', op: 'reactions.batch_query', args: {
-  params: { user_id_type: 'open_id' },
-  data: {
-    queries: [
-      { message_id: 'om_xxx' },
-      { message_id: 'om_yyy', page_token: '<PAGE_TOKEN>' }
-    ],
-    page_size_per_message: 10,
-    reaction_type: 'LAUGH'
-  }
-} })
+```javascript
+lark_api({ tool: 'im', op: 'reactions.batch_query', args: { params: '{"user_id_type":"open_id"}', data: '{"queries":[{"message_id":"om_xxx"},{"message_id":"om_yyy","page_token":"<PAGE_TOKEN>"}],"page_size_per_message":10,"reaction_type":"LAUGH"}' } })
 ```
 
 ### Request
 
-#### `params`
+#### `--params`
 
 | Parameter | Required | Description |
 |---|---|---|
 | `user_id_type` | No | Returned user ID type in operator info: `open_id`, `union_id`, or `user_id` |
 
-#### `data`
+#### `--data`
 
 | Field | Required | Description |
 |---|---|---|

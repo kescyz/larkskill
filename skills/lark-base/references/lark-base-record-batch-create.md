@@ -11,21 +11,19 @@
 
 ## 推荐命令
 
-```js
-lark_api({ tool: 'base', op: 'record-batch-create', args: {
-  base_token: '<base_token>',
-  table_id: '<table_id>',
-  json: {"fields":["标题","状态"],"rows":[["任务 A","Open"],["任务 B","Done"]]}
-} })
+```javascript
+lark_api({ tool: 'base', op: 'record-batch-create', args: { base_token: '<base_token>', table_id: '<table_id>', json: '{"fields":["标题","状态"],"rows":[["任务 A","Open"],["任务 B","Done"]]}' } })
+
+lark_api({ tool: 'base', op: 'record-batch-create', args: { base_token: '<base_token>', table_id: '<table_id>', json: '@batch-create.json' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `base_token` | 是 | Base Token |
-| `table_id` | 是 | 表 ID 或表名 |
-| `json` | 是 | 批量创建请求体，必须是 JSON 对象。支持直接传 JSON 对象，或 `@<file_path>` 从文件读取 |
+| `--base-token <token>` | 是 | Base Token |
+| `--table-id <id_or_name>` | 是 | 表 ID 或表名 |
+| `--json <body>` | 是 | 批量创建请求体，必须是 JSON 对象。支持直接传 JSON 字符串，或 `@<file_path>` 从文件读取 |
 
 ## API
 
@@ -33,7 +31,7 @@ lark_api({ tool: 'base', op: 'record-batch-create', args: {
 
 ## `--json` 结构
 
-本节只说明 `record-batch-create` 的外层 JSON 形状；CellValue 统一看 [lark-base-cell-value.md](lark-base-cell-value.md)。
+本节只说明 `+record-batch-create` 的外层 JSON 形状；CellValue 统一看 [lark-base-cell-value.md](lark-base-cell-value.md)。
 
 对象形态：`{"fields":[...],"rows":[...]}`。
 
@@ -55,5 +53,4 @@ lark_api({ tool: 'base', op: 'record-batch-create', args: {
 
 ## 参考
 
-- [lark-base-record.md](lark-base-record.md) — record 索引页
 - [lark-base-cell-value.md](lark-base-cell-value.md) — CellValue 格式规范

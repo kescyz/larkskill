@@ -1,27 +1,44 @@
 # lark-wiki +node-list
 
-List wiki nodes in a space or under a specific parent node. **Default fetches a single page** (large knowledge bases can have thousands of nodes).
+List wiki nodes in a space or under a specific parent node. **Default fetches a single page** (large knowledge bases can have thousands of nodes — opt into `--page-all` explicitly with an eye on `--page-limit`).
 
 ## Usage
 
-```js
+```javascript
 // Default: single page of root nodes
-lark_api({ tool: 'wiki', op: 'node-list', args: { space_id: '<SPACE_ID>' } })
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '<SPACE_ID>' } })
 
 // Drill into a sub-directory (still single page by default)
-lark_api({ tool: 'wiki', op: 'node-list', args: { space_id: '<SPACE_ID>', parent_node_token: '<NODE_TOKEN>' } })
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '<SPACE_ID>', parentNodeToken: '<NODE_TOKEN>' } })
 
 // Personal document library (user identity only)
-lark_api({ tool: 'wiki', op: 'node-list', args: { space_id: 'my_library', as: 'user' } })
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: 'my_library', as: 'user' } })
+
+// Walk every page (capped by page_limit, default 10)
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '<SPACE_ID>', pageAll: true } })
+
+// Walk every page with a higher cap
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '<SPACE_ID>', pageAll: true, pageLimit: 30 } })
+
+// Resume from a cursor
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '<SPACE_ID>', pageToken: '<TOKEN>' } })
+
+// Pretty / table output
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '<SPACE_ID>', format: 'pretty' } })
 ```
 
 ## Flags
 
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
-| `space_id` | string | **Yes** | — | Wiki space ID. Use `my_library` for personal document library (user only) |
-| `parent_node_token` | string | No | — | Parent node token; omit to list the space root |
-| `as` | enum | No | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `as: 'user'` (`my_library` requires `as: 'user'`) |
+| `--space-id` | string | **Yes** | — | Wiki space ID. Use `my_library` for personal document library (user only) |
+| `--parent-node-token` | string | No | — | Parent node token; omit to list the space root |
+| `--page-size` | int | No | 50 | Page size, 1-50 |
+| `--page-token` | string | No | — | Page cursor; implies single-page fetch (no auto-pagination) |
+| `--page-all` | bool | No | `false` | Automatically paginate through all pages (capped by `--page-limit`) |
+| `--page-limit` | int | No | 10 | Max pages with `--page-all` (0 = unlimited) |
+| `--format` | enum | No | `json` | `json` / `pretty` / `table` / `csv` / `ndjson` |
+| `--as` | enum | No | `auto` | Identity `user`/`bot`; wiki is user-centric → pass `--as user` (`my_library` requires `--as user`) |
 
 ## Output
 
@@ -48,23 +65,23 @@ lark_api({ tool: 'wiki', op: 'node-list', args: { space_id: 'my_library', as: 'u
 }
 ```
 
-When the default single-page fetch does not exhaust the upstream cursor, `has_more=true` and `page_token=<cursor>` so the caller can resume.
+When the default single-page fetch (or `--page-all` capped by `--page-limit`) does not exhaust the upstream cursor, `has_more=true` and `page_token=<cursor>` so the caller can resume via `--page-token` or by increasing `--page-limit`.
 
 ## Traverse the wiki tree
 
-To list all content recursively, call `+node-list` again with each node's `node_token` as `parent_node_token` when `has_child` is `true`.
+To list all content recursively, call `+node-list` again with each node's `node_token` as `--parent-node-token` when `has_child` is `true`.
 
-```js
+```javascript
 // Step 1: list root nodes
-lark_api({ tool: 'wiki', op: 'node-list', args: { space_id: '6946843325487912356' } })
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '6946843325487912356' } })
 
 // Step 2: drill into a node that has children
-lark_api({ tool: 'wiki', op: 'node-list', args: { space_id: '6946843325487912356', parent_node_token: 'wikcn_EXAMPLE_TOKEN' } })
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: '6946843325487912356', parentNodeToken: 'wikcn_EXAMPLE_TOKEN' } })
 ```
 
 ## Notes
 
-- `space_id: 'my_library'` is a per-user alias and only valid with `as: 'user'`. The shortcut will refuse `as: 'bot'` with `my_library` upfront.
+- `--space-id my_library` is a per-user alias and only valid with `--as user`. The shortcut will refuse `--as bot` with `my_library` upfront.
 
 ## Required Scope
 

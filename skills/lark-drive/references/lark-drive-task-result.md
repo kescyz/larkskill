@@ -6,11 +6,11 @@
 查询异步任务结果。该 shortcut 聚合了导入、导出、移动/删除文件夹、Wiki 节点 / 文档迁入 Wiki 等多种异步任务的结果查询，统一接口方便调用。
 
 > [!IMPORTANT]
-> 对于 `import` 场景，如果使用 `as: 'bot'` 且这次查询**已经拿到最终在线文档目标**（`ready=true` 且返回了最终 `token` / `url`），CLI 会**再次尝试为当前 CLI 用户自动授予该资源的 `full_access`（可管理权限）**。
+> 对于 `import` 场景，如果使用 `--as bot` 且这次查询**已经拿到最终在线文档目标**（`ready=true` 且返回了最终 `token` / `url`），CLI 会**再次尝试为当前 CLI 用户自动授予该资源的 `full_access`（可管理权限）**。
 >
 > 此时结果里会额外返回 `permission_grant` 字段，明确说明授权结果：
 > - `status = granted`：当前 CLI 用户已获得该导入结果的可管理权限
-> - `status = skipped`：本地没有可用的当前用户 `open_id`，或最终结果缺少可授权的在线文档目标，因此不会自动授权；可提示用户先完成 `lark_auth_login`，再让 AI / agent 继续使用应用身份（bot）授予当前用户权限
+> - `status = skipped`：本地没有可用的当前用户 `open_id`，或最终结果缺少可授权的在线文档目标，因此不会自动授权；可提示用户先完成登录（`lark_auth_login`），再让 AI / agent 继续使用应用身份（bot）授予当前用户权限
 > - `status = failed`：导入结果已就绪，但自动授权用户失败；会带上失败原因，并提示稍后重试或继续使用 bot 身份处理该文档
 >
 > `permission_grant.perm = full_access` 表示该资源已授予“可管理权限”。
@@ -19,7 +19,7 @@
 
 ## 命令
 
-```js
+```javascript
 // 查询导入任务结果
 lark_api({ tool: 'drive', op: 'task_result', args: {
   scenario: 'import',
@@ -39,13 +39,13 @@ lark_api({ tool: 'drive', op: 'task_result', args: {
   task_id: '<TASK_ID>'
 } })
 
-// 查询 Wiki 移动任务结果（wiki move 异步超时后的续跑）
+// 查询 Wiki 移动任务结果（wiki +move 异步超时后的续跑）
 lark_api({ tool: 'drive', op: 'task_result', args: {
   scenario: 'wiki_move',
   task_id: '<TASK_ID>'
 } })
 
-// 查询 Wiki 删除知识空间任务结果（wiki delete-space 异步超时后的续跑）
+// 查询 Wiki 删除知识空间任务结果（wiki +delete-space 异步超时后的续跑）
 lark_api({ tool: 'drive', op: 'task_result', args: {
   scenario: 'wiki_delete_space',
   task_id: '<TASK_ID>'
@@ -56,20 +56,20 @@ lark_api({ tool: 'drive', op: 'task_result', args: {
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `scenario` | 是 | 任务场景，可选值：`import` (导入任务)、`export` (导出任务)、`task_check` (移动/删除文件夹任务)、`wiki_move` (Wiki 移动任务)、`wiki_delete_space` (Wiki 删除知识空间任务) |
-| `ticket` | 条件必填 | 异步任务 ticket，**import/export 场景必填** |
-| `task_id` | 条件必填 | 异步任务 ID，**task_check / wiki_move / wiki_delete_space 场景必填** |
-| `file_token` | 条件必填 | 导出任务对应的源文档 token，**export 场景必填** |
+| `--scenario` | 是 | 任务场景，可选值：`import` (导入任务)、`export` (导出任务)、`task_check` (移动/删除文件夹任务)、`wiki_move` (Wiki 移动任务)、`wiki_delete_space` (Wiki 删除知识空间任务) |
+| `--ticket` | 条件必填 | 异步任务 ticket，**import/export 场景必填** |
+| `--task-id` | 条件必填 | 异步任务 ID，**task_check / wiki_move / wiki_delete_space 场景必填** |
+| `--file-token` | 条件必填 | 导出任务对应的源文档 token，**export 场景必填** |
 
 ## 场景说明
 
 | 场景 | 说明 | 所需参数 |
 |------|------|----------|
-| `import` | 文档导入任务（如将本地文件导入为云文档） | `ticket` |
-| `export` | 文档导出任务（如云文档导出为 PDF/Word） | `ticket`、`file_token` |
-| `task_check` | 文件夹移动/删除任务 | `task_id` |
-| `wiki_move` | Wiki 移动任务（`wiki move` 的 docs-to-wiki 异步流程，超时后续跑用） | `task_id` |
-| `wiki_delete_space` | Wiki 删除知识空间任务（`wiki delete-space` 的异步流程，超时后续跑用） | `task_id` |
+| `import` | 文档导入任务（如将本地文件导入为云文档） | `--ticket` |
+| `export` | 文档导出任务（如云文档导出为 PDF/Word） | `--ticket`、`--file-token` |
+| `task_check` | 文件夹移动/删除任务 | `--task-id` |
+| `wiki_move` | Wiki 移动任务（`wiki +move` 的 docs-to-wiki 异步流程，超时后续跑用） | `--task-id` |
+| `wiki_delete_space` | Wiki 删除知识空间任务（`wiki +delete-space` 的异步流程，超时后续跑用） | `--task-id` |
 
 ## 返回结果
 
@@ -105,7 +105,7 @@ lark_api({ tool: 'drive', op: 'task_result', args: {
 - `job_status_label`: 便于阅读的状态标签，例如 `success` / `processing`
 - `token`: 导入后的文档 token
 - `url`: 导入后的文档链接
-- `permission_grant`: 仅 `as: 'bot'` 且这次查询已经拿到最终在线文档目标时返回，用于说明是否已自动为当前 CLI 用户授予可管理权限；如果当前仍是 `ready=false`，则不会返回这个字段
+- `permission_grant`: 仅 `--as bot` 且这次查询已经拿到最终在线文档目标时返回，用于说明是否已自动为当前 CLI 用户授予可管理权限；如果当前仍是 `ready=false`，则不会返回这个字段
 
 ### Export 场景返回
 
@@ -222,9 +222,9 @@ lark_api({ tool: 'drive', op: 'task_result', args: {
 
 ## 使用场景
 
-### 配合 import 使用
+### 配合 +import 使用
 
-```js
+```javascript
 // 1. 创建导入任务
 lark_api({ tool: 'drive', op: 'import', args: { file: './data.xlsx', type: 'sheet' } })
 // 若任务很快完成：直接返回 token / url
@@ -235,9 +235,9 @@ lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'import', ticket:
 // 如果这里返回 ready=true 且使用 as: 'bot'，结果还会包含 permission_grant
 ```
 
-### 配合 move 使用
+### 配合 +move 使用
 
-```js
+```javascript
 // 1. 移动文件夹（异步操作）
 lark_api({ tool: 'drive', op: 'move', args: { file_token: '<FOLDER_TOKEN>', type: 'folder', folder_token: '<TARGET_FOLDER_TOKEN>' } })
 // 若轮询窗口内完成：直接返回 ready=true
@@ -247,9 +247,9 @@ lark_api({ tool: 'drive', op: 'move', args: { file_token: '<FOLDER_TOKEN>', type
 lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'task_check', task_id: '<TASK_ID>' } })
 ```
 
-### 配合 wiki move 使用
+### 配合 wiki +move 使用
 
-```js
+```javascript
 // 1. 把 Drive 文档迁入 Wiki（异步任务可能返回 task_id）
 lark_api({ tool: 'wiki', op: 'move', args: { obj_type: 'docx', obj_token: '<DOC_TOKEN>', target_space_id: '<TARGET_SPACE_ID>' } })
 // 若内置轮询窗口内完成：直接返回 ready=true 和 wiki_token
@@ -259,13 +259,13 @@ lark_api({ tool: 'wiki', op: 'move', args: { obj_type: 'docx', obj_token: '<DOC_
 lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', task_id: '<TASK_ID>', as: 'user' } })
 ```
 
-> **身份保持一致**：续跑命令的 `as` 必须与原 `wiki move` 调用一致；`wiki move` 的 `next_command` 已自动带上正确的 `as`。
+> **身份保持一致**：续跑命令的 `--as` 必须与原 `wiki +move` 调用一致；`wiki +move` 的 `next_command` 已自动带上正确的 `--as`。
 
-### 配合 wiki delete-space 使用
+### 配合 wiki +delete-space 使用
 
-```js
-// 1. 删除知识空间（高风险写操作；接口可能同步返回空 task_id，也可能返回异步 task_id）
-lark_api({ tool: 'wiki', op: 'delete-space', args: { space_id: '<SPACE_ID>' } })
+```javascript
+// 1. 删除知识空间（高风险写操作，必须显式带 yes: true；接口可能同步返回空 task_id，也可能返回异步 task_id）
+lark_api({ tool: 'wiki', op: 'delete-space', args: { space_id: '<SPACE_ID>', yes: true } })
 // 若同步返回：直接 ready=true
 // 若轮询窗口结束仍未完成：返回 ready=false、task_id、timed_out=true 和 next_command
 
@@ -273,9 +273,9 @@ lark_api({ tool: 'wiki', op: 'delete-space', args: { space_id: '<SPACE_ID>' } })
 lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', task_id: '<TASK_ID>', as: 'user' } })
 ```
 
-### 配合 export 使用
+### 配合 +export 使用
 
-```js
+```javascript
 // 1. 发起导出
 lark_api({ tool: 'drive', op: 'export', args: { token: '<SOURCE_DOC_TOKEN>', doc_type: 'docx', file_extension: 'pdf' } })
 // 若轮询窗口内完成：直接下载本地文件
@@ -299,7 +299,7 @@ lark_api({ tool: 'drive', op: 'export-download', args: { file_token: '<EXPORTED_
 | wiki_delete_space | `wiki:space:read` |
 
 > [!NOTE]
-> `import` 场景在 `as: 'bot'` 且任务最终就绪时，还可能额外尝试一次协作者授权；如果 `permission_grant.status = failed`，请根据失败信息检查应用是否具备相应的文档协作者授权能力。
+> `import` 场景在 `--as bot` 且任务最终就绪时，还可能额外尝试一次协作者授权；如果 `permission_grant.status = failed`，请根据失败信息检查应用是否具备相应的文档协作者授权能力。
 
 ## 参考
 

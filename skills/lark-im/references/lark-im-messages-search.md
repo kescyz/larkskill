@@ -4,71 +4,94 @@
 
 Search Feishu messages across conversations. This shortcut automatically performs a multi-step workflow: search for message IDs, batch fetch message details, then enrich the results with chat context.
 
-By default each result message also carries a `reactions` block (counts + details from `im.reactions.batch_query`) when the server has reactions for it, and `update_time` for messages that were actually edited. Pass `no_reactions: true` to skip the extra round-trip. See [message enrichment](lark-im-message-enrichment.md) for the full contract.
+By default each result message also carries a `reactions` block (counts + details from `im.reactions.batch_query`) when the server has reactions for it, and `update_time` for messages that were actually edited. With `--page-all`, every page is enriched; pass `--no-reactions` to skip the extra round-trip. See [message enrichment](lark-im-message-enrichment.md) for the full contract.
 
-> **User identity only** (`as: 'user'`). Bot identity is not supported.
+> **User identity only** (`--as user`). Bot identity is not supported.
 
 This skill maps to the shortcut: `lark_api({ tool: 'im', op: 'messages-search' })` (internally calls `POST /open-apis/im/v1/messages/search` + batched `GET /open-apis/im/v1/messages/mget`, then batch-fetches chat context).
 
 ## Commands
 
-```js
+```javascript
 // Search by keyword
 lark_api({ tool: 'im', op: 'messages-search', args: { query: 'project progress' } })
 
 // Restrict search to a specific group chat
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'weekly report', chat_id: 'oc_xxx' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'weekly report', chatId: 'oc_xxx' } })
 
 // Filter by sender (comma-separated)
 lark_api({ tool: 'im', op: 'messages-search', args: { query: 'requirement', sender: 'ou_xxx,ou_yyy' } })
 
 // Filter by attachment type
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'report', include_attachment_type: 'file' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'report', includeAttachmentType: 'file' } })
 
 // Filter by chat type (group / p2p)
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'progress', chat_type: 'group' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'progress', chatType: 'group' } })
 
 // Filter by sender type (user / bot)
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'reminder', sender_type: 'bot' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'reminder', senderType: 'bot' } })
 
 // Exclude bot senders
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'reminder', exclude_sender_type: 'bot' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'reminder', excludeSenderType: 'bot' } })
 
 // Only messages that @me
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'announcement', is_at_me: true } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'announcement', isAtMe: true } })
 
 // Only messages that @mention specific users (results also include messages that @all)
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'release', at_chatter_ids: 'ou_xxx,ou_yyy' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'release', atChatterIds: 'ou_xxx,ou_yyy' } })
 
 // Combined filters + time range
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'meeting', sender: 'ou_xxx', chat_type: 'group', start: '2026-03-13T00:00:00+08:00', end: '2026-03-20T23:59:59+08:00' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'meeting', sender: 'ou_xxx', chatType: 'group', start: '2026-03-13T00:00:00+08:00', end: '2026-03-20T23:59:59+08:00' } })
 
 // Specific time range (ISO 8601)
 lark_api({ tool: 'im', op: 'messages-search', args: { query: 'release', start: '2026-03-01T00:00:00+08:00', end: '2026-03-10T00:00:00+08:00' } })
+
+// Output format options
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'test', format: 'pretty' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'test', format: 'table' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'test', format: 'csv' } })
+
+// Pagination
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'test', pageToken: '<PAGE_TOKEN>' } })
+
+// Auto-pagination across multiple pages
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'test', pageAll: true, format: 'json' } })
+
+// Auto-pagination with an explicit page cap
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'test', pageLimit: 5, format: 'json' } })
+
+// Preview the request without executing it
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'test', dryRun: true } })
 ```
 
 ## Parameters
 
 | Parameter | Required | Description |
 |------|------|------|
-| `query` | No | Search keyword (may be empty when used with other filters) |
-| `chat_id` | No | Restrict to chat IDs, comma-separated (`oc_xxx,oc_yyy`) |
-| `sender` | No | Sender open_ids, comma-separated (`ou_xxx`) |
-| `include_attachment_type` | No | Attachment filter: `file` / `image` / `video` / `link` |
-| `chat_type` | No | Chat type: `group` / `p2p` |
-| `sender_type` | No | Sender type: `user` / `bot` |
-| `exclude_sender_type` | No | Exclude messages from `user` or `bot` senders |
-| `is_at_me` | No | Only return messages that mention `@me` |
-| `at_chatter_ids` | No | Filter by @mentioned user open_ids, comma-separated (`ou_xxx,ou_yyy`). Matched results also include messages that `@all` |
-| `start` | No | Start time with local timezone offset required (e.g. `2026-03-24T00:00:00+08:00`) |
-| `end` | No | End time with local timezone offset required (e.g. `2026-03-25T23:59:59+08:00`) |
-| `as` | No | Identity type (defaults to and only supports `user`) |
+| `--query <text>` | No | Search keyword (may be empty when used with other filters) |
+| `--chat-id <id>` | No | Restrict to chat IDs, comma-separated (`oc_xxx,oc_yyy`) |
+| `--sender <ids>` | No | Sender open_ids, comma-separated (`ou_xxx`) |
+| `--include-attachment-type <type>` | No | Attachment filter: `file` / `image` / `video` / `link` |
+| `--chat-type <type>` | No | Chat type: `group` / `p2p` |
+| `--sender-type <type>` | No | Sender type: `user` / `bot` |
+| `--exclude-sender-type <type>` | No | Exclude messages from `user` or `bot` senders |
+| `--is-at-me` | No | Only return messages that mention `@me` |
+| `--at-chatter-ids <ids>` | No | Filter by @mentioned user open_ids, comma-separated (`ou_xxx,ou_yyy`). Matched results also include messages that `@all` |
+| `--start <time>` | No | Start time with local timezone offset required (e.g. `2026-03-24T00:00:00+08:00`) |
+| `--end <time>` | No | End time with local timezone offset required (e.g. `2026-03-25T23:59:59+08:00`) |
+| `--page-size <n>` | No | Page size (default 20, range 1-50) |
+| `--page-token <token>` | No | Pagination token for the next page |
+| `--page-all` | No | Automatically paginate through all result pages (up to 40 pages) |
+| `--page-limit <n>` | No | Max pages to fetch when auto-pagination is enabled (default 20, max 40). Setting it explicitly also enables auto-pagination |
+| `--format <fmt>` | No | Output format: `json` (default) / `pretty` / `table` / `ndjson` / `csv` |
+| `--as <identity>` | No | Identity type (defaults to and only supports `user`) |
+| `--dry-run` | No | Print the request only, do not execute it |
 
 ## Core Constraints
 
 ### 1. Provide at least one filter whenever possible
 
-All parameters are optional, but you should usually provide at least one filter (`query`, `sender`, `chat_id`, etc.). Otherwise the search scope may be too broad and return low-signal results.
+All parameters are optional, but you should usually provide at least one filter (`--query`, `--sender`, `--chat-id`, etc.). Otherwise the search scope may be too broad and return low-signal results.
 
 ### 2. Two-step orchestration is automatic
 
@@ -78,7 +101,7 @@ The shortcut automatically performs:
 2. The **mget API** fetches full message content for those message IDs in batch
 3. Chat context lookup is fetched in batch and attached to each message
 
-The user does not need to manage the orchestration manually. When search results span multiple pages, continue with the `page_token` returned in the response.
+The user does not need to manage the orchestration manually. When search results span multiple pages, the shortcut can also paginate automatically with `--page-all` or `--page-limit`.
 
 ### 3. Conversation context is enriched automatically
 
@@ -109,17 +132,19 @@ Each message in JSON output contains:
 
 ### 4. Pagination behavior
 
-- Default behavior is **single-page**.
-- `page_token` is the manual continuation mechanism when you already have a token from a previous response.
-- The response includes the last `has_more` / `page_token` so you can continue fetching the next page.
+- Default behavior is still **single-page**.
+- `--page-token` is the manual continuation mechanism when you already have a token from a previous response.
+- `--page-all` enables auto-pagination and uses a default cap of **40 pages**.
+- `--page-limit <n>` enables auto-pagination with an explicit cap. If you pass `--page-limit` without `--page-all`, auto-pagination is still enabled.
+- When auto-pagination stops because of the configured page cap, the response still includes the last `has_more` / `page_token` so you can continue manually.
 
 ### 5. Search results contain follow-up clues
 
 In JSON output, each message includes `chat_id` and `thread_id` (when present). Use them with other shortcuts for deeper inspection:
 
-```js
+```javascript
 // View the full message stream for the conversation that contains the search result
-lark_api({ tool: 'im', op: 'chat-messages-list', args: { chat_id: '<chat_id>' } })
+lark_api({ tool: 'im', op: 'chat-messages-list', args: { chatId: '<chat_id>' } })
 
 // View replies in the thread that contains the search result
 lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: '<thread_id>' } })
@@ -129,19 +154,19 @@ lark_api({ tool: 'im', op: 'threads-messages-list', args: { thread: '<thread_id>
 
 Search results reuse the same content formatter as other read commands. Image messages are rendered as placeholders such as `[Image: img_xxx]`; resource binaries are **not** downloaded automatically.
 
-Use `messages-resources-download` if you need to fetch the underlying image or file bytes from a specific message.
+Use `im +messages-resources-download` if you need to fetch the underlying image or file bytes from a specific message.
 
 ## AI Usage Guidance
 
 ### Query boundary for activity review
 
-Use `query` only for real message keywords. If the user asks for activity review such as "最近一周我和哪些 Bot 有过交互" or "整理我和某人的聊天记录", and the useful constraints are sender type, chat, person, or time range, keep `query: ''` and rely on those filters. Do not put generic instruction words such as "看看", "总结", "交互内容", or "聊天记录" into `query`; those words often over-constrain message search and hide the relevant messages.
+Use `--query` only for real message keywords. If the user asks for activity review such as "最近一周我和哪些 Bot 有过交互" or "整理我和某人的聊天记录", and the useful constraints are sender type, chat, person, or time range, keep `--query ""` and rely on those filters. Do not put generic instruction words such as "看看", "总结", "交互内容", or "聊天记录" into `--query`; those words often over-constrain message search and hide the relevant messages.
 
-This guidance applies only when using user identity. `messages-search` is user-only; if the user explicitly asks for application/bot identity, do not try `as: 'bot'`. For bot identity with a named group and history/listing intent, resolve the group with `chat-search` (`as: 'bot'`), then list messages with `chat-messages-list` (`as: 'bot'`, `chat_id: '<chat_id>'`).
+This guidance applies only when using user identity. `im +messages-search` is user-only; if the user explicitly asks for application/bot identity, do not try `--as bot`. For bot identity with a named group and history/listing intent, resolve the group with `im +chat-search --as bot`, then list messages with `im +chat-messages-list --as bot --chat-id <chat_id>`.
 
-```js
+```javascript
 // Review recent bot interactions without forcing a keyword
-lark_api({ tool: 'im', op: 'messages-search', args: { query: '', sender_type: 'bot', start: '<YYYY-MM-DDT00:00:00+08:00>', end: '<YYYY-MM-DDT23:59:59+08:00>' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: '', senderType: 'bot', start: '<YYYY-MM-DDT00:00:00+08:00>', end: '<YYYY-MM-DDT23:59:59+08:00>', pageAll: true, format: 'json' } })
 ```
 
 Replace the time placeholders at execution time. For example, "最近一周" means computing the start date and end date from the current day before running the command; do not copy date literals from this reference into answers for relative requests.
@@ -150,17 +175,17 @@ For activity summaries, validate evidence by message IDs and chat context. The f
 
 ### Resolving chat_id from a chat name
 
-When the user refers to a chat by name and you need its `chat_id` for the `chat_id` filter, use [`chat-search`](lark-im-chat-search.md) first:
+When the user refers to a chat by name and you need its `chat_id` for the `--chat-id` filter, use [`+chat-search`](lark-im-chat-search.md) first:
 
-```js
+```javascript
 // Step 1: Find the chat_id by name
-lark_api({ tool: 'im', op: 'chat-search', args: { query: '<chat name keyword>' } })
+lark_api({ tool: 'im', op: 'chat-search', args: { query: '<chat name keyword>', format: 'json' } })
 
 // Step 2: Use the chat_id to narrow down message search
-lark_api({ tool: 'im', op: 'messages-search', args: { query: 'keyword', chat_id: '<chat_id>' } })
+lark_api({ tool: 'im', op: 'messages-search', args: { query: 'keyword', chatId: '<chat_id>' } })
 ```
 
-**Do not use `chats.search` or `chat-list` — always use the `chat-search` shortcut.**
+**Do not use `im chats search` or `+chat-list` — always use the `+chat-search` shortcut.**
 
 ## Work Summary / Report Generation
 
@@ -168,25 +193,29 @@ When the user asks you to summarize work, generate a weekly report, or compile a
 
 ### Strategy
 
-1. **Start with targeted filters** — use `chat_id`, `sender`, `start`, `end` to narrow the scope as much as possible before paginating.
-2. **Accumulate before summarizing** — collect all pages of messages first, then analyze and summarize. Do not summarize after the first page alone — you will miss important context.
-3. **Continue with `page_token` when resuming** — if the response has `has_more=true`, continue from the returned `page_token`.
-4. **The response includes `has_more` and `page_token`** — use those fields to drive pagination.
+1. **Start with targeted filters** — use `--chat-id`, `--sender`, `--start`, `--end` to narrow the scope as much as possible before paginating.
+2. **Prefer auto-pagination** — for report and summary tasks, use `--page-all --format json` by default. If you need a bounded run, use `--page-limit <n> --format json`.
+3. **Accumulate before summarizing** — collect all pages of messages first, then analyze and summarize. Do not summarize after the first page alone — you will miss important context.
+4. **Fall back to `--page-token` when resuming** — if auto-pagination hits the configured page cap and the response still has `has_more=true`, continue from the returned `page_token`.
+5. **Use `--format json`** — JSON output includes `has_more` and `page_token` fields needed for pagination. `pretty` and `table` formats are useful for reading but not for resuming pagination reliably.
 
 ### Example: Weekly work summary from a project chat
 
-```js
-// Fetch the first page
-lark_api({ tool: 'im', op: 'messages-search', args: { query: '', chat_id: 'oc_xxx', sender: 'ou_me', start: '2026-03-18T00:00:00+08:00', end: '2026-03-25T23:59:59+08:00' } })
+```javascript
+// Preferred: fetch automatically
+lark_api({ tool: 'im', op: 'messages-search', args: { query: '', chatId: 'oc_xxx', sender: 'ou_me', start: '2026-03-18T00:00:00+08:00', end: '2026-03-25T23:59:59+08:00', pageSize: 50, pageAll: true, format: 'json' } })
 
-// If the response returns has_more=true, continue with the returned page_token
-lark_api({ tool: 'im', op: 'messages-search', args: { query: '', chat_id: 'oc_xxx', sender: 'ou_me', start: '2026-03-18T00:00:00+08:00', end: '2026-03-25T23:59:59+08:00', page_token: '<token_from_previous_run>' } })
+// If you need to cap the run explicitly
+lark_api({ tool: 'im', op: 'messages-search', args: { query: '', chatId: 'oc_xxx', sender: 'ou_me', start: '2026-03-18T00:00:00+08:00', end: '2026-03-25T23:59:59+08:00', pageSize: 50, pageLimit: 5, format: 'json' } })
+
+// If the bounded run still returns has_more=true, continue manually
+lark_api({ tool: 'im', op: 'messages-search', args: { query: '', chatId: 'oc_xxx', sender: 'ou_me', start: '2026-03-18T00:00:00+08:00', end: '2026-03-25T23:59:59+08:00', pageSize: 50, pageToken: '<token_from_previous_run>', format: 'json' } })
 ```
 
 ### Key points
 
 - **Always paginate exhaustively** for summary tasks. A single page of 20-50 messages is usually insufficient for a meaningful work summary.
-- Continue with `page_token` until `has_more=false`.
+- Prefer `--page-all`; use `--page-limit` only when you need to bound runtime or output volume.
 - If the user does not specify a time range, default to the current week (Monday to today) for weekly reports, or ask for clarification.
 - When summarizing, group messages by topic/thread rather than by chronological order for better readability.
 
@@ -196,7 +225,7 @@ lark_api({ tool: 'im', op: 'messages-search', args: { query: '', chat_id: 'oc_xx
 |---------|---------|---------|
 | Too few results | The time range is too narrow or the keyword is too specific | Expand the time range and try broader keywords |
 | No results | Missing permission or no match | Confirm `search:message` is authorized and relax the filters |
-| Permission denied | Search scope not authorized | Run `lark_auth_login({ scope: 'search:message' })` |
+| Permission denied | Search scope not authorized | Run `auth login --scope "search:message"` |
 
 ## References
 

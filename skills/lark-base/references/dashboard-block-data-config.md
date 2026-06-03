@@ -1,6 +1,6 @@
-# dashboard block data_config 参考
+# dashboard block data_config SSOT
 
-Block 的 `data_config` 字段因 `type` 不同而变化。本文档描述所有共享结构。
+Block 的 `data_config` 字段因 `type` 不同而变化。本文档是 dashboard block `data_config` 的单一事实来源（SSOT），包含组件类型、字段结构、筛选格式、约束和可复制模板。
 
 ## 支持的组件类型（`type` 枚举）
 
@@ -154,7 +154,7 @@ user / created_by / updated_by: is, isNot, isEmpty, isNotEmpty
 | `select` (`multiple=true`) | string[]（选多个）/ string（选单个） | is, isNot, contains, doesNotContain, isEmpty, isNotEmpty | 多选传数组如 `["标签1","标签2"]`；单选传单个字符串 |
 | `datetime` / `created_at` / `updated_at` | number（Unix 毫秒时间戳，13位） | is, isGreater, isGreaterEqual, isLess, isLessEqual, isEmpty, isNotEmpty | `{"field_name":"创建日期","operator":"isGreater","value":1704038400000}` |
 | `checkbox` | boolean | is | `{"field_name":"已审核","operator":"is","value":true}` |
-| `user` / `created_by` / `updated_by` | string 或 string[]（用户 ID，格式 `ou_xxx`）。不知道 `open_id` 时先用 `lark_api({ tool: 'contact', op: 'search-user', args: { query: '<姓名/邮箱/手机号>' }, as: 'user' })` 查 id。 | is, isNot, isEmpty, isNotEmpty | `{"field_name":"负责人","operator":"is","value":"ou_xxxxxxxxxxxxxxxx"}` |
+| `user` / `created_by` / `updated_by` | string 或 string[]（用户 ID，格式 `ou_xxx`）。不知道 `open_id` 时先用 `lark_api({ tool: 'contact', op: 'search-user', args: { query: '<姓名/邮箱/手机号>', as: 'user' } })` 查 id。 | is, isNot, isEmpty, isNotEmpty | `{"field_name":"负责人","operator":"is","value":"ou_xxxxxxxxxxxxxxxx"}` |
 | 所有类型（为空/不为空） | 不需要 value | isEmpty, isNotEmpty | `{"field_name":"备注","operator":"isEmpty"}` |
 
 > `value` 类型为 `string | number | boolean | string[]`，需根据字段类型匹配正确格式

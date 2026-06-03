@@ -2,21 +2,17 @@
 
 > **前置条件：** 先阅读 [`../lark-shared/SKILL.md`](../../lark-shared/SKILL.md) 了解认证、全局参数和安全规则。
 
-删除指定的历史版本。该 shortcut 同时支持 `as: 'user'` 和 `as: 'bot'`；自动化场景推荐使用 `as: 'bot'`。
+删除指定的历史版本。该 shortcut 同时支持 `--as user` 和 `--as bot`；自动化场景推荐使用 `--as bot`。
 
 ## 命令
 
-```js
+```javascript
 lark_api({ tool: 'drive', op: 'version-delete', args: {
-  file_token: 'boxcnxxxxxxxx',
-  version: '7633658129540910621',
-  as: 'bot'
+  file_token: 'boxcnxxxxxxxx', version: '7633658129540910621', yes: true, as: 'bot'
 } })
 
 lark_api({ tool: 'drive', op: 'version-delete', args: {
-  file_token: 'boxcnxxxxxxxx',
-  version: '7633658129540910621',
-  as: 'user'
+  file_token: 'boxcnxxxxxxxx', version: '7633658129540910621', yes: true, as: 'user'
 } })
 ```
 
@@ -24,8 +20,9 @@ lark_api({ tool: 'drive', op: 'version-delete', args: {
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `file_token` | 是 | 目标文件 token |
-| `version` | 是 | `version-history` 返回的长数字 `version` 字段，不是 `tag` |
+| `--file-token` | 是 | 目标文件 token |
+| `--version` | 是 | `drive +version-history` 返回的长数字 `version` 字段，不是 `tag` |
+| `--yes` | 是 | 确认执行高风险删除操作 |
 
 ## 返回值
 
