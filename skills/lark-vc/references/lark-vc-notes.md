@@ -5,36 +5,43 @@
 
 查询会议纪要，支持通过会议 ID、妙记 Token 或日程事件 ID 获取纪要文档、逐字稿、AI 总结、待办和章节。只读操作。
 
-本 skill 对应 shortcut：`lark_api({ tool: 'vc', op: 'notes' })`。
+本 skill 对应 shortcut：`lark_api({ tool: 'vc', op: '+notes', args: {...} })`。
 
 ## 命令
 
-```js
+```javascript
 // 通过会议 ID 查询（逗号分隔支持批量，最多 50 个）
-lark_api({ tool: 'vc', op: 'notes', args: { meeting_ids: '69xxxxxxxxxxxxx28' } })
-lark_api({ tool: 'vc', op: 'notes', args: { meeting_ids: '69xxxxxxxxxxxxx28,69xxxxxxxxxxxxx29' } })
+lark_api({ tool: 'vc', op: '+notes', args: { 'meeting-ids': '69xxxxxxxxxxxxx28' } })
+lark_api({ tool: 'vc', op: '+notes', args: { 'meeting-ids': '69xxxxxxxxxxxxx28,69xxxxxxxxxxxxx29' } })
 
 // 通过妙记 Token 查询（从妙记 URL 中提取）
-lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx' } })
-lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx,obbyyyyyyyyyyyyyyyyyy' } })
+lark_api({ tool: 'vc', op: '+notes', args: { 'minute-tokens': 'obbxxxxxxxxxxxxxxxxxx' } })
+lark_api({ tool: 'vc', op: '+notes', args: { 'minute-tokens': 'obbxxxxxxxxxxxxxxxxxx,obbyyyyyyyyyyyyyyyyyy' } })
 
-// 指定逐字稿输出目录（仅 minute_tokens 路径有效）
-lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx', output_dir: './output' } })
-lark_api({ tool: 'vc', op: 'notes', args: { minute_tokens: 'obbxxxxxxxxxxxxxxxxxx', overwrite: true } })
+// 指定逐字稿输出目录（仅 --minute-tokens 路径有效）
+lark_api({ tool: 'vc', op: '+notes', args: { 'minute-tokens': 'obbxxxxxxxxxxxxxxxxxx', 'output-dir': './output' } })
+lark_api({ tool: 'vc', op: '+notes', args: { 'minute-tokens': 'obbxxxxxxxxxxxxxxxxxx', overwrite: true } })
 
 // 通过日程事件 ID 查询（从 calendar +agenda 获取 event_id）
-lark_api({ tool: 'vc', op: 'notes', args: { calendar_event_ids: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx_0' } })
+lark_api({ tool: 'vc', op: '+notes', args: { 'calendar-event-ids': 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx_0' } })
+
+// 输出格式
+lark_api({ tool: 'vc', op: '+notes', args: { 'meeting-ids': '69xxxxxxxxxxxxx28', format: 'json' } })
+
+// 预览 API 调用
+lark_api({ tool: 'vc', op: '+notes', args: { 'meeting-ids': '69xxxxxxxxxxxxx28', 'dry-run': true } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `meeting_ids` | 三选一 | 会议 ID，逗号分隔支持批量 |
-| `minute_tokens` | 三选一 | 妙记 Token，逗号分隔支持批量 |
-| `calendar_event_ids` | 三选一 | 日程事件 ID，逗号分隔支持批量 |
-| `output_dir` | 否 | 逐字稿输出目录。未指定时默认落到 `./minutes/{minute_token}/transcript.txt`（与 `minutes +download` 共享目录）；显式指定时沿用旧布局 `./{output-dir}/artifact-{title}-{token}/transcript.txt`。仅 `--minute-tokens` 路径有效 |
-| `overwrite` | 否 | 覆盖已存在的逐字稿文件，仅 `--minute-tokens` 路径有效 |
+| `--meeting-ids <ids>` | 三选一 | 会议 ID，逗号分隔支持批量 |
+| `--minute-tokens <tokens>` | 三选一 | 妙记 Token，逗号分隔支持批量 |
+| `--calendar-event-ids <ids>` | 三选一 | 日程事件 ID，逗号分隔支持批量 |
+| `--output-dir <dir>` | 否 | 逐字稿输出目录。未指定时默认落到 `./minutes/{minute_token}/transcript.txt`（与 `minutes +download` 共享目录）；显式指定时沿用旧布局 `./{output-dir}/artifact-{title}-{token}/transcript.txt`。仅 `--minute-tokens` 路径有效 |
+| `--overwrite` | 否 | 覆盖已存在的逐字稿文件，仅 `--minute-tokens` 路径有效 |
+| `--dry-run` | 否 | 预览 API 调用，不执行 |
 
 ## 核心约束
 
@@ -44,7 +51,7 @@ lark_api({ tool: 'vc', op: 'notes', args: { calendar_event_ids: 'xxxxxxxx-xxxx-x
 
 ### 2. 仅支持 user 身份
 
-该命令仅支持 `user` 身份，使用前需完成 `lark_auth_login`。
+该命令仅支持 `user` 身份，使用前需完成 `lark-cli auth login`。
 
 ### 3. 批量上限
 
@@ -56,9 +63,9 @@ lark_api({ tool: 'vc', op: 'notes', args: { calendar_event_ids: 'xxxxxxxx-xxxx-x
 
 | 输入 | 所需权限 |
 |------|---------|
-| `--meeting-ids` | `vc:meeting.meetingevent:read`、`vc:note:read` |
+| `--meeting-ids` | `vc:meeting.meetingevent:read`、`vc:note:read`、`vc:record:readonly` |
 | `--minute-tokens` | `vc:note:read`、`minutes:minutes:readonly`、`minutes:minutes.artifacts:read`、`minutes:minutes.transcript:export` |
-| `--calendar-event-ids` | `calendar:calendar:read`、`calendar:calendar.event:read`、`vc:meeting.meetingevent:read`、`vc:note:read` |
+| `--calendar-event-ids` | `calendar:calendar:read`、`calendar:calendar.event:read`、`vc:meeting.meetingevent:read`、`vc:note:read`、`vc:record:readonly` |
 
 ## 输出结果
 
@@ -68,6 +75,8 @@ lark_api({ tool: 'vc', op: 'notes', args: { calendar_event_ids: 'xxxxxxxx-xxxx-x
 
 | 字段 | 说明 |
 |------|------|
+| `meeting_id` | 会议 ID（`--meeting-ids` / `--calendar-event-ids` 路径） |
+| `minute_token` | **会议对应的妙记 Token**（`--meeting-ids` / `--calendar-event-ids` 路径自动通过录制 API 反查并附加）|
 | `note_doc_token` | **AI 智能纪要**文档 Token — AI 生成的总结、待办、章节 |
 | `meeting_notes` | **用户绑定的会议纪要**文档 Token 列表 — 用户主动关联到会议的文档（仅 `--calendar-event-ids` 路径返回） |
 | `verbatim_doc_token` | **逐字稿**文档 Token — 完整的逐句文字记录，含说话人和时间戳 |
@@ -76,6 +85,8 @@ lark_api({ tool: 'vc', op: 'notes', args: { calendar_event_ids: 'xxxxxxxx-xxxx-x
 | `create_time` | 创建时间（格式化） |
 
 > **选择哪个 token？** 用户说"会议纪要""总结""待办""纪要内容" → 返回 `note_doc_token` 和 `meeting_notes`（如有）。用户说"逐字稿""完整记录""谁说了什么" → 用 `verbatim_doc_token`。意图不明确时，展示所有文档链接让用户选择。
+>
+> 📌 不确定该返回哪个 token？参见 [`vc-domain-boundaries.md`](vc-domain-boundaries.md) 的产物链路对比表，了解 AI 总结链路 vs 录制链路的区别。
 
 ### minute-tokens 路径的 AI 产物
 
