@@ -6,15 +6,17 @@
 
 ## 命令
 
-```js
-lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { /* ...路径参数 */ }, as: 'user' })
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: '<xml_presentation_id>', as: 'user' } })
 ```
 
 ## 参数说明
 
-`args` 包含路径参数与查询参数，结构以 schema 为准。
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `--params` | JSON string | 是 | 路径参数与查询参数，结构以 schema 为准 |
 
-### args 字段结构
+### params JSON 结构
 
 ```json
 {
@@ -32,26 +34,23 @@ lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { /* ...路径参�
 
 ### 基础示例
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentations.get',
-  args: { xml_presentation_id: 'slides_example_presentation_id' },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'slides_example_presentation_id', as: 'user' } })
 ```
 
-### 提取 XML 内容
+### 结合 jq 格式化输出
 
-完整 XML 内容在返回的 `data.xml_presentation.content` 字段中：
+```javascript
+// Use jq or parse the response to extract content
+lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'slides_example_presentation_id', as: 'user' } })
+// then extract: response.data.xml_presentation.content
+```
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentations.get',
-  args: { xml_presentation_id: 'slides_example_presentation_id' },
-  as: 'user'
-})
+### 保存到文件
+
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'slides_example_presentation_id', as: 'user' } })
+// save the response to a local file as needed
 ```
 
 ## 返回值
@@ -92,11 +91,11 @@ lark_api({
 
 1. **执行前必做**: 使用 `lark_api_search({ query: 'slides xml_presentations.get' })` 查看最新的参数结构
 2. 返回的 XML 在 `data.xml_presentation.content` 字段中
-3. 如果只需要部分信息，可以从返回结果中提取对应字段
-4. 建议将获取的 XML 保存下来，便于后续编辑或备份
+3. 如果只需要部分信息，可以使用 `jq` 等工具过滤返回结果
+4. 建议将获取的 XML 保存为文件，便于后续编辑或备份
 
 ## 相关命令
 
-- [create](lark-slides-create.md) - 创建空白 PPT
+- [slides +create](lark-slides-create.md) - 创建空白 PPT
 - [xml_presentation.slide create](lark-slides-xml-presentation-slide-create.md) - 添加幻灯片页面
 - [xml_presentation.slide delete](lark-slides-xml-presentation-slide-delete.md) - 删除幻灯片页面

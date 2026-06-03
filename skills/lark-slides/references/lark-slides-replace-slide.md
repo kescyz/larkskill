@@ -6,60 +6,36 @@
 
 相比直接调 `xml_presentation.slide.replace`，这个 shortcut 的四个额外价值：
 
-1. `presentation` 接受 `xml_presentation_id` / `/slides/` URL / `/wiki/` URL（wiki 自动解析）；
+1. `--presentation` 接受 `xml_presentation_id` / `/slides/` URL / `/wiki/` URL（wiki 自动解析）；
 2. `block_replace` 的 `replacement` 根元素 `id="<block_id>"` 由 CLI 自动注入——底层 API 的硬约束（不注入返回 3350001）；直接调原生 API 需自己加，用 Shortcut 则自动注入；
 3. `<shape>` 元素缺少 `<content/>` 子元素时由 CLI 自动注入——SML 2.0 schema 要求每个 `<shape>` 必须有 `<content/>` 子元素，缺失同样触发 3350001；自闭合的 `<shape .../>` 也会被自动展开为 `<shape ...><content/></shape>`；
 4. 3350001 错误时提供上下文感知的 hint，帮助 AI agent 和用户快速定位原因。
 
 ## 命令
 
-```js
+```javascript
 // block_insert：在页末追加一个新元素
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'slidesXXXXXXXXXXXXXXXXXXXXXX',
-    slide_id: 'pfG',
-    parts: [{ action: 'block_insert', insertion: '<shape type="rect" topLeftX="500" topLeftY="100" width="200" height="100"/>' }]
-  },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: 'slidesXXXXXXXXXXXXXXXXXXXXXX', slide_id: 'pfG', parts: [{ action: 'block_insert', insertion: '<shape type="rect" topLeftX="500" topLeftY="100" width="200" height="100"/>' }], as: 'user' } })
 
 // block_replace：已知某块 id，整块替换（replacement 根 id 自动注入为 bUn）
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'slidesXXXXXXXXXXXXXXXXXXXXXX',
-    slide_id: 'pfG',
-    parts: [{ action: 'block_replace', block_id: 'bUn', replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>' }]
-  },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: 'slidesXXXXXXXXXXXXXXXXXXXXXX', slide_id: 'pfG', parts: [{ action: 'block_replace', block_id: 'bUn', replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>' }], as: 'user' } })
 
-// wiki URL 直接传（自动 get_node → 拿真实 xml_presentation_id）
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'https://xxx.feishu.cn/wiki/wikcnXXXXXX',
-    slide_id: 'pfG',
-    parts: [{ action: 'block_insert', insertion: '<shape type="rect" width="100" height="100"/>' }]
-  },
-  as: 'user'
-})
+// 大 parts 直接传 JSON 数组（从文件读取后作为字符串传入）
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: PID, slide_id: SID, parts: /* contents of parts.json */, as: 'user' } })
+
+// wiki URL 直接传（auto-resolves get_node → 拿真实 xml_presentation_id）
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: 'https://xxx.feishu.cn/wiki/wikcnXXXXXX', slide_id: 'pfG', parts: [{ action: 'block_insert', insertion: '<shape type="rect" width="100" height="100"/>' }], as: 'user' } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `presentation` | 是 | `xml_presentation_id`、`/slides/<token>` URL，或 `/wiki/<token>` URL |
-| `slide_id` | 是 | 页面 ID（`xml_presentation.slide.get` / `xml_presentations.get` 都能拿到） |
-| `parts` | 是 | JSON 数组（`[{...}, ...]`），单次最多 200 条 |
-| `revision_id` | 否 | 基础版本号；默认 `-1` 表示基于最新版执行；传具体版本号时，服务端以该版本为 base 执行；**传不存在的版本号（超过当前 revision）返回 3350002** |
-| `tid` | 否 | 并发事务 ID；多人协作长事务才用，单次单人调用留空 |
+| `--presentation` | 是 | `xml_presentation_id`、`/slides/<token>` URL，或 `/wiki/<token>` URL |
+| `--slide-id` | 是 | 页面 ID（`xml_presentation.slide.get` / `xml_presentations.get` 都能拿到） |
+| `--parts` | 是 | JSON 数组（`[{...}, ...]`），单次最多 200 条。支持 `@<file>` 和 `-`（stdin）读取 |
+| `--revision-id` | 否 | 基础版本号；默认 `-1` 表示基于最新版执行；传具体版本号时，服务端以该版本为 base 执行；**传不存在的版本号（超过当前 revision）返回 3350002** |
+| `--tid` | 否 | 并发事务 ID；多人协作长事务才用，单次单人调用留空 |
 
 ## parts 元素结构
 
@@ -92,7 +68,7 @@ lark_api({
 | `<shape>` | 矩形/椭圆/三角/文本框等所有形状 | `type` 必填；`<content/>` 缺失时 CLI 会自动注入 |
 | `<line>` | 直线 | 需 `startX/startY/endX/endY` |
 | `<polyline>` | 折线 | `points` 读回时被服务端规整丢弃（几何已入库） |
-| `<img>` | 图片 | `src` 必须是 [`media-upload`](lark-slides-media-upload.md) 返回的 `file_token`，不能是 URL |
+| `<img>` | 图片 | `src` 必须是 [`+media-upload`](lark-slides-media-upload.md) 返回的 `file_token`，不能是 URL |
 | `<icon>` | 图标 | `iconType` 取自 iconpark 资源 |
 | `<table>` | 表格 | 整表替换会**重建内部 td id**，旧 td block_id 立即失效 |
 | `<td>` | 单元格局部替换 | 只能 `block_replace`，不能 `block_insert`；`block_id` 必须是最新 `slide.get` 拿到的 td id |
@@ -172,95 +148,45 @@ lark_api({
 
 ### 给已有页加图（典型场景）
 
-```js
-// 1) 上传图片，记录返回的 file_token（FILE_TOKEN）
-lark_api({
-  tool: 'slides',
-  op: 'media-upload',
-  args: { file: './pic.png', presentation: 'PID' },
-  as: 'user'
-})
+```javascript
+const PID = 'xxx';
+const SID = 'yyy';
+
+// 1) 上传图片
+const uploadResult = lark_api({ tool: 'slides', op: 'media-upload', args: { file: './pic.png', xml_presentation_id: PID, as: 'user' } });
+const TOKEN = uploadResult.data.file_token;
 
 // 2) block_insert 到页末
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'PID',
-    slide_id: 'SID',
-    parts: [{ action: 'block_insert', insertion: '<img src="FILE_TOKEN" topLeftX="500" topLeftY="100" width="200" height="150"/>' }]
-  },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: PID, slide_id: SID, parts: [{ action: 'block_insert', insertion: `<img src="${TOKEN}" topLeftX="500" topLeftY="100" width="200" height="150"/>` }], as: 'user' } })
 ```
 
 ### 改标题（block_replace）
 
-```js
+```javascript
 // 先拿原页 XML，从里面找到标题块的 3 位 short id（如 bUn）
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.get',
-  args: { xml_presentation_id: 'PID', slide_id: 'SID' },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: PID, slide_id: SID, as: 'user' } })
 
 // block_replace 换掉整个标题块（id 自动注入）
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'PID',
-    slide_id: 'SID',
-    parts: [{ action: 'block_replace', block_id: 'bUn', replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>' }]
-  },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: PID, slide_id: SID, parts: [{ action: 'block_replace', block_id: 'bUn', replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>' }], as: 'user' } })
 ```
 
 ### 批量：一次换标题 + 追加装饰图
 
-`block_replace` 和 `block_insert` 可以在同一个 `parts` 里混用，整批原子执行。
+`block_replace` 和 `block_insert` 可以在同一个 `--parts` 里混用，整批原子执行。
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'PID',
-    slide_id: 'SID',
-    parts: [
-      { action: 'block_replace', block_id: 'bab', replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>' },
-      { action: 'block_insert', insertion: '<img src="<file_token>" topLeftX="700" topLeftY="400" width="180" height="100"/>' }
-    ]
-  },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: PID, slide_id: SID, parts: [{ action: 'block_replace', block_id: 'bab', replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>' }, { action: 'block_insert', insertion: '<img src="<file_token>" topLeftX="700" topLeftY="400" width="180" height="100"/>' }], as: 'user' } })
 ```
 
 ### 乐观锁
 
-```js
-// 读时记录 revision_id（在返回的 data.revision_id 字段中）
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.get',
-  args: { xml_presentation_id: 'PID', slide_id: 'SID' },
-  as: 'user'
-})
+```javascript
+// 读时记录 revision_id
+const getResult = lark_api({ tool: 'slides', op: 'xml_presentation.slide.get', args: { xml_presentation_id: PID, slide_id: SID, as: 'user' } });
+const REV = getResult.data.revision_id;
 
 // 写时传 revision_id；传不存在的版本号（超过当前 revision）返回 3350002
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'PID',
-    slide_id: 'SID',
-    revision_id: 'REV',
-    parts: 'PARTS'
-  },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: PID, slide_id: SID, revision_id: REV, parts: PARTS, as: 'user' } })
 ```
 
 ## 常见错误
@@ -268,11 +194,11 @@ lark_api({
 | 现象 | 原因 | 对策 |
 |------|------|------|
 | 3350001 + hint "block_id not found" | `parts[i].block_id` 在当前页不存在 | 重新 `slide.get` 拿最新 XML，按里面的 short ID 再填 |
-| 3350002 not found | `revision_id` 传了不存在的版本号（超过当前 revision） | 用 `-1` 或用 `slide.get` 拿到的有效 `revision_id` |
-| `parts[i] action "str_replace" is not supported` | 不暴露 `str_replace` | 把替换需求改写成 `block_replace` / `block_insert` |
-| `parts contains N items, exceeds maximum of 200` | 一次提交 parts 太多 | 拆多次调用 |
-| `parts[i] (block_replace) requires non-empty block_id` / `replacement` | 字段缺失 | 按 parts 元素结构补齐 |
-| `<img>` 不显示 / 显示破图 | `src` 写了外链 URL | 换成通过 [`media-upload`](lark-slides-media-upload.md) 拿到的 `file_token` |
+| 3350002 not found | `--revision-id` 传了不存在的版本号（超过当前 revision） | 用 `-1` 或用 `slide.get` 拿到的有效 `revision_id` |
+| `--parts[i] action "str_replace" is not supported` | CLI 不暴露 `str_replace` | 把替换需求改写成 `block_replace` / `block_insert` |
+| `--parts contains N items, exceeds maximum of 200` | 一次提交 parts 太多 | 拆多次调用 |
+| `--parts[i] (block_replace) requires non-empty block_id` / `replacement` | 字段缺失 | 按 parts 元素结构补齐 |
+| `<img>` 不显示 / 显示破图 | `src` 写了外链 URL | 换成通过 [`+media-upload`](lark-slides-media-upload.md) 拿到的 `file_token` |
 | 3350001 | `replacement` 不是合法单根 XML 片段，或 `block_id` 不存在 | CLI 已自动注入 `id` 和 `<content/>`；如果仍报错，重新 `slide.get` 拿最新 XML 确认 `block_id` 存在；检查 XML 结构是否合法；坐标是否超出 960×540 |
 | 403 | 权限不足 | 需要 `slides:presentation:update` 或 `slides:presentation:write_only`；wiki URL 还需要 `wiki:node:read` |
 
@@ -280,5 +206,5 @@ lark_api({
 
 - [xml_presentation.slide get](lark-slides-xml-presentation-slide-get.md) — 读原页拿 `block_id` / `revision_id`
 - [xml_presentation.slide replace](lark-slides-xml-presentation-slide-replace.md) — 底层 replace API 参考
-- [media-upload](lark-slides-media-upload.md) — 上传图片拿 `file_token`
+- [+media-upload](lark-slides-media-upload.md) — 上传图片拿 `file_token`
 - [lark-slides-edit-workflows.md](lark-slides-edit-workflows.md) — 读-改-写闭环 + 决策树

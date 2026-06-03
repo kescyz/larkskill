@@ -18,13 +18,8 @@
 
 回读命令：
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentations.get',
-  args: { xml_presentation_id: 'YOUR_ID' },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'YOUR_ID' } })
 ```
 
 ## Automated XML Text Overlap Lint

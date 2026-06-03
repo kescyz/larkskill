@@ -6,15 +6,17 @@
 
 ## 命令
 
-```js
-lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { /* ...路径参数 */ }, as: 'user' })
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { xml_presentation_id: '<xml_presentation_id>', slide_id: '<slide_id>', as: 'user' } })
 ```
 
 ## 参数说明
 
-`args` 包含路径参数与查询参数。
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `--params` | JSON string | 是 | 路径参数与查询参数 |
 
-### args 字段结构
+### params JSON 结构
 
 ```json
 {
@@ -36,36 +38,19 @@ lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { /* ...�
 
 ### 删除指定幻灯片
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.delete',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide_id: 'slide_example_id'
-  },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id', as: 'user' } })
 ```
 
 ### 结合查询删除（使用 jq）
 
-```js
-// 先读取 XML 内容（在返回的 data.xml_presentation.content 字段中），确认待删除页面
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentations.get',
-  args: { xml_presentation_id: 'slides_example_presentation_id' },
-  as: 'user'
-})
+```javascript
+// 先读取 XML 内容，确认待删除页面
+lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'slides_example_presentation_id', as: 'user' } })
+// extract: response.data.xml_presentation.content
 
 // 然后按已知 slide_id 删除
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.delete',
-  args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id' },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id', as: 'user' } })
 ```
 
 ## 返回值
@@ -109,16 +94,8 @@ lark_api({
 
 ### 方法 1: 创建时保存
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.create',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新页面</p></content></shape></data></slide>' }
-  },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.create', args: { xml_presentation_id: 'slides_example_presentation_id', slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新页面</p></content></shape></data></slide>' }, as: 'user' } })
 ```
 
 返回结果中的 `slide_id` 就是后续删除所需的值。
@@ -127,20 +104,14 @@ lark_api({
 
 如果需要删除多张幻灯片，建议先整理好待删 `slide_id` 列表，再逐个删除：
 
-对每个待删 `slide_id` 逐个调用：
-
-```js
-// 对 sld_a / sld_b / sld_c 逐个删除
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.delete',
-  args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'sld_a' },
-  as: 'user'
-})
+```javascript
+for (const slide_id of ['sld_a', 'sld_b', 'sld_c']) {
+  lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id, as: 'user' } });
+}
 ```
 
 ## 相关命令
 
-- [create](lark-slides-create.md) - 创建空白 PPT
+- [slides +create](lark-slides-create.md) - 创建空白 PPT
 - [xml_presentations get](lark-slides-xml-presentations-get.md) - 读取 PPT 内容
 - [xml_presentation.slide create](lark-slides-xml-presentation-slide-create.md) - 添加幻灯片页面

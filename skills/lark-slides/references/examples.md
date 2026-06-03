@@ -2,7 +2,7 @@
 
 本文档提供与 CLI schema 一致的调用示例，XML 内容均遵循 [slides_xml_schema_definition.xml](slides_xml_schema_definition.xml)。
 
-> **重要**：创建 PPT 请优先使用 `lark_api({ tool: 'slides', op: 'create' })`；实际页面内容请使用 `lark_api({ tool: 'slides', op: 'xml_presentation.slide.create' })` 逐页添加。
+> **重要**：创建 PPT 请优先使用 `slides +create`；实际页面内容请使用 `xml_presentation.slide.create` 逐页添加。
 
 ## 目录
 
@@ -17,7 +17,7 @@
 
 ## 示例 1: 使用 Shortcut 创建空白演示文稿
 
-```js
+```javascript
 lark_api({ tool: 'slides', op: 'create', args: { title: '项目汇报' } })
 ```
 
@@ -35,36 +35,25 @@ lark_api({ tool: 'slides', op: 'create', args: { title: '项目汇报' } })
 
 ## 示例 2: 创建后添加第一页
 
-```js
-// 先创建，记录返回的 xml_presentation_id
-lark_api({ tool: 'slides', op: 'create', args: { title: '季度复盘' } })
+```javascript
+const createResult = lark_api({ tool: 'slides', op: 'create', args: { title: '季度复盘' } });
+const PRESENTATION_ID = createResult.data.xml_presentation_id;
 
-// 用返回的 PRESENTATION_ID 添加第一页
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.create',
-  args: {
-    xml_presentation_id: 'PRESENTATION_ID',
-    slide: {
-      content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><style><fill><fillColor color="rgb(245, 245, 245)"/></fill></style><data><shape type="text" topLeftX="80" topLeftY="72" width="760" height="90"><content textType="title"><p>2024 Q3 季度复盘</p></content></shape><shape type="text" topLeftX="80" topLeftY="190" width="520" height="220"><content textType="body"><p>关键结论</p><ul><li><p>收入增长 30%</p></li><li><p>重点项目全部上线</p></li><li><p>用户满意度持续提升</p></li></ul></content></shape><shape type="rect" topLeftX="660" topLeftY="180" width="180" height="140"><fill><fillColor color="rgba(100, 149, 237, 0.25)"/></fill><border color="rgb(100, 149, 237)" width="2"/></shape></data><note><content textType="body"><p>讲述时先给结论，再补充数据。</p></content></note></slide>'
-    }
-  },
-  as: 'user'
-})
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.create', args: { xml_presentation_id: PRESENTATION_ID, slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><style><fill><fillColor color="rgb(245, 245, 245)"/></fill></style><data><shape type="text" topLeftX="80" topLeftY="72" width="760" height="90"><content textType="title"><p>2024 Q3 季度复盘</p></content></shape><shape type="text" topLeftX="80" topLeftY="190" width="520" height="220"><content textType="body"><p>关键结论</p><ul><li><p>收入增长 30%</p></li><li><p>重点项目全部上线</p></li><li><p>用户满意度持续提升</p></li></ul></content></shape><shape type="rect" topLeftX="660" topLeftY="180" width="180" height="140"><fill><fillColor color="rgba(100, 149, 237, 0.25)"/></fill><border color="rgb(100, 149, 237)" width="2"/></shape></data><note><content textType="body"><p>讲述时先给结论，再补充数据。</p></content></note></slide>' }, as: 'user' } })
 ```
 
 ## 示例 3: 读取 XML 内容
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentations.get',
-  args: { xml_presentation_id: 'slides_example_presentation_id' },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'slides_example_presentation_id', as: 'user' } })
 ```
 
-XML 内容在返回的 `data.xml_presentation.content` 字段中。
+提取 XML 内容：
+
+```javascript
+const result = lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'slides_example_presentation_id', as: 'user' } });
+const xmlContent = result.data.xml_presentation.content;
+```
 
 预期返回结构：
 
@@ -84,19 +73,8 @@ XML 内容在返回的 `data.xml_presentation.content` 字段中。
 
 ## 示例 4: 在指定页面前插入新幻灯片
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.create',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide: {
-      content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新增页面</p></content></shape><shape type="text" topLeftX="80" topLeftY="200" width="800" height="180"><content textType="body"><p>这是新增页面的正文。</p></content></shape></data></slide>'
-    },
-    before_slide_id: 'sld_before_target'
-  },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.create', args: { xml_presentation_id: 'slides_example_presentation_id', slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新增页面</p></content></shape><shape type="text" topLeftX="80" topLeftY="200" width="800" height="180"><content textType="body"><p>这是新增页面的正文。</p></content></shape></data></slide>' }, before_slide_id: 'sld_before_target', as: 'user' } })
 ```
 
 预期返回结构：
@@ -114,16 +92,8 @@ lark_api({
 
 ## 示例 5: 删除幻灯片
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.delete',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide_id: 'slide_example_id'
-  },
-  as: 'user'
-})
+```javascript
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.delete', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id', as: 'user' } })
 ```
 
 预期返回结构：
@@ -156,50 +126,33 @@ lark_api({
 
 先创建演示文稿：
 
-```js
-// 记录返回的 xml_presentation_id
-lark_api({ tool: 'slides', op: 'create', args: { title: '从文件添加页面' } })
+```javascript
+const createResult = lark_api({ tool: 'slides', op: 'create', args: { title: '从文件添加页面' } });
+const PRESENTATION_ID = createResult.data.xml_presentation_id;
 ```
 
-再把上面 `slide.xml` 的内容作为 `slide.content` 添加页面：
+再从文件读取 XML 内容，添加页面：
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.create',
-  args: {
-    xml_presentation_id: 'PRESENTATION_ID',
-    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>从文件加载</p></content></shape></data></slide>' }
-  },
-  as: 'user'
-})
+```javascript
+// 读取 slide.xml 文件内容后传入
+lark_api({ tool: 'slides', op: 'xml_presentation.slide.create', args: { xml_presentation_id: PRESENTATION_ID, slide: { content: /* content of slide.xml */ }, as: 'user' } })
 ```
 
 ## 示例 7: +replace-slide + block_insert 给已有页加图
 
-只想在已有页上加一张图、不动其他元素——走 shortcut `replace-slide`，`block_insert` 追加到页末（或用 `insert_before_block_id` 指定位置）。
+只想在已有页上加一张图、不动其他元素——走 shortcut `+replace-slide`，`block_insert` 追加到页末（或用 `insert_before_block_id` 指定位置）。
 
-```js
-// 1. 上传图片，记录返回的 file_token（FILE_TOKEN）
-lark_api({
-  tool: 'slides',
-  op: 'media-upload',
-  args: { file: './pic.png', presentation: 'slides_example_presentation_id' },
-  as: 'user'
-})
+```javascript
+const PID = 'slides_example_presentation_id';
+const SID = 'slide_example_id';
+
+// 1. 上传图片拿 file_token
+const uploadResult = lark_api({ tool: 'slides', op: 'media-upload', args: { file: './pic.png', xml_presentation_id: PID, as: 'user' } });
+const TOKEN = uploadResult.data.file_token;
 
 // 2. block_insert 到页面末尾（省略 insert_before_block_id）
-// 注：<img .../> 是自闭合标签，CLI 不会展开（只有 <shape/> 会被补 <content/>）
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'slides_example_presentation_id',
-    slide_id: 'slide_example_id',
-    parts: [{ action: 'block_insert', insertion: '<img src="FILE_TOKEN" topLeftX="500" topLeftY="100" width="200" height="150"/>' }]
-  },
-  as: 'user'
-})
+// 注：<img .../> 是自闭合标签，不会被自动展开（只有 <shape/> 会被补 <content/>）
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: PID, slide_id: SID, parts: [{ action: 'block_insert', insertion: `<img src="${TOKEN}" topLeftX="500" topLeftY="100" width="200" height="150"/>` }], as: 'user' } })
 ```
 
 预期返回：
@@ -220,24 +173,9 @@ lark_api({
 
 已知某块的 3 位 short element ID（从 `slide.get` 返回 XML 里读），整块换掉。`replacement` 根元素的 `id` 会由 CLI 自动注入为 `block_id`，无需手写；若写了 `<shape/>` 自闭合形式，CLI 也会自动补 `<content/>`。
 
-```js
-lark_api({
-  tool: 'slides',
-  op: 'replace-slide',
-  args: {
-    presentation: 'slides_example_presentation_id',
-    slide_id: 'slide_example_id',
-    parts: [
-      {
-        action: 'block_replace',
-        block_id: 'bab',
-        replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>'
-      }
-    ]
-  },
-  as: 'user'
-})
-// CLI 实际发送的 replacement 根元素会带 id="bab"，即使手写时省略了
+```javascript
+lark_api({ tool: 'slides', op: 'replace-slide', args: { xml_presentation_id: 'slides_example_presentation_id', slide_id: 'slide_example_id', parts: [{ action: 'block_replace', block_id: 'bab', replacement: '<shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>新标题</p></content></shape>' }], as: 'user' } })
+// MCP 工具实际发送的 replacement 根元素会带 id="bab"，即使手写时省略了
 ```
 
 失败时（3350001 错误，CLI 在 error 字段中给出 hint）：
@@ -246,7 +184,7 @@ lark_api({
 {
   "ok": false,
   "error": {
-    "type": "api_error",
+    "type": "api",
     "code": 3350001,
     "message": "API error: [3350001] invalid param",
     "hint": "common causes: (1) block_id not found in current slide ..."
@@ -260,42 +198,24 @@ lark_api({
 
 ### 获取最新 revision_id
 
-```js
-// revision_id 在返回的 data.xml_presentation.revision_id 字段中
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentations.get',
-  args: { xml_presentation_id: 'slides_example_presentation_id' },
-  as: 'user'
-})
+```javascript
+const result = lark_api({ tool: 'slides', op: 'xml_presentations.get', args: { xml_presentation_id: 'slides_example_presentation_id', as: 'user' } });
+const revisionId = result.data.xml_presentation.revision_id;
 ```
 
 ### 批量插入多页
 
-逐页调用，每页传一段 `<slide>` XML 作为 `slide.content`：
+```javascript
+const PRESENTATION_ID = 'slides_example_presentation_id';
 
-```js
-// 页面 1
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.create',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 1</p></content></shape></data></slide>' }
-  },
-  as: 'user'
-})
+const slides = [
+  '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 1</p></content></shape></data></slide>',
+  '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 2</p></content></shape></data></slide>',
+];
 
-// 页面 2
-lark_api({
-  tool: 'slides',
-  op: 'xml_presentation.slide.create',
-  args: {
-    xml_presentation_id: 'slides_example_presentation_id',
-    slide: { content: '<slide xmlns="http://www.larkoffice.com/sml/2.0"><data><shape type="text" topLeftX="80" topLeftY="80" width="800" height="120"><content textType="title"><p>页面 2</p></content></shape></data></slide>' }
-  },
-  as: 'user'
-})
+for (const slide_xml of slides) {
+  lark_api({ tool: 'slides', op: 'xml_presentation.slide.create', args: { xml_presentation_id: PRESENTATION_ID, slide: { content: slide_xml }, as: 'user' } });
+}
 ```
 
 ### 本地校验 XML 基本语法
