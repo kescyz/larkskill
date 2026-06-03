@@ -141,13 +141,8 @@ location 筛选只按 `full_address` 字符串匹配，不能直接按经纬度�
 
 ## 4. 推荐命令
 
-```js
-lark_api({ tool: 'base', op: 'view-set-filter', args: {
-  base_token: '<base_token>',
-  table_id: '<table_id>',
-  view_id: '<view_id>',
-  json: { logic: 'and', conditions: [['状态', 'intersects', ['Doing']], ['负责人', 'intersects', [{ id: 'ou_xxx' }]], ['截止时间', 'empty']] }
-} })
+```javascript
+lark_api({ tool: 'base', op: 'view-set-filter', args: { base_token: '<base_token>', table_id: '<table_id>', view_id: '<view_id>', json: '{"logic":"and","conditions":[["状态","intersects",["Doing"]],["负责人","intersects",[{"id":"ou_xxx"}]],["截止时间","empty"]]}' } })
 ```
 
 ## 5. JSON 写法
@@ -173,7 +168,7 @@ lark_api({ tool: 'base', op: 'view-set-filter', args: {
 
 ## 6. 使用建议
 
-- 建议先用 [lark-base-view-get-filter.md](lark-base-view-get-filter.md) 读取现状，再改。
+- 先读取当前筛选配置，理解现有 `logic` 和 `conditions` 的组合关系；只替换用户要求变更的条件，未提到的条件默认保留。
 - 优先传字段 id，不要依赖字段名。
 - 需要清空全部筛选时，直接传 `{"conditions":[]}`。
 
@@ -187,6 +182,4 @@ lark_api({ tool: 'base', op: 'view-set-filter', args: {
 
 ## 8. 参考
 
-- [lark-base-view.md](lark-base-view.md)
-- [lark-base-view-get-filter.md](lark-base-view-get-filter.md)
 - [lookup-field-guide.md](lookup-field-guide.md)

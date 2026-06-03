@@ -76,9 +76,9 @@
 
 用对象数组，元素至少包含 `id`。人员字段传用户 ID（如 `ou_xxx`），群字段传群 ID（如 `oc_xxx`）；单值/多值都统一使用数组。
 
-> **人员字段：不要猜 ID。** 不知道 `open_id` 时，先用 `lark-contact` 查 id：`lark_api({ tool: 'contact', op: 'search-user', args: { query: '<姓名/邮箱/手机号>' }, as: 'user' })`。
+> **人员字段：不要猜 ID。** 不知道 `open_id` 时，先用 `lark-contact` 查 id：`lark_api({ tool: 'contact', op: 'search-user', args: { query: '<姓名/邮箱/手机号>', as: 'user' } })`。
 
-> **群组字段：不要猜 ID。** 不知道 `chat_id` 时，先用 `lark-im` 搜群：`lark_api({ tool: 'im', op: 'chat-search', args: { query: '<群名关键词>' }, as: 'user' })`；取结果里的 `oc_xxx`。
+> **群组字段：不要猜 ID。** 不知道 `chat_id` 时，先用 `lark-im` 搜群：`lark_api({ tool: 'im', op: 'chat-search', args: { query: '<群名关键词>', as: 'user' } })`；取结果里的 `oc_xxx`。
 
 ```json
 {
@@ -121,9 +121,9 @@
 
 ### 2.9 attachment（不作为普通 CellValue 写入）
 
-- 追加附件：使用 `lark_api({ tool: 'base', op: 'record-upload-attachment', args: { record_id: '<record_id>', field_id: '<field_id>', file: '<path>' } })`；可传多个 `file` 一次追加多个附件，不能用普通记录操作接口写附件值。
-- 删除附件：使用 `lark_api({ tool: 'base', op: 'record-remove-attachment', args: { record_id: '<record_id>', field_id: '<field_id>', file_token: '<file_token>' } })`；可传多个 `file_token` 一次删除同一单元格里的多个附件。
-- 下载附件：使用 `lark_api({ tool: 'base', op: 'record-download-attachment', args: { record_id: '<record_id>', file_token: '<file_token>', output: '<dir>' } })`；不传 `file_token` 时下载整行所有附件，也可传多个 `file_token` 只下载指定附件。Base 附件必须用这个命令下载，用其他下载入口可能失败。
+- 追加附件：使用 `lark_api({ tool: 'base', op: 'record-upload-attachment', args: { record_id: '<record_id>', field_id: '<field_id>', file: '<path>' } })`；可重复传多个 `file` 值一次追加多个附件，不能用普通记录操作接口写附件值。
+- 删除附件：使用 `lark_api({ tool: 'base', op: 'record-remove-attachment', args: { record_id: '<record_id>', field_id: '<field_id>', file_token: '<file_token>', yes: true } })`；可重复传多个 `file_token` 值一次删除同一单元格里的多个附件。
+- 下载附件：使用 `lark_api({ tool: 'base', op: 'record-download-attachment', args: { record_id: '<record_id>', file_token: '<file_token>', output: '<dir>' } })`；不传 `file_token` 时下载整行所有附件，也可重复传多个 `file_token` 只下载指定附件。Base 附件必须用这个命令下载，用其他下载入口可能失败。
 
 ## 3. 只读字段（不要写）
 

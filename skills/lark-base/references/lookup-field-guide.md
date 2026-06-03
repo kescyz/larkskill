@@ -2,11 +2,11 @@
 
 ## Mandatory Read Acknowledgement
 
-When creating or updating a lookup field with `lark_api({ tool: 'base', op: 'field-create' | 'field-update', args: { json: ... } })` and `type` is `lookup`, you should read this guide first and only then add `i_have_read_guide: true` to the args.
+When creating or updating a lookup field with `lark_api({ tool: 'base', op: 'field-create' })` / `lark_api({ tool: 'base', op: 'field-update' })` and `type` is `lookup`, you should read this guide first and only then add `i_have_read_guide: true` to `args`.
 
-Do **not** proactively add `i_have_read_guide: true` before reading this guide. Without it, the call will fail fast and direct you back to this guide.
+Do **not** proactively add `--i-have-read-guide` before reading this guide. Without it, the CLI will fail fast and direct you back to this guide.
 
-When using `field-update`, also pass `yes: true`: field update is a high-risk `PUT` operation because changing a field definition can affect the whole column.
+When using `field-update`, also pass `yes: true` in `args`: field update is a high-risk `PUT` operation because changing a field definition can affect the whole column.
 
 ## Default strategy
 
@@ -24,7 +24,7 @@ When creating a lookup field, the Agent should:
 
 **Key constraints**:
 
-- Table names and field names must **exactly match** those returned by `table-list` / `table-get`
+- Table names and field names must **exactly match** those returned by `+table-list` / `+table-get`
 - The `from` table must be in the same Base
 
 ---
@@ -506,7 +506,7 @@ The user says "aggregate order amounts" — use Lookup, not Link. Link establish
 - Where supports only one level of and/or — no nesting
 - Aggregate values are snake_case lowercase: `sum`, `counta`, `unique_counta` (NOT `count`)
 - Operators: `==`, `!=`, `>`, `>=`, `<`, `<=`, `intersects`, `disjoint`, `empty`, `non_empty`
-- Table and field names must exactly match `table-get` output
+- Table and field names must exactly match `+table-get` output
 - `datetime` constant values use string format: `ExactDate(YYYY-MM-DD)` / `ExactDate(YYYY-MM-DD HH:mm)` / `Today` / `Yesterday` / `Tomorrow`
 - `select` constant values use option names;
 - `link` / `user` constant values use `{id}` object arrays
