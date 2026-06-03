@@ -6,27 +6,30 @@
 删除云空间（云盘/云存储）内的文件或文件夹。删除后资源会进入回收站。
 
 > [!CAUTION]
-> 这是**高风险写操作**；如果用户已经明确要求删除且目标明确，直接执行。
+> 这是**高风险写操作**。CLI 层要求显式传 `--yes`；如果用户已经明确要求删除且目标明确，直接执行并带上 `--yes`。
 
 ## 命令
 
-```js
+```javascript
 // 删除普通文件
 lark_api({ tool: 'drive', op: 'delete', args: {
   file_token: '<FILE_TOKEN>',
-  type: 'file'
+  type: 'file',
+  yes: true
 } })
 
 // 删除在线文档
 lark_api({ tool: 'drive', op: 'delete', args: {
   file_token: '<DOCX_TOKEN>',
-  type: 'docx'
+  type: 'docx',
+  yes: true
 } })
 
 // 删除文件夹（异步操作，会自动有限轮询任务状态）
 lark_api({ tool: 'drive', op: 'delete', args: {
   file_token: '<FOLDER_TOKEN>',
-  type: 'folder'
+  type: 'folder',
+  yes: true
 } })
 ```
 
@@ -34,8 +37,9 @@ lark_api({ tool: 'drive', op: 'delete', args: {
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `file_token` | 是 | 需要删除的文件或文件夹 token |
-| `type` | 是 | 文件类型，可选值：`file`、`docx`、`bitable`、`doc`、`sheet`、`mindnote`、`folder`、`shortcut`、`slides` |
+| `--file-token` | 是 | 需要删除的文件或文件夹 token |
+| `--type` | 是 | 文件类型，可选值：`file`、`docx`、`bitable`、`doc`、`sheet`、`mindnote`、`folder`、`shortcut`、`slides` |
+| `--yes` | 是 | 确认执行高风险删除操作 |
 
 ## 行为说明
 
@@ -47,11 +51,12 @@ lark_api({ tool: 'drive', op: 'delete', args: {
 
 ## 推荐续跑方式
 
-```js
+```javascript
 // 第一步：先直接删除文件夹
 lark_api({ tool: 'drive', op: 'delete', args: {
   file_token: '<FOLDER_TOKEN>',
-  type: 'folder'
+  type: 'folder',
+  yes: true
 } })
 
 // 如果返回 ready=false / timed_out=true，再继续查
