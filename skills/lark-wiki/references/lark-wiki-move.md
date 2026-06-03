@@ -7,12 +7,12 @@
 - `node` 模式：移动已有 Wiki 节点，可同空间移动，也可跨空间移动
 - `docs_to_wiki` 模式：把 Drive 文档迁入目标知识空间；必要时可提交移动申请，并在异步任务场景下自动有限轮询
 
-当 `docs_to_wiki` 返回 `task_id` 时，shortcut 会先轮询一小段时间；如果轮询窗口内仍未完成，会返回 `next_command`，让调用方继续执行 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', task_id: '<TASK_ID>' } })`。
+当 `docs_to_wiki` 返回 `task_id` 时，shortcut 会先轮询一小段时间；如果轮询窗口内仍未完成，会返回 `next_command`，让调用方继续执行 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', taskId: '<TASK_ID>' } })`。
 
 ## 与 `drive +move` 的区别
 
-- `wiki +move` 的目标是 **知识空间或 Wiki 父节点**，使用 `target_space_id` / `target_parent_token`
-- `drive +move` 的目标是 **Drive 文件夹**，使用 `folder_token`
+- `wiki +move` 的目标是 **知识空间或 Wiki 父节点**，使用 `--target-space-id` / `--target-parent-token`
+- `drive +move` 的目标是 **Drive 文件夹**，使用 `--folder-token`
 - 如果源对象已经是 Wiki 节点，必须使用 `wiki +move`，而不是 `drive +move`
 - 如果源对象还是 Drive 文档，但用户要“迁入知识库”“挂到某个 Wiki 页面下”，也应使用 `wiki +move`
 - 如果用户只是想整理云空间（云盘/云存储）文件夹，把文件/文件夹挪到另一个 Drive 文件夹，应使用 `drive +move`
@@ -23,38 +23,46 @@
 - 当用户说“移动到某个文件夹”“移动到云空间（云盘/云存储）根目录”时，按 **Drive 文件夹目标** 处理，优先使用 `drive +move`
 - 当用户说“移动到我的文档库”“移动到我的知识库”“放到个人知识库”时，应先按 **Wiki 个人知识库目标** 理解，而不是直接退化成 `drive +move`
 - 遇到“我的文档库”这类表述时，可以把它理解成：先用 `my_library` 去查询用户个人知识库，再拿到真实 `space_id`
-- 推荐做法是先执行 `lark_api({ tool: 'wiki', op: 'spaces.get', args: { space_id: 'my_library' } })`，取回真实知识库 `space_id`，再把这个 `space_id` 用到 `wiki +move`
-- 当前 `wiki +move` 文档的主示例仍以显式 `target_space_id` / `target_parent_token` 为主；如果调用方只有自然语言目标，不要因为目标暂时不明确就改走 `drive +move`
+- 推荐做法是先执行 `lark_api({ tool: 'wiki', op: 'spaces get', args: { params: { space_id: 'my_library' } } })`，取回真实知识库 `space_id`，再把这个 `space_id` 用到 `wiki +move`
+- 当前 `wiki +move` 文档的主示例仍以显式 `--target-space-id` / `--target-parent-token` 为主；如果调用方只有自然语言目标，不要因为目标暂时不明确就改走 `drive +move`
 
 ## 命令
 
-```js
+```javascript
 // 将已有 wiki 节点移动到另一个父节点下
 lark_api({ tool: 'wiki', op: 'move', args: {
-  node_token: '<NODE_TOKEN>',
-  target_parent_token: '<TARGET_PARENT_TOKEN>'
+  nodeToken: '<NODE_TOKEN>',
+  targetParentToken: '<TARGET_PARENT_TOKEN>',
 } })
 
 // 将已有 wiki 节点移动到另一个知识空间根目录
 lark_api({ tool: 'wiki', op: 'move', args: {
-  node_token: '<NODE_TOKEN>',
-  target_space_id: '<TARGET_SPACE_ID>'
+  nodeToken: '<NODE_TOKEN>',
+  targetSpaceId: '<TARGET_SPACE_ID>',
 } })
 
 // 将 Drive 文档迁入某个知识空间根目录
 lark_api({ tool: 'wiki', op: 'move', args: {
-  obj_type: 'docx',
-  obj_token: '<DOC_TOKEN>',
-  target_space_id: '<TARGET_SPACE_ID>'
+  objType: 'docx',
+  objToken: '<DOC_TOKEN>',
+  targetSpaceId: '<TARGET_SPACE_ID>',
 } })
 
 // 将 Drive 文档迁入某个父节点下；如果当前没有直接移动权限，则提交申请
 lark_api({ tool: 'wiki', op: 'move', args: {
-  obj_type: 'sheet',
-  obj_token: '<SHEET_TOKEN>',
-  target_space_id: '<TARGET_SPACE_ID>',
-  target_parent_token: '<TARGET_PARENT_TOKEN>',
-  apply: true
+  objType: 'sheet',
+  objToken: '<SHEET_TOKEN>',
+  targetSpaceId: '<TARGET_SPACE_ID>',
+  targetParentToken: '<TARGET_PARENT_TOKEN>',
+  apply: true,
+} })
+
+// 预览底层调用链
+lark_api({ tool: 'wiki', op: 'move', args: {
+  objType: 'docx',
+  objToken: '<DOC_TOKEN>',
+  targetSpaceId: '<TARGET_SPACE_ID>',
+  dryRun: true,
 } })
 ```
 
@@ -62,13 +70,13 @@ lark_api({ tool: 'wiki', op: 'move', args: {
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `node_token` | 条件必填 | 要移动的 Wiki 节点 token。传入后命令进入 `node` 模式 |
-| `source_space_id` | 否 | 源知识空间 ID，仅 `node` 模式可用；不传时会根据 `--node-token` 自动解析 |
-| `target_space_id` | 条件必填 | 目标知识空间 ID。`docs_to_wiki` 模式必填；`node` 模式下如果不传，则必须传 `--target-parent-token` |
-| `target_parent_token` | 否 | 目标父节点 token。`docs_to_wiki` 不传时表示迁入目标知识空间根目录 |
-| `obj_type` | 条件必填 | Drive 文档类型，仅 `docs_to_wiki` 模式可用。可选值：`doc`、`sheet`、`bitable`、`mindnote`、`docx`、`file`、`slides` |
-| `obj_token` | 条件必填 | Drive 文档 token，仅 `docs_to_wiki` 模式可用 |
-| `apply` | 否 | 仅 `docs_to_wiki` 模式可用；当当前调用方不能直接移动文档时，提交一个 move request |
+| `--node-token` | 条件必填 | 要移动的 Wiki 节点 token。传入后命令进入 `node` 模式 |
+| `--source-space-id` | 否 | 源知识空间 ID，仅 `node` 模式可用；不传时会根据 `--node-token` 自动解析 |
+| `--target-space-id` | 条件必填 | 目标知识空间 ID。`docs_to_wiki` 模式必填；`node` 模式下如果不传，则必须传 `--target-parent-token` |
+| `--target-parent-token` | 否 | 目标父节点 token。`docs_to_wiki` 不传时表示迁入目标知识空间根目录 |
+| `--obj-type` | 条件必填 | Drive 文档类型，仅 `docs_to_wiki` 模式可用。可选值：`doc`、`sheet`、`bitable`、`mindnote`、`docx`、`file`、`slides` |
+| `--obj-token` | 条件必填 | Drive 文档 token，仅 `docs_to_wiki` 模式可用 |
+| `--apply` | 否 | 仅 `docs_to_wiki` 模式可用；当当前调用方不能直接移动文档时，提交一个 move request |
 
 ## 模式选择与校验规则
 
@@ -103,7 +111,7 @@ lark_api({ tool: 'wiki', op: 'move', args: {
   - 如果接口返回 `task_id`，shortcut 会先进入有限轮询
 - **有限轮询窗口**：固定最多轮询 `30` 次，每次间隔 `2` 秒
 - **轮询超时不是失败**：如果轮询窗口结束任务仍在处理中，会返回 `task_id`、`status`、`status_msg`、`ready=false`、`timed_out=true` 和 `next_command`
-- **继续查询**：看到 `next_command` 后，改用 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', task_id: '<TASK_ID>' } })` 继续查
+- **继续查询**：看到 `next_command` 后，改用 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', taskId: '<TASK_ID>' } })` 继续查
 - **任务失败直接报错**：如果轮询期间任务进入失败态，shortcut 会直接返回错误，不会再输出 `ready=false` 结果
 - **轮询请求全部失败时也直接报错**：如果任务已创建，但后续每一次状态查询都失败，shortcut 会返回带 hint 的错误，并给出继续查询命令
 
@@ -143,7 +151,7 @@ lark_api({ tool: 'wiki', op: 'move', args: {
   "status": 1,
   "status_msg": "processing",
   "timed_out": true,
-  "next_command": "lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', task_id: '7500000000000000001' } })"
+  "next_command": "lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', taskId: '7500000000000000001' } })"
 }
 ```
 
@@ -166,9 +174,9 @@ lark_api({ tool: 'wiki', op: 'move', args: {
 
 ## 权限说明
 
-CLI 会在执行前做本地 scope 预检查；当前 shortcut 声明的权限为 `wiki:node:move`、`wiki:node:read`、`wiki:space:read`（分别覆盖 move 写操作、节点解析读操作、以及异步任务轮询读操作）。如果本地 token 已记录 scopes 且缺失任一权限，命令会直接提示重新执行 `lark_auth_login`。
+当前 shortcut 声明的权限为 `wiki:node:move`、`wiki:node:read`、`wiki:space:read`（分别覆盖 move 写操作、节点解析读操作、以及异步任务轮询读操作）。如果 token 缺失任一权限，需重新登录授权。
 
-当异步任务超时后，后续 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', task_id: '<TASK_ID>' } })` 只需要 `wiki:space:read` 权限。
+当异步任务超时后，后续 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_move', taskId: '<TASK_ID>' } })` 只需要 `wiki:space:read` 权限。
 
 > [!CAUTION]
 > `wiki +move` 是**写入操作**。执行前必须确认用户意图，以及目标节点 / 目标知识空间是否明确。

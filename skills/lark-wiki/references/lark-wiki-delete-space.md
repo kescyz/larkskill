@@ -7,22 +7,24 @@
 - **不可逆**：该操作会将知识空间连同其下所有节点彻底删除，执行前必须反复确认
 - **同步 / 异步两种返回**：
   - 如果接口直接返回空 `task_id`，说明删除同步完成，shortcut 立即返回 `ready=true`
-  - 如果接口返回非空 `task_id`，shortcut 会先对任务做有限轮询；轮询窗口内仍未完成会输出 `next_command`，引导调用方使用 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', task_id: '<TASK_ID>' } })` 继续查
+  - 如果接口返回非空 `task_id`，shortcut 会先对任务做有限轮询；轮询窗口内仍未完成会输出 `next_command`，引导调用方使用 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', taskId: '<TASK_ID>' } })` 继续查
 
 ## 命令
 
-```js
-// 同步或异步删除一个知识空间（高风险写操作，需显式确认）
-lark_api({ tool: 'wiki', op: 'delete-space', args: {
-  space_id: '<SPACE_ID>'
-} })
+```javascript
+// 同步或异步删除一个知识空间（必须显式加 yes 确认）
+lark_api({ tool: 'wiki', op: 'delete-space', args: { spaceId: '<SPACE_ID>', yes: true } })
+
+// 预览底层调用链（不会真的删除）
+lark_api({ tool: 'wiki', op: 'delete-space', args: { spaceId: '<SPACE_ID>', dryRun: true } })
 ```
 
 ## 参数
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
-| `space_id` | 是 | 要删除的知识空间 ID |
+| `--space-id` | 是 | 要删除的知识空间 ID |
+| `--yes` | 是（真删时） | 高风险写操作确认。不传则 CLI 直接返回 `unsafe_operation_blocked` 错误 |
 
 ## 行为说明
 
@@ -35,7 +37,7 @@ lark_api({ tool: 'wiki', op: 'delete-space', args: {
   - 其他值（如 `processing`、`running`）→ 视为进行中，继续轮询
 - **有限轮询窗口**：固定最多轮询 `30` 次，每次间隔 `2` 秒
 - **轮询超时不是失败**：如果窗口结束任务仍在处理中，会返回 `task_id`、`status`、`status_msg`、`ready=false`、`timed_out=true`、`next_command`
-- **继续查询**：看到 `next_command` 后，改用 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', task_id: '<TASK_ID>' } })` 继续查
+- **继续查询**：看到 `next_command` 后，改用 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', taskId: '<TASK_ID>' } })` 继续查
 - **轮询请求全部失败时直接报错**：如果任务已创建，但后续每一次状态查询都失败，shortcut 会返回带 hint 的错误，并给出继续查询命令
 
 ## 返回结果
@@ -76,7 +78,7 @@ lark_api({ tool: 'wiki', op: 'delete-space', args: {
   "status": "processing",
   "status_msg": "processing",
   "timed_out": true,
-  "next_command": "lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', task_id: '7631425120875056669-965458aec67417f5982250806c97950697ccb82f', as: 'user' } })"
+  "next_command": "lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', taskId: '7631425120875056669-965458aec67417f5982250806c97950697ccb82f', as: 'user' } })"
 }
 ```
 
@@ -98,21 +100,21 @@ dry-run 会展示两步调用链：
 
 ## 权限说明
 
-当前 shortcut 声明的权限为 `wiki:space:write_only` 和 `wiki:space:read`。前者用于发起删除请求，后者用于轮询同一命令内的异步任务状态；如果本地 token 缺失任一权限，CLI 会直接提示重新执行 `lark_auth_login`。
+当前 shortcut 声明的权限为 `wiki:space:write_only` 和 `wiki:space:read`。前者用于发起删除请求，后者用于轮询同一命令内的异步任务状态；如果本地 token 缺失任一权限，需重新登录授权。
 
-异步超时后的 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', task_id: '<TASK_ID>' } })` 只需 `wiki:space:read`（纯读任务状态）。
+异步超时后的 `lark_api({ tool: 'drive', op: 'task_result', args: { scenario: 'wiki_delete_space', taskId: '<TASK_ID>' } })` 只需 `wiki:space:read`（纯读任务状态）。
 
 ## 空间解析：如何拿到 `space_id`
 
-`wiki +delete-space` 只接受 `space_id` 作为目标。用户在对话里常常只说知识库的**名称**或贴一条**知识库 URL**，这时**不能**把名称 / URL 原样当成 `space_id` 传进去，必须先解析。三种输入路径：
+`wiki +delete-space` 只接受 `--space-id` 作为目标。用户在对话里常常只说知识库的**名称**或贴一条**知识库 URL**，这时**不能**把名称 / URL 原样当成 `space_id` 传进去，必须先解析。三种输入路径：
 
 ### 1. 已经有 `space_id`
 直接用，无需解析。
 
 ### 2. 只有知识库 URL（`.../wiki/<token>`）
 
-```js
-lark_api({ tool: 'wiki', op: 'spaces.get_node', args: { token: '<wiki_token>' } })
+```javascript
+lark_api({ tool: 'wiki', op: 'spaces get_node', args: { params: { token: '<wiki_token>' } } })
 ```
 
 读取 `data.node.space_id`。
@@ -121,12 +123,12 @@ lark_api({ tool: 'wiki', op: 'spaces.get_node', args: { token: '<wiki_token>' } 
 
 调用 `wiki spaces list`：
 
-```js
+```javascript
 // 第一页
-lark_api({ tool: 'wiki', op: 'spaces.list', args: {} })
+lark_api({ tool: 'wiki', op: 'spaces list', args: {} })
 
 // 如果需要继续翻页（看下方停止条件），带上 page_token
-lark_api({ tool: 'wiki', op: 'spaces.list', args: { page_token: '<上一页返回的 page_token>' } })
+lark_api({ tool: 'wiki', op: 'spaces list', args: { params: { page_token: '<上一页返回的 page_token>' } } })
 ```
 
 #### 翻页与匹配策略
@@ -175,20 +177,20 @@ lark_api({ tool: 'wiki', op: 'spaces.list', args: { page_token: '<上一页返�
 
 用户明确选定 `space_id` 后：
 
-```js
-lark_api({ tool: 'wiki', op: 'delete-space', args: { space_id: '<RESOLVED_SPACE_ID>' } })
+```javascript
+lark_api({ tool: 'wiki', op: 'delete-space', args: { spaceId: '<RESOLVED_SPACE_ID>', yes: true } })
 ```
 
 > [!IMPORTANT]
-> 删库不可逆。关键不变量：**发给服务端的 `space_id` 必须是用户在上一轮对话里明确指认过的那一个**，不是 LLM 单方面"从匹配结果自动选"。
+> 删库不可逆。关键不变量：**发给服务端的 `--space-id` 必须是用户在上一轮对话里明确指认过的那一个**，不是 LLM 单方面"从匹配结果自动选"。
 
 ## 风险等级
 
 - Risk：**`high-risk-write`**
-- 框架会强制要求显式确认；未确认时命令会直接返回 `unsafe_operation_blocked` 错误，不会真的发请求
+- 框架会强制要求 `--yes` 确认；不传 `--yes` 时命令会直接返回 `unsafe_operation_blocked` 错误，不会真的发请求
 
 > [!CAUTION]
-> `wiki +delete-space` 是**不可逆的写入操作**。执行前务必与用户再次确认 `space_id`，并清楚该空间下的所有节点都会一并被删除。
+> `wiki +delete-space` 是**不可逆的写入操作**。执行前务必与用户再次确认 `--space-id`，并清楚该空间下的所有节点都会一并被删除。
 
 ## 参考
 

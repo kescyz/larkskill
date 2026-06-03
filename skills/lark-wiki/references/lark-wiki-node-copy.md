@@ -2,18 +2,19 @@
 
 Copy a wiki node (including its content) to a target space or under a target parent node. Used for cross-space migration.
 
-> ⚠️ **High-risk write** — the upstream API is flagged `danger: true`, so this shortcut requires explicit confirmation before issuing the request. Without confirmation it returns a `confirmation_required` error and the copy is **not** performed.
+> ⚠️ **High-risk write** — the upstream API is flagged `danger: true`, so this shortcut requires explicit `--yes` confirmation before issuing the request. Forgetting `--yes` returns a `confirmation_required` error and the copy is **not** performed.
 
 ## Usage
 
-```js
+```javascript
 lark_api({ tool: 'wiki', op: 'node-copy', args: {
-  space_id: '<source_space_id>',
-  node_token: '<source_node_token>',
-  // one of: target_space_id: '<target_space_id>' | target_parent_node_token: '<token>'
-  target_space_id: '<target_space_id>',
-  // title: '<new_title>',
-  as: 'user'
+  spaceId: '<source_space_id>',
+  nodeToken: '<source_node_token>',
+  // targetSpaceId: '<target_space_id>',           // one of these is required
+  // targetParentNodeToken: '<token>',              // one of these is required
+  // title: '<new_title>',                          // optional
+  yes: true,
+  // as: 'user',                                    // optional
 } })
 ```
 
@@ -21,14 +22,16 @@ lark_api({ tool: 'wiki', op: 'node-copy', args: {
 
 | Flag | Required | Description |
 |------|----------|-------------|
-| `space_id` | **Yes** | Source wiki space ID |
-| `node_token` | **Yes** | Source node token to copy |
-| `target_space_id` | Conditional | Target space ID. Required if `target_parent_node_token` is not set |
-| `target_parent_node_token` | Conditional | Target parent node token. Required if `target_space_id` is not set |
-| `title` | No | New title for the copied node. Omit to keep the original title |
-| `as` | No | Identity `user`/`bot` (default `auto`); wiki is user-centric → pass `as: 'user'` |
+| `--space-id` | **Yes** | Source wiki space ID |
+| `--node-token` | **Yes** | Source node token to copy |
+| `--target-space-id` | Conditional | Target space ID. Required if `--target-parent-node-token` is not set |
+| `--target-parent-node-token` | Conditional | Target parent node token. Required if `--target-space-id` is not set |
+| `--title` | No | New title for the copied node. Omit to keep the original title |
+| `--yes` | **Yes** | Confirm the high-risk operation. Without this flag the shortcut refuses to send the API request |
+| `--format` | No | Output format: `json` (default) / `pretty` / `table` / `csv` / `ndjson` |
+| `--as` | No | Identity `user`/`bot` (default `auto`); wiki is user-centric → pass `--as user` |
 
-> At least one of `target_space_id` or `target_parent_node_token` must be provided.
+> At least one of `--target-space-id` or `--target-parent-node-token` must be provided.
 
 ## Output
 
@@ -49,15 +52,16 @@ lark_api({ tool: 'wiki', op: 'node-copy', args: {
 
 To migrate a subtree from one space to another:
 
-```js
+```javascript
 // 1. List nodes in the source space
-lark_api({ tool: 'wiki', op: 'node-list', args: { space_id: 'source_space_id' } })
+lark_api({ tool: 'wiki', op: 'node-list', args: { spaceId: 'source_space_id' } })
 
 // 2. Copy each node to the target space
 lark_api({ tool: 'wiki', op: 'node-copy', args: {
-  space_id: '<source_space_id>',
-  node_token: 'wikcn_EXAMPLE_TOKEN',
-  target_space_id: '<target_space_id>'
+  spaceId: '<source_space_id>',
+  nodeToken: 'wikcn_EXAMPLE_TOKEN',
+  targetSpaceId: '<target_space_id>',
+  yes: true,
 } })
 ```
 
